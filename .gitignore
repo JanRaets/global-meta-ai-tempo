@@ -1,0 +1,19 @@
+# OS
+.DS_Store
+
+# .NET
+bin/
+obj/
+*.user
+
+# Node / Vite
+node_modules/
+dist/
+*.local
+
+# Secrets — never commit keys
+.env
+appsettings.*.local.json
+
+# Local notes (not part of the submission)
+tempo-prompts.md

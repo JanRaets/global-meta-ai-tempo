@@ -1,0 +1,61 @@
+# nudging Specification
+
+## ADDED Requirements
+
+### Requirement: Leave-now nudge
+The system SHALL send one Telegram message per plan version at `leaveAt − nudgeLeadMin` stating the leave time, the mode, the destination and any included stops.
+
+#### Scenario: Nudge sent on time
+- **WHEN** the current time reaches `leaveAt − 10 min` for plan version 3 and no nudge exists for `(planId, 3)`
+- **THEN** a `Nudge` of kind `Leave` is created and sent, and its text names the mode and leave time in at most two sentences
+
+#### Scenario: Duplicate suppressed
+- **WHEN** a nudge already exists for `(planId, 3)`
+- **THEN** no second message is sent
+
+#### Scenario: Plan version changes after nudge
+- **WHEN** the plan moves to version 4 with `leaveAt` more than 5 minutes different
+- **THEN** a new nudge is sent that states it replaces the previous one
+
+### Requirement: Nudge text validation
+`notify.send` SHALL validate the agent's text against the committed plan: it must contain the plan's leave time and mode, be at most two sentences, and contain no time value that does not appear in the committed plan or its options.
+
+#### Scenario: Wording missing required facts
+- **WHEN** the text lacks the leave time
+- **THEN** the tool returns `Refused: missing leave time` so the agent can retry; after the run ends without a valid send, the system sends a deterministic template
+
+#### Scenario: Invented time
+- **WHEN** the text contains "09:15" and no plan or option has that time
+- **THEN** the tool refuses with `Refused: unknown time 09:15`
+
+### Requirement: Late recovery nudge
+The system SHALL send one `Late` nudge when the current time passes `leaveAt`, the user is not at the destination, and no `Late` nudge exists for the plan version; the message SHALL propose exactly one recovery option, which the agent chose and committed from `plan.options`.
+
+### Requirement: Why link
+Every nudge SHALL carry a reference to the `AgentTrace` of the run that produced it, and the Telegram message SHALL include a "Why?" button that returns the trace rendered as plain-language steps.
+
+#### Scenario: Why tapped
+- **WHEN** the user taps Why? on a late nudge
+- **THEN** a message lists the steps (e.g. "Checked 4 options · Only skipping coffee arrives on time · Sent this nudge")
+
+#### Scenario: Skip a stop
+- **WHEN** skipping the coffee stop makes the appointment reachable on time and switching mode does not
+- **THEN** the nudge proposes skipping the coffee
+
+#### Scenario: Nothing feasible
+- **WHEN** no alternative arrives on time
+- **THEN** the nudge states the earliest possible arrival and the mode that achieves it
+
+### Requirement: Quiet hours
+The system SHALL suppress all nudges during the user's quiet hours except a `Late` nudge for an appointment starting within 60 minutes.
+
+#### Scenario: Habit proposal in quiet hours
+- **WHEN** a habit proposal is due at 23:30 and quiet hours are 22:00–07:00
+- **THEN** it is deferred to the next batch after 07:00
+
+### Requirement: Telegram transport
+The system SHALL deliver nudges and habit proposals through a Telegram bot to the user's `telegramChatId`, and SHALL handle inline button callbacks for habit confirmation.
+
+#### Scenario: Send failure
+- **WHEN** the Telegram API returns an error
+- **THEN** the send is retried up to 3 times with backoff and the `Nudge` records the final status
