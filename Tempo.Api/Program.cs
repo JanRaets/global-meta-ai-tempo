@@ -7,6 +7,7 @@ using Tempo.Core.Data;
 using Tempo.Core.Domain;
 using Tempo.Core.Events;
 using Tempo.Core.Geo;
+using Tempo.Core.Location;
 using Tempo.Core.Redis;
 using Tempo.Integrations.Google;
 using Tempo.Integrations.Maps;
@@ -40,6 +41,12 @@ var redisConnection = builder.Configuration.GetConnectionString("Redis")
 builder.Services.AddSingleton<StackExchange.Redis.IConnectionMultiplexer>(
     StackExchange.Redis.ConnectionMultiplexer.Connect(redisConnection + ",abortConnect=false"));
 builder.Services.AddSingleton<IRoutingCache, RedisRoutingCache>();
+builder.Services.AddSingleton<ILocationBuffer, RedisLocationBuffer>();
+builder.Services.AddSingleton<LocationIngestService>();
+builder.Services.AddSingleton<CurrentLocationProvider>();
+builder.Services.AddScoped<Tempo.Api.Endpoints.LocationApiKeyAuth>();
+builder.Services.AddScoped<CollapseVisitsService>();
+builder.Services.AddScoped<CollapseVisitsJob>();
 
 builder.Services.AddDataProtection();
 builder.Services.AddMemoryCache();
@@ -92,6 +99,8 @@ await using (var scope = app.Services.CreateAsyncScope())
 
 app.Services.GetRequiredService<IRecurringJobManager>()
     .AddOrUpdate<CalendarSyncJob>("calendar-sync", j => j.RunAsync(CancellationToken.None), "*/5 * * * *");
+app.Services.GetRequiredService<IRecurringJobManager>()
+    .AddOrUpdate<CollapseVisitsJob>("collapse-visits", j => j.RunAsync(CancellationToken.None), "*/10 * * * *");
 
 app.UseDefaultFiles();   // Tempo.Web builds into wwwroot
 app.UseStaticFiles();

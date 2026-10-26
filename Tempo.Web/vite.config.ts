@@ -32,6 +32,10 @@ export default defineConfig({
     proxy: {
       '/health': 'http://localhost:5181',
       '/api': 'http://localhost:5181',
+      '/location': 'http://localhost:5181',
+      '/admin': 'http://localhost:5181',
+      '/auth': 'http://localhost:5181',
+      '/sync': 'http://localhost:5181',
     },
   },
 })

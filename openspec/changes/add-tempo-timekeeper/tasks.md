@@ -42,14 +42,14 @@ Building period 27 Oct – 4 Nov 2026. Target day per section is a guide, not a 
 - [x] 4.3 Tests: fixed route pair stable; cache hit
 
 ## 5. Location ingest — Thu 29 Oct
-- [ ] 5.1 `POST /location` with per-user API key; validation; Redis list 24h TTL
-- [ ] 5.2 `ILocationSource` + `GpxReplaySource` with speed factor
-- [ ] 5.3 `CollapseVisitsJob` every 10 min: stay detection (≥5 min, 75 m), reverse-geocode, create/update `Visit`
-- [ ] 5.4 `location.current()` with `isStale` after 30 min
-- [ ] 5.5 PWA: `watchPosition` → `POST /location`, throttled; permission prompt with one-line explanation
-- [ ] 5.6 `POST /location/owntracks` adapter (HTTP mode JSON → standard point; returns `[]`)
-- [ ] 5.7 **Install Owntracks on the builder's phone, point it at the tunnel, and leave it running for the rest of the building period** so real Visits accumulate
-- [ ] 5.8 Tests: stay detected, transit ignored, ongoing stay updated, stale fallback, Owntracks mapping
+- [x] 5.1 `POST /location` with per-user API key; validation; Redis list 24h TTL
+- [x] 5.2 `ILocationSource` + `GpxReplaySource` with speed factor — *source + tests done; wired to the demo-mode toggle in section 12/13*
+- [x] 5.3 `CollapseVisitsJob` every 10 min: stay detection (≥5 min, 75 m), reverse-geocode, create/update `Visit`
+- [x] 5.4 `location.current()` with `isStale` after 30 min
+- [x] 5.5 PWA: `watchPosition` → `POST /location`, throttled; permission prompt with one-line explanation — *minimal hook + live dot; real Now screen in section 12*
+- [x] 5.6 `POST /location/owntracks` adapter (HTTP mode JSON → standard point; returns `[]`) — *verified live through the tunnel; key via ?key= or Authorization header*
+- [ ] 5.7 **Install Owntracks on the builder's phone, point it at the tunnel, and leave it running for the rest of the building period** so real Visits accumulate — *builder step; exact settings reported 26 Oct, server + tunnel left running*
+- [x] 5.8 Tests: stay detected, transit ignored, ongoing stay updated, stale fallback, Owntracks mapping
 
 ## 6. Departure planning tools — Thu 29 / Fri 30 Oct
 - [ ] 6.1 `plan.options(appointmentId)` per design D6: modes × stop subsets, per-plan input changes (skipped stop, extra stop, late offset)

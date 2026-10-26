@@ -48,4 +48,15 @@ brew install cloudflared
 cloudflared tunnel --url http://localhost:5181
 ```
 
-Open the printed `https://….trycloudflare.com` URL on the phone, add to home screen, grant location + microphone. (A named tunnel with a stable hostname is nicer for Owntracks later; the quick tunnel is enough to start.)
+Open the printed `https://….trycloudflare.com` URL on the phone, add to home screen, grant location + microphone.
+
+**The quick tunnel's hostname changes on every restart** — after a restart, Owntracks (and the home-screen PWA) point at a dead host until you update them. For a stable hostname, make a named tunnel once (needs a free Cloudflare account and a domain in it):
+
+```sh
+cloudflared tunnel login
+cloudflared tunnel create tempo
+cloudflared tunnel route dns tempo tempo.<your-domain>
+cloudflared tunnel run --url http://localhost:5181 tempo
+```
+
+Owntracks setup: Settings → Mode **HTTP**, URL `https://<tunnel-host>/location/owntracks?key=<key>` (key from `GET /admin/location-key`, dev only). Check `GET /admin/location-stats` to see points arriving.
