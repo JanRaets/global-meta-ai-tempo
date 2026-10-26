@@ -69,13 +69,13 @@ Building period 27 Oct – 4 Nov 2026. Target day per section is a guide, not a 
 - [x] 7.8 Run against the real provider on a real appointment; fix prompt until 5/5 runs commit sensibly — *5/5 live Muse Spark runs 26 Oct: normal, window+nudge, duplicate handled, only-feasible-mode, late recovery; no fabricated times, no refusal loops; traces reported*
 
 ## 8. Habit learning — Sat 31 Oct
-- [ ] 8.1 `HabitInferenceJob` nightly + on-demand: thresholds ≥3 visits / stddev ≤8 min
-- [ ] 8.2 Dedup; 30-day rejected suppression
-- [ ] 8.3 Spark proposal wording via `ChatJsonAsync<HabitProposalText>`; numeric facts immutable
-- [ ] 8.4 Daily proposal batch (one notification/day) through `INudgeTransport`; confirm/reject route through `ConfirmHabitHandler` (push delivery itself lands in section 9)
-- [ ] 8.5 Endpoints: `GET /habits?state=`, `POST /habits/{id}/confirm|reject`
-- [ ] 8.6 Tests: detected, insufficient, irregular, already-decided, confirm triggers agent run
-- [ ] 8.7 With habit learning live: seed one confirmed morning-coffee habit and rerun the five section-7 live scenarios with stops present (keep the coffee, drop the coffee, skip-a-stop recovery); paste the traces — this is the set for the judges
+- [x] 8.1 `HabitInferenceJob` nightly + on-demand: thresholds ≥3 visits / stddev ≤8 min
+- [x] 8.2 Dedup; 30-day rejected suppression
+- [x] 8.3 Spark proposal wording via `ChatJsonAsync<HabitProposalText>`; numeric facts immutable — *numbers in model text validated against avg/count; template fallback on drift or model failure*
+- [x] 8.4 Daily proposal batch (one notification/day) through `INudgeTransport`; confirm/reject route through `ConfirmHabitHandler` (push delivery itself lands in section 9)
+- [x] 8.5 Endpoints: `GET /habits?state=`, `POST /habits/{id}/confirm|reject`
+- [x] 8.6 Tests: detected, insufficient, irregular, already-decided, confirm triggers agent run
+- [x] 8.7 With habit learning live: seed one confirmed morning-coffee habit and rerun the five section-7 live scenarios with stops present (keep the coffee, drop the coffee, skip-a-stop recovery); paste the traces — this is the set for the judges — *done 27 Oct: inference → live Spark wording → confirms → 5/5 scenarios incl. coffee kept/dropped, skip-stop recovery, nothing-feasible, Thursday supermarket; traces reported. Added en route: previous-bucket habit matching (D5 note) and `nudgeWindowOpen` computed in tool results*
 
 ## 9. Push notifications — Sat 31 Oct *(was Telegram; replaced 27 Oct, design D16)*
 - [ ] 9.1 VAPID keys (user-secrets) + `Push:*` config; delete `Tempo.Integrations.Telegram` from the solution

@@ -57,6 +57,11 @@ builder.Services.AddSingleton<CurrentLocationProvider>();
 builder.Services.AddScoped<Tempo.Api.Endpoints.LocationApiKeyAuth>();
 builder.Services.AddScoped<CollapseVisitsService>();
 builder.Services.AddScoped<CollapseVisitsJob>();
+builder.Services.AddScoped<HabitWording>();
+builder.Services.AddScoped<HabitInferenceService>();
+builder.Services.AddScoped<HabitInferenceJob>();
+builder.Services.AddScoped<HabitProposalBatchService>();
+builder.Services.AddScoped<HabitProposalBatchJob>();
 
 builder.Services.AddDataProtection();
 builder.Services.AddMemoryCache();
@@ -113,6 +118,10 @@ app.Services.GetRequiredService<IRecurringJobManager>()
     .AddOrUpdate<CollapseVisitsJob>("collapse-visits", j => j.RunAsync(CancellationToken.None), "*/10 * * * *");
 app.Services.GetRequiredService<IRecurringJobManager>()
     .AddOrUpdate<Tempo.Agent.PlannerTickJob>("planner-tick", j => j.RunAsync(CancellationToken.None), "*/2 * * * *");
+app.Services.GetRequiredService<IRecurringJobManager>()
+    .AddOrUpdate<HabitInferenceJob>("habit-inference", j => j.RunAsync(CancellationToken.None), "0 2 * * *");   // 03:00 local
+app.Services.GetRequiredService<IRecurringJobManager>()
+    .AddOrUpdate<HabitProposalBatchJob>("habit-proposal-batch", j => j.RunAsync(CancellationToken.None), "0 7 * * *"); // 08:00 local, after quiet hours
 
 app.UseDefaultFiles();   // Tempo.Web builds into wwwroot
 app.UseStaticFiles();

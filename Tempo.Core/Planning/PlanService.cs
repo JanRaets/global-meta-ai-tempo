@@ -156,19 +156,32 @@ public sealed class PlanService(
     private async Task<IReadOnlyList<ConfirmedHabit>> MatchingHabitsAsync(PlanContext ctx, CancellationToken ct)
     {
         var skipped = ctx.Inputs?.SkippedPlaceIds ?? [];
+        // A stop on the way happens shortly before the appointment, so its habit bucket may be
+        // the one preceding the appointment's (08:50 coffee before a 09:30 meeting: Early vs
+        // Morning). Match both buckets (D5 note, 27 Oct).
+        var preKey = ctx.Key with { TimeBucket = PreviousBucket(ctx.Key.TimeBucket) };
         return (await db.Habits.Include(h => h.Place)
                 .Where(h => h.State == HabitState.Confirmed)
                 .ToListAsync(ct))
             .Select(ConfirmHabitHandler.FromPersisted)
-            .Where(h => h.Matches(ctx.Key) && !skipped.Contains(h.PlaceId))
+            .Where(h => (h.Matches(ctx.Key) || h.Matches(preKey)) && !skipped.Contains(h.PlaceId))
             .ToList();
     }
+
+    private static TimeBucket PreviousBucket(TimeBucket bucket) => bucket switch
+    {
+        TimeBucket.Morning => TimeBucket.Early,
+        TimeBucket.Midday => TimeBucket.Morning,
+        TimeBucket.Afternoon => TimeBucket.Midday,
+        TimeBucket.Evening => TimeBucket.Afternoon,
+        _ => TimeBucket.Evening, // Early wraps to the previous evening
+    };
 
     private static bool SameStops(IReadOnlyList<PlanStop> a, IReadOnlyList<PlanStop> b) =>
         a.Select(s => s.PlaceId).Order().SequenceEqual(b.Select(s => s.PlaceId).Order());
 
-    /// <summary>Planning context for habit matching (design D5). AdjacentAppointmentKind stays
-    /// null until section 8 defines kinds, so kind-specific habits conservatively never match.</summary>
+    /// <summary>Planning context for habit matching (design D5). The adjacent-appointment kind
+    /// is the appointment's own kind, classified deterministically from its title.</summary>
     private static ContextKey BuildPlanningContext(Appointment appointment, UserSettings settings, Place? homePlace, GeoPoint origin)
     {
         var tz = TimeZoneInfo.FindSystemTimeZoneById(settings.TimeZone);
@@ -178,6 +191,7 @@ public sealed class PlanService(
             : homePlace is not null && GeoMath.DistanceMeters(origin.Lat, origin.Lng, homePlace.Lat, homePlace.Lng) <= 100
                 ? TravelDirection.AwayFromHome
             : TravelDirection.Other;
-        return new ContextKey(localStart.DayOfWeek, ContextKey.BucketOf(TimeOnly.FromDateTime(localStart.DateTime)), direction, null);
+        return new ContextKey(localStart.DayOfWeek, ContextKey.BucketOf(TimeOnly.FromDateTime(localStart.DateTime)), direction,
+            AppointmentKind.Classify(appointment.Title));
     }
 }

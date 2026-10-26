@@ -57,6 +57,8 @@ public sealed class Habit
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? DecidedAt { get; set; }
     public DateTimeOffset? LastProposedAt { get; set; }
+    /// <summary>Times this proposal was included in a daily batch; an unanswered proposal is re-sent once after 7 days.</summary>
+    public int ProposalSentCount { get; set; }
 }
 
 public sealed record PlanStop(Guid PlaceId, string Name, int DurationMin);

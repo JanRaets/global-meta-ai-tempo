@@ -193,6 +193,9 @@ namespace Tempo.Api.Migrations
                     b.Property<Guid>("PlaceId")
                         .HasColumnType("uuid");
 
+                    b.Property<int>("ProposalSentCount")
+                        .HasColumnType("integer");
+
                     b.Property<string>("ProposalText")
                         .HasColumnType("text");
 

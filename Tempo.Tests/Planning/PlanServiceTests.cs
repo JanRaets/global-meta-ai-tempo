@@ -100,6 +100,19 @@ public sealed class PlanServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task A_habit_in_the_bucket_before_the_appointment_also_matches()
+    {
+        var cafe = AddConfirmedCoffeeHabit();
+        var habit = db.Context.Habits.Single();
+        habit.Context = habit.Context with { TimeBucket = TimeBucket.Early }; // 08:50-style stop before a Morning appointment
+        db.Context.SaveChanges();
+
+        var result = await Service().OptionsAsync(appointment.Id);
+
+        Assert.Contains(result.Options, o => o.Stops.Any(s => s.PlaceId == cafe.Id));
+    }
+
+    [Fact]
     public async Task Proposed_habit_is_ignored()
     {
         AddConfirmedCoffeeHabit(HabitState.Proposed);

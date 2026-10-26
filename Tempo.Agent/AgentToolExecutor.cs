@@ -117,7 +117,15 @@ public sealed class AgentToolExecutor(
         Committed = true;
         var plan = result.Plan!;
         var stops = plan.Stops.Count == 0 ? "no stops" : string.Join(", ", plan.Stops.Select(s => s.Name));
-        return (ToJson(new { committed = true, version = plan.Version, mode = plan.Mode.ToString().ToLowerInvariant(), leaveAt = Fmt(plan.LeaveAt), arriveAt = Fmt(plan.ArriveAt) }),
+        return (ToJson(new
+        {
+            committed = true,
+            version = plan.Version,
+            mode = plan.Mode.ToString().ToLowerInvariant(),
+            leaveAt = Fmt(plan.LeaveAt),
+            arriveAt = Fmt(plan.ArriveAt),
+            nudgeWindowOpen = NudgeWindowOpen(plan), // computed here — the model never does clock arithmetic
+        }),
             $"committed v{plan.Version}: {plan.Mode}, leave {Fmt(plan.LeaveAt)}, {stops}");
     }
 
@@ -133,6 +141,7 @@ public sealed class AgentToolExecutor(
             arriveAt = Fmt(plan.ArriveAt),
             stops = plan.Stops.Select(s => s.Name).ToList(),
             isFeasible = plan.IsFeasible,
+            nudgeWindowOpen = NudgeWindowOpen(plan),
         }), $"current plan: {plan.Mode}, leave {Fmt(plan.LeaveAt)}");
     }
 
@@ -174,6 +183,9 @@ public sealed class AgentToolExecutor(
         var raw = Arg(call).GetProperty("appointmentId").GetString() ?? "";
         return Guid.TryParse(raw, out var id) ? id : throw new ArgumentException($"'{raw}' is not an appointment id");
     }
+
+    private bool NudgeWindowOpen(DeparturePlan plan) =>
+        clock.GetUtcNow() >= plan.LeaveAt.AddMinutes(-settings.NudgeLeadMin);
 
     private static JsonElement Arg(ToolCall call) => JsonDocument.Parse(
         string.IsNullOrWhiteSpace(call.ArgumentsJson) ? "{}" : call.ArgumentsJson).RootElement;
