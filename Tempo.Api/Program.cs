@@ -1,10 +1,16 @@
 using FastEndpoints;
+using Hangfire;
+using Hangfire.PostgreSql;
 using Microsoft.EntityFrameworkCore;
 using Tempo.Core.Configuration;
 using Tempo.Core.Data;
 using Tempo.Core.Domain;
 using Tempo.Core.Events;
+using Tempo.Core.Geo;
+using Tempo.Integrations.Google;
+using Tempo.Integrations.Maps;
 using Tempo.Integrations.Meta;
+using Tempo.Jobs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,16 +20,30 @@ builder.Configuration.AddJsonFile("appsettings.local.json", optional: true, relo
 // Config schema (fail fast; see architecture.md). Each integration enforces its own
 // required values the moment it is registered.
 builder.Services.AddMetaModels(builder.Configuration);
-builder.Services.AddOptions<RoutingOptions>().Bind(builder.Configuration.GetSection(RoutingOptions.Section));
 builder.Services.AddOptions<TelegramOptions>().Bind(builder.Configuration.GetSection(TelegramOptions.Section));
-builder.Services.AddOptions<GoogleOptions>().Bind(builder.Configuration.GetSection(GoogleOptions.Section));
+// Routing and Google options are bound by AddMapsIntegration / AddGoogleCalendar below.
 
 var postgres = builder.Configuration.GetConnectionString("Postgres")
     ?? throw new InvalidOperationException("Missing configuration value ConnectionStrings:Postgres");
 builder.Services.AddDbContext<TempoDbContext>(o => o.UseNpgsql(postgres, b => b.MigrationsAssembly("Tempo.Api")));
 
 builder.Services.AddSingleton<IDomainEvents, LoggingDomainEvents>();
+builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<ConfirmHabitHandler>();
+builder.Services.AddScoped<PlaceResolver>();
+builder.Services.AddScoped<CalendarSyncService>();
+builder.Services.AddScoped<CalendarSyncJob>();
+
+builder.Services.AddDataProtection();
+builder.Services.AddMemoryCache();
+builder.Services.AddGoogleCalendar(builder.Configuration);
+builder.Services.AddMapsIntegration(builder.Configuration);
+
+builder.Services.AddHangfire(c => c
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UsePostgreSqlStorage(o => o.UseNpgsqlConnection(postgres)));
+builder.Services.AddHangfireServer();
 
 builder.Services.AddFastEndpoints();
 
@@ -62,6 +82,9 @@ await using (var scope = app.Services.CreateAsyncScope())
         await db.SaveChangesAsync();
     }
 }
+
+app.Services.GetRequiredService<IRecurringJobManager>()
+    .AddOrUpdate<CalendarSyncJob>("calendar-sync", j => j.RunAsync(CancellationToken.None), "*/5 * * * *");
 
 app.UseDefaultFiles();   // Tempo.Web builds into wwwroot
 app.UseStaticFiles();

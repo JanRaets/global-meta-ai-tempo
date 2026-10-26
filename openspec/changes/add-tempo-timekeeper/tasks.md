@@ -30,11 +30,11 @@ Building period 27 Oct – 4 Nov 2026. Target day per section is a guide, not a 
 - [x] 2.5 Tests: `ConfirmedHabit` has no public constructor; `ContextKey` matching incl. weekend mismatch
 
 ## 3. Calendar sync — Wed 28 Oct
-- [ ] 3.1 Google OAuth (readonly scope), encrypted token storage
-- [ ] 3.2 `CalendarSyncJob` every 5 min + on-demand; window [−1h, +7d]
-- [ ] 3.3 Geocode location → `Place` with 50 m reuse; handle unresolvable and virtual
-- [ ] 3.4 Raise `AppointmentChanged`; cancel pending nudges on delete
-- [ ] 3.5 Tests: create/move/delete against a fake Calendar client
+- [x] 3.1 Google OAuth (readonly scope), encrypted token storage — *flow built and unit-tested (scope, state, Data Protection at rest); the live consent click-through needs `Google:ClientId/Secret` in appsettings.local.json and a browser — builder step*
+- [x] 3.2 `CalendarSyncJob` every 5 min + on-demand; window [−1h, +7d]
+- [x] 3.3 Geocode location → `Place` with 50 m reuse; handle unresolvable and virtual
+- [x] 3.4 Raise `AppointmentChanged`; cancel pending nudges on delete
+- [x] 3.5 Tests: create/move/delete against a fake Calendar client
 
 ## 4. Routing — Wed 28 / Thu 29 Oct
 - [ ] 4.1 `IRoutingClient.Estimate(from, to, mode, departAt)` and `Detour(from, via[], to, mode)`
