@@ -2,6 +2,8 @@ using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using Tempo.Core.Configuration;
 using Tempo.Core.Data;
+using Tempo.Core.Domain;
+using Tempo.Core.Events;
 using Tempo.Integrations.Meta;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -18,7 +20,10 @@ builder.Services.AddOptions<GoogleOptions>().Bind(builder.Configuration.GetSecti
 
 var postgres = builder.Configuration.GetConnectionString("Postgres")
     ?? throw new InvalidOperationException("Missing configuration value ConnectionStrings:Postgres");
-builder.Services.AddDbContext<TempoDbContext>(o => o.UseNpgsql(postgres));
+builder.Services.AddDbContext<TempoDbContext>(o => o.UseNpgsql(postgres, b => b.MigrationsAssembly("Tempo.Api")));
+
+builder.Services.AddSingleton<IDomainEvents, LoggingDomainEvents>();
+builder.Services.AddScoped<ConfirmHabitHandler>();
 
 builder.Services.AddFastEndpoints();
 
@@ -44,6 +49,17 @@ await using (var scope = app.Services.CreateAsyncScope())
             app.Logger.LogWarning("Postgres not ready (attempt {Attempt}): {Message}", attempt, ex.Message);
             await Task.Delay(TimeSpan.FromSeconds(2));
         }
+    }
+
+    // Single-user app: make sure the settings row exists (location API key generated once).
+    if (!await db.UserSettings.AnyAsync())
+    {
+        db.UserSettings.Add(new UserSettings
+        {
+            Id = Guid.NewGuid(),
+            LocationApiKey = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16)),
+        });
+        await db.SaveChangesAsync();
     }
 }
 

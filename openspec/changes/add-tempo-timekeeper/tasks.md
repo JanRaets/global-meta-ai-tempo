@@ -23,11 +23,11 @@ Building period 27 Oct – 4 Nov 2026. Target day per section is a guide, not a 
 - [x] 1.8 Integration smoke (skipped without keys): one tool-call round trip against each real provider — *MetaApi verified live 26 Oct (200 OK, muse-spark-1.3 called the tool); Baseten reports Skipped until a `Models:Baseten:ApiKey` exists. Key read from user-secrets / appsettings.local.json / env; missing key → Skipped, never Passed*
 
 ## 2. Domain (Tempo.Core) — Wed 28 Oct
-- [ ] 2.1 Entities: `Place`, `Appointment` (with `Source = Synced | Captured`), `Visit`, `Habit`, `DeparturePlan`, `PlanOption`, `Nudge`, `Intent`, `AgentTrace`, `UserSettings`
-- [ ] 2.2 `ConfirmedHabit` with `internal` constructor; `ConfirmHabitHandler` as sole producer
-- [ ] 2.3 `ContextKey` value type and `Matches` logic
-- [ ] 2.4 EF Core `TempoDbContext` + initial migration
-- [ ] 2.5 Tests: `ConfirmedHabit` has no public constructor; `ContextKey` matching incl. weekend mismatch
+- [x] 2.1 Entities: `Place`, `Appointment` (with `Source = Synced | Captured`), `Visit`, `Habit`, `DeparturePlan`, `PlanOption`, `Nudge`, `Intent`, `AgentTrace`, `UserSettings` — *`PlanOption` is a computed record, defined with the planner tool in section 6 (design D6: options are ephemeral, only the committed plan persists)*
+- [x] 2.2 `ConfirmedHabit` with `internal` constructor; `ConfirmHabitHandler` as sole producer
+- [x] 2.3 `ContextKey` value type and `Matches` logic
+- [x] 2.4 EF Core `TempoDbContext` + initial migration
+- [x] 2.5 Tests: `ConfirmedHabit` has no public constructor; `ContextKey` matching incl. weekend mismatch
 
 ## 3. Calendar sync — Wed 28 Oct
 - [ ] 3.1 Google OAuth (readonly scope), encrypted token storage
