@@ -5,11 +5,11 @@ Building period 27 Oct – 4 Nov 2026. Target day per section is a guide, not a 
 ## 0. Decisions & scaffold — Tue 27 Oct
 - [x] 0.1 Record human decisions (routing provider; credit status → provider build order) in `design.md`
 - [x] 0.2 `git init` empty public repo; first commit is the OpenSpec folder and a README stub stating hackathon, track, "everything here is built 27 Oct – 4 Nov"
-- [x] 0.3 Create `Tempo.sln`: `Tempo.Core`, `Tempo.Agent`, `Tempo.Api`, `Tempo.Jobs`, `Tempo.Integrations.Meta`, `Tempo.Integrations.Google`, `Tempo.Integrations.Maps`, `Tempo.Integrations.Telegram`, `Tempo.Tests`
+- [x] 0.3 Create `Tempo.sln`: `Tempo.Core`, `Tempo.Agent`, `Tempo.Api`, `Tempo.Jobs`, `Tempo.Integrations.Meta`, `Tempo.Integrations.Google`, `Tempo.Integrations.Maps`, `Tempo.Tests` *(an Integrations project for the old notification channel was created here and is removed in 9.1)*
 - [x] 0.4 Create `Tempo.Web` (Vite + React 18 + TS + Tailwind + vite-plugin-pwa), served as static files by `Tempo.Api`
 - [x] 0.5 docker-compose: Postgres 16 + pgvector, Redis; EF Core migrations run on startup
-- [x] 0.6 Config schema: `Models:*`, `Routing:*`, `Telegram:*`, `Google:*`; fail fast on missing values
-- [ ] 0.7 Public HTTPS endpoint (tunnel); verify the phone can open the PWA and grant geolocation + microphone — *tunnel documented in architecture.md; phone verification is a physical step for the builder*
+- [x] 0.6 Config schema: `Models:*`, `Routing:*`, `Push:*`, `Google:*`; fail fast on missing values *(Push:* replaces the old notification section in 9.1)*
+- [ ] 0.7 Public HTTPS endpoint (tunnel); verify the phone can open the PWA and grant geolocation + microphone — *tunnel documented in architecture.md; phone verification is a physical step for the builder. A named tunnel with a stable hostname is required before installing the PWA: push subscriptions and the iOS home-screen install bind to the origin (D16)*
 - [x] 0.8 Commit `architecture.md`; README tooling line (*decision: "Built with Claude Code; section 11 (capture) with Muse Code."*)
 
 ## 1. Meta models — Tue 27 / Wed 28 Oct
@@ -72,16 +72,20 @@ Building period 27 Oct – 4 Nov 2026. Target day per section is a guide, not a 
 - [ ] 8.1 `HabitInferenceJob` nightly + on-demand: thresholds ≥3 visits / stddev ≤8 min
 - [ ] 8.2 Dedup; 30-day rejected suppression
 - [ ] 8.3 Spark proposal wording via `ChatJsonAsync<HabitProposalText>`; numeric facts immutable
-- [ ] 8.4 Telegram batch (one message/day) with Confirm/Reject + Why?; callbacks → `ConfirmHabitHandler` / reject
+- [ ] 8.4 Daily proposal batch (one notification/day) through `INudgeTransport`; confirm/reject route through `ConfirmHabitHandler` (push delivery itself lands in section 9)
 - [ ] 8.5 Endpoints: `GET /habits?state=`, `POST /habits/{id}/confirm|reject`
 - [ ] 8.6 Tests: detected, insufficient, irregular, already-decided, confirm triggers agent run
 - [ ] 8.7 With habit learning live: seed one confirmed morning-coffee habit and rerun the five section-7 live scenarios with stops present (keep the coffee, drop the coffee, skip-a-stop recovery); paste the traces — this is the set for the judges
 
-## 9. Nudging transport — Sat 31 Oct
-- [ ] 9.1 Telegram send with 3× backoff; `Nudge.status`; "Why?" inline button → trace text
-- [ ] 9.2 Replacement nudge on >5 min plan shift
-- [ ] 9.3 Template fallback when the run ends without a valid send
-- [ ] 9.4 Tests: sent, replaced, template fallback, quiet-hours deferral of habit batch
+## 9. Push notifications — Sat 31 Oct *(was Telegram; replaced 27 Oct, design D16)*
+- [ ] 9.1 VAPID keys (user-secrets) + `Push:*` config; delete `Tempo.Integrations.Telegram` from the solution
+- [ ] 9.2 `PushSubscription` entity + `POST /push/subscribe` + `DELETE /push/subscribe`
+- [ ] 9.3 `WebPushTransport` behind `INudgeTransport`: send to every subscription, 410/404 → delete subscription, 3× retry with backoff, `Nudge.status` recorded
+- [ ] 9.4 Service worker `push` + `notificationclick` handlers; deep links to `/now` (nudges) and `/habits` (proposals)
+- [ ] 9.5 Android notification actions for habit Confirm/Reject → same endpoints/handler
+- [ ] 9.6 Replacement nudge on >5 min plan shift
+- [ ] 9.7 Template fallback when the run ends without a valid send
+- [ ] 9.8 Tests: sent, replaced, template fallback, 410 cleanup, retry, quiet-hours deferral of habit batch
 
 ## 10. Voice input — Sun 1 Nov
 - [ ] 10.1 PWA hold-to-talk (Web Audio → WAV mono PCM 16 kHz, ≤15 s; ASR API is WAV-only per design D2) → `POST /voice`; text-field fallback when mic denied
@@ -102,7 +106,7 @@ Building period 27 Oct – 4 Nov 2026. Target day per section is a guide, not a 
 - [ ] 12.3 **Now**: dominant countdown, reason line, mode icon, hold-to-talk + camera buttons, recent nudges with Why?; late state = full-screen colour + single recovery button
 - [ ] 12.4 **Today**: timeline incl. captured appointments; greyed no-place/virtual
 - [ ] 12.5 **Habits**: proposed cards + confirmed list with pause
-- [ ] 12.6 **Settings**: home, modes, pinned mode, nudge lead, quiet hours, demo-mode toggle
+- [ ] 12.6 **Settings**: home, modes, pinned mode, nudge lead, quiet hours, demo-mode toggle, "Enable notifications" (push subscribe + test notification; iOS install hint when not on the home screen)
 - [ ] 12.7 **Trace sheet**: plain-language steps + provider footer
 - [ ] 12.8 Polling 15 s; optimistic UI on confirm/reject/undo
 - [ ] 12.9 Match the design canvas (TEMPO mobile screens) for type, colour and spacing

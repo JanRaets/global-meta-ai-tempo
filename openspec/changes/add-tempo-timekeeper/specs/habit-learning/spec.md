@@ -28,8 +28,8 @@ The system SHALL ask `IMetaModels.ChatJsonAsync` (Muse Spark) to produce a propo
 - **WHEN** a candidate exists for a café, weekday mornings, before meetings, 9 min average
 - **THEN** the proposal text mentions the place name, the context and the duration, and the stored `avgDurationMin` remains the computed value
 
-### Requirement: User confirmation over Telegram
-The system SHALL send each proposed habit to the user over Telegram with inline Confirm and Reject buttons, batched to at most one message per day.
+### Requirement: User confirmation
+The system SHALL deliver proposed habits as one push notification per day deep-linking to `/habits`; on Android the notification carries Confirm/Reject actions, on iOS the user decides in the app. Confirm and reject always route through `ConfirmHabitHandler`. *(Was "over Telegram"; replaced 27 Oct 2026, design D16.)*
 
 #### Scenario: Confirm
 - **WHEN** the user taps Confirm
@@ -51,8 +51,8 @@ A `ConfirmedHabit` SHALL match a planning context only when weekday, time bucket
 - **THEN** it does not match
 
 ### Requirement: Habit management API
-The system SHALL expose endpoints to list habits by state and to confirm or reject a habit, so the dashboard can mirror the Telegram actions.
+The system SHALL expose endpoints to list habits by state and to confirm or reject a habit; the app's Habits screen and the Android notification actions use the same endpoints.
 
-#### Scenario: Dashboard confirm
+#### Scenario: App confirm
 - **WHEN** `POST /habits/{id}/confirm` is called
-- **THEN** the same confirmation handler runs as for the Telegram button
+- **THEN** the same confirmation handler runs as for every other confirmation path

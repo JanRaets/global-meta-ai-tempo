@@ -13,7 +13,7 @@ Entry for the Meta Global AI Developer Hackathon, Indie Developer track, problem
   - Muse Spark Open via Baseten (`meta-models/muse-spark-open-1026`) — fallback for the same role when Meta API credits are unavailable; also the open-weight bonus eligibility path
   - Muse Voice Transcribe (`muse-voice-transcribe-1.0`) via Meta Model API — speech to text for voice input (WAV only, no detected-language field)
 - Routing: OpenRouteService (design D15; bike/walk/car, transit out of scope)
-- Notifications: Telegram Bot API for push (inline keyboards for approvals); the PWA mirrors every nudge and action in-app
+- Notifications: Web Push (VAPID) to the installed PWA; no Telegram. The PWA mirrors every nudge and action in-app. The PWA must be served from a stable origin (named Cloudflare tunnel) because push subscriptions and the iOS home-screen install are bound to it
 - Infra: docker-compose for local; one public HTTPS endpoint (tunnel or small VM) so the phone can reach the API
 - Dev tooling: Claude Code for most of the build; Muse Code for section 11 (capture-appointment), recorded honestly in the README as part of the submission
 
@@ -64,4 +64,4 @@ Entry for the Meta Global AI Developer Hackathon, Indie Developer track, problem
 - Baseten (Muse Spark Open)
 - Google Calendar API (read-only scope)
 - Routing provider API
-- Telegram Bot API
+- Web Push (browser push services; VAPID keys in user-secrets)

@@ -1,7 +1,7 @@
 # Design: TEMPO
 
 ## Context
-Hackathon MVP, single user. Building period 27 Oct – 4 Nov 2026, submission 4 Nov 21:00 ET (public repo + 3-minute video). Fresh build from an empty repo. Demo surface is a mobile-first PWA on the presenter's phone; Telegram is the push channel.
+Hackathon MVP, single user. Building period 27 Oct – 4 Nov 2026, submission 4 Nov 21:00 ET (public repo + 3-minute video). Fresh build from an empty repo. Demo surface is a mobile-first PWA on the presenter's phone; Web Push to the installed PWA is the notification channel (D16).
 
 ### Judging, and what this design optimises for
 | Criterion | Weight | What in this design answers it |
@@ -46,13 +46,13 @@ Two implementations: `MetaApiModels` (Muse Spark + Voice Transcribe over Meta Mo
 - Muse Spark Open is open-weight, not on the Model API; served via hosted providers (our path: Baseten).
 
 ### D3 — Type-enforced approval
-`Habit` has `State ∈ {Proposed, Confirmed, Rejected}`. `ConfirmedHabit` has an `internal` constructor invoked only by `ConfirmHabitHandler`. `DeparturePlanner.Plan(...)` accepts `IReadOnlyList<ConfirmedHabit>`. A test asserts the constructor is not public. The agent cannot confirm a habit; only the user can, via Telegram button, app button or an explicit voice intent that is itself routed through the same handler.
+`Habit` has `State ∈ {Proposed, Confirmed, Rejected}`. `ConfirmedHabit` has an `internal` constructor invoked only by `ConfirmHabitHandler`. `DeparturePlanner.Plan(...)` accepts `IReadOnlyList<ConfirmedHabit>`. A test asserts the constructor is not public. The agent cannot confirm a habit; only the user can, via the app's Confirm button, a notification action (Android) or an explicit voice intent — all routed through the same handler.
 
 ### D4 — Raw location is ephemeral
 `POST /location` writes `{lat,lng,ts}` to a Redis list keyed by day with 24h TTL. `CollapseVisitsJob` (every 10 min) detects stays (≥ 5 min within 75 m), reverse-geocodes the centroid to a `Place`, persists a `Visit`. Nothing else persists raw points.
 
 ### D5 — Habit = place + context, inferred by thresholds, worded by Spark
-Context key: `(weekday, timeBucket[early|morning|midday|afternoon|evening], direction[toward-home|away-from-home|other], adjacentAppointmentKind)`. Candidate when the same `(placeId, contextKey)` has ≥ 3 Visits and duration stddev ≤ 8 min. Spark produces the proposal text and a one-line rationale from the structured facts via `ChatJsonAsync`. The builder runs the app on their own phone from day 1 so real habits exist by the video.
+Context key: `(weekday, timeBucket[early|morning|midday|afternoon|evening], direction[toward-home|away-from-home|other], adjacentAppointmentKind)`. *(Defined 27 Oct: adjacentAppointmentKind is the closed set `meeting|personal|medical|travel|unknown`, classified deterministically from the appointment title (`AppointmentKind.Classify`); a visit with no appointment starting within 2 h after its arrival keeps `null`, which matches any kind. Direction is derived from surrounding home visits: home visit ending ≤3 h before → away-from-home; home visit starting ≤3 h after → toward-home; else other.)* Candidate when the same `(placeId, contextKey)` has ≥ 3 Visits and duration stddev ≤ 8 min. Spark produces the proposal text and a one-line rationale from the structured facts via `ChatJsonAsync`. The builder runs the app on their own phone from day 1 so real habits exist by the video.
 
 ### D6 — Planner tool
 `plan.options(appointmentId)` returns, for each enabled mode and for each subset of matching confirmed habits (all stops / each stop skipped / no stops), a `PlanOption { mode, stops, leaveAt, arriveAt, isFeasible, slackMin }`, computed as:
@@ -73,6 +73,7 @@ Triggered by: planner tick (every 2 min while an appointment is within 6 h), `Ap
 Rationale: the agent's autonomy is bounded by tool guards, which is both safer and the "verifiable agent" story.
 
 ### D8 — Nudge policy (enforced in tools)
+- Nudges are delivered by `INudgeTransport = WebPushTransport` (D16).
 - Leave nudge at `leaveAt − nudgeLeadMin` (default 10). One per plan version. *(Amended 27 Oct: the window check is enforced inside `notify.send` too — a Leave nudge before `leaveAt − nudgeLeadMin` is refused — so the tick's timing and the tool's guard agree. Late nudge text names the recovery's arrival time, never a leave time, which would already be in the past.)*
 - Late: when `now > leaveAt` and user not at destination, the agent is invoked with `plan.options` already including the current state; it must commit exactly one recovery option and send one `Late` nudge.
 - Quiet hours suppress everything except a late nudge for an appointment within 60 min.
@@ -92,7 +93,7 @@ Three sources, all posting to the same `POST /location`, selected per device:
 Rationale: PWAs cannot track in the background on iOS; Owntracks is a 30-minute adapter that gives a real week of data without a native build.
 
 ### D12 — Mobile PWA is the only UI
-Screens: **Now** (countdown, reason line, hold-to-talk and camera buttons, recent nudges), **Today** (timeline), **Habits** (proposed/confirmed), **Settings**, plus a **Trace** sheet reachable from any nudge ("why?") that lists the agent's tool calls in plain language. No desktop dashboard.
+Screens: **Now** (countdown, reason line, hold-to-talk and camera buttons, recent nudges), **Today** (timeline), **Habits** (proposed/confirmed), **Settings**, plus a **Trace** sheet reachable from any nudge ("why?") that lists the agent's tool calls in plain language. No desktop dashboard. Every action lives in the app; a notification tap deep-links to `/now` (nudges) or `/habits` (proposals). On Android, proposal notifications carry Confirm/Reject actions that call the same handlers; iOS has no notification actions.
 
 ### D13 — UX rules
 - One number dominates each screen. On **Now** that is "leave in N min".
@@ -109,12 +110,16 @@ Recorded from the phone (screen recording + a second phone for the walk), 3 minu
 ### D15 — Routing provider: OpenRouteService (decided 26 Oct 2026)
 OpenRouteService is the routing provider (`IRoutingClient` in `Tempo.Integrations.Maps`). Rationale: free, and bike/walk/car are what the demo needs; transit is out of scope for the hackathon. Section 4 implements the ORS Directions API with profiles `cycling-regular` (bike), `foot-walking` (walk) and `driving-car` (car); geocoding uses ORS's Pelias geocode endpoints under the same key. Mode `train` stays in the mode enum but is disabled by default in `UserSettings`, and `plan.options` skips disabled modes. `Routing:*` config is the ORS base URL + API key. Also recorded here: Meta Model API credits are live, so section 1 builds `MetaApiModels` first and `BasetenModels` second as the fallback (`Models:Primary = MetaApi`).
 
+### D16 — Web Push (decided 27 Oct 2026; replaces Telegram)
+Nudges and habit proposals are Web Push notifications to the installed PWA. VAPID keys live in user-secrets (`Push:VapidPublicKey` / `Push:VapidPrivateKey`), never in the repo. A `PushSubscription` entity stores `endpoint`, `p256dh`, `auth`, `userAgent`, `createdAt`; the user subscribes from Settings; the service worker handles `push` (show notification) and `notificationclick` (deep link). Payload: `{kind, title, body, url, nudgeId|habitId}`. A push endpoint answering 410/404 means the subscription is gone and the row is deleted. Rationale: one surface (the PWA) for everything, no bot dependency, and notifications work with the app closed — at the cost of requiring the iOS home-screen install and a stable origin.
+
 ## Risks / Trade-offs
+- iOS push requires the home-screen install and a stable origin; a quick-tunnel restart changes the hostname and kills the subscription — a named tunnel is mandatory before installing the PWA.
 - Meta API credits may arrive late. Mitigation: Baseten path first, API path second; `IMetaModels` makes the swap a config change.
 - Rate limits on the Meta API during a 2-minute tick loop. Mitigation: the tick only invokes the agent when an input changed since the last run; otherwise the committed plan stands.
 - Spark Open on Baseten may differ in tool-calling reliability from Spark. Mitigation: the scripted-fake agent tests pin the expected sequences; a "tool-call sanity" integration test runs against both providers in CI (skipped without keys).
 - Routing transit quality in NL varies; resolved by D15: transit is out of scope, ORS covers bike/walk/car for free.
-- Foreground-only location: nudges when the app is closed depend on Telegram push. Acceptable.
+- Foreground-only location: nudges when the app is closed depend on Web Push. Acceptable.
 - Tunnel is a single point of failure for the live demo. Mitigation: demo mode (GPX replay) and the video are the primary artefacts; live is a bonus.
 - Vision extraction from photos is fuzzy. Mitigation: user always confirms; the confirm card is the feature, not the extraction accuracy.
 

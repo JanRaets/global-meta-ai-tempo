@@ -3,7 +3,7 @@
 ## ADDED Requirements
 
 ### Requirement: Leave-now nudge
-The system SHALL send one Telegram message per plan version at `leaveAt − nudgeLeadMin` stating the leave time, the mode, the destination and any included stops.
+The system SHALL send one push notification per plan version at `leaveAt − nudgeLeadMin` stating the leave time, the mode, the destination and any included stops.
 
 #### Scenario: Nudge sent on time
 - **WHEN** the current time reaches `leaveAt − 10 min` for plan version 3 and no nudge exists for `(planId, 3)`
@@ -32,7 +32,7 @@ The system SHALL send one Telegram message per plan version at `leaveAt − nudg
 The system SHALL send one `Late` nudge when the current time passes `leaveAt`, the user is not at the destination, and no `Late` nudge exists for the plan version; the message SHALL propose exactly one recovery option, which the agent chose and committed from `plan.options`.
 
 ### Requirement: Why link
-Every nudge SHALL carry a reference to the `AgentTrace` of the run that produced it, and the Telegram message SHALL include a "Why?" button that returns the trace rendered as plain-language steps.
+Every nudge SHALL carry a reference to the `AgentTrace` of the run that produced it. The push notification deep-links to the nudge in the app, where "Why?" opens the trace rendered as plain-language steps (no inline button in the notification).
 
 #### Scenario: Why tapped
 - **WHEN** the user taps Why? on a late nudge
@@ -53,9 +53,13 @@ The system SHALL suppress all nudges during the user's quiet hours except a `Lat
 - **WHEN** a habit proposal is due at 23:30 and quiet hours are 22:00–07:00
 - **THEN** it is deferred to the next batch after 07:00
 
-### Requirement: Telegram transport
-The system SHALL deliver nudges and habit proposals through a Telegram bot to the user's `telegramChatId`, and SHALL handle inline button callbacks for habit confirmation.
+### Requirement: Web Push transport
+The system SHALL deliver nudges and habit proposals as Web Push notifications to every stored `PushSubscription`. A push endpoint answering 410 or 404 means the subscription is expired and SHALL be deleted. *(Replaced the Telegram transport, 27 Oct 2026; design D16.)*
 
 #### Scenario: Send failure
-- **WHEN** the Telegram API returns an error
+- **WHEN** a push service returns a transient error
 - **THEN** the send is retried up to 3 times with backoff and the `Nudge` records the final status
+
+#### Scenario: Expired subscription
+- **WHEN** a push endpoint returns 410 Gone
+- **THEN** that subscription row is deleted and the send is not retried against it

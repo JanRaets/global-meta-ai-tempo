@@ -74,8 +74,15 @@ Every nudge in the app SHALL have a "Why?" affordance that opens a bottom sheet 
 - **WHEN** the user taps Why? on a nudge
 - **THEN** the sheet shows the steps and a "Served by Muse Spark" footer
 
+### Requirement: Push subscription
+The Settings screen SHALL have an "Enable notifications" control; on iOS, when the app is not installed to the home screen, it SHALL show a one-line install hint instead. The subscription is posted to `POST /push/subscribe`, and a test-notification button sends one.
+
+#### Scenario: Notification tap
+- **WHEN** the user taps a nudge notification
+- **THEN** the app opens on the linked screen (`/now` for nudges, `/habits` for proposals)
+
 ### Requirement: In-app nudge mirror
-The Now screen SHALL show the last three nudges sent to Telegram, newest first.
+The Now screen SHALL show the last three push-notified nudges, newest first.
 
 #### Scenario: Nudge arrives
 - **WHEN** a nudge is sent while the app is open
