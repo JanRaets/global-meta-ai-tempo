@@ -3,7 +3,7 @@
 ## ADDED Requirements
 
 ### Requirement: Hold-to-talk
-The app SHALL provide a hold-to-talk button on the Now screen that records up to 15 seconds of audio and posts it to `POST /voice` on release.
+The app SHALL provide a hold-to-talk button on the Now screen that records up to 15 seconds of audio as WAV (Web Audio capture, mono PCM 16 kHz; the ASR API accepts WAV only — design.md D2) and posts it to `POST /voice` on release.
 
 #### Scenario: Short utterance
 - **WHEN** the user holds the button, says "skip the coffee today" and releases

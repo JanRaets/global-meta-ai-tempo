@@ -15,7 +15,7 @@ public sealed class NoForeignProviderTests
     [Fact]
     public void No_foreign_model_provider_packages_are_referenced()
     {
-        var root = FindRepoRoot();
+        var root = TestPaths.RepoRoot();
         var offending = Directory.EnumerateFiles(root, "*.csproj", SearchOption.AllDirectories)
             .Where(p => !p.Contains("node_modules"))
             .SelectMany(path => File.ReadLines(path)
@@ -25,13 +25,5 @@ public sealed class NoForeignProviderTests
             .ToList();
 
         Assert.Empty(offending);
-    }
-
-    private static string FindRepoRoot()
-    {
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir is not null && dir.GetFiles("Tempo.sln").Length == 0)
-            dir = dir.Parent;
-        return dir?.FullName ?? throw new InvalidOperationException("Tempo.sln not found above test directory");
     }
 }

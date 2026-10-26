@@ -53,15 +53,20 @@ public sealed class StructuredOutputTests
     }
 
     [Fact]
-    public async Task Transcription_returns_text_with_detected_language()
+    public async Task Transcription_returns_the_whole_clip_transcript()
     {
-        var handler = new StubHttpHandler((HttpStatusCode.OK, """{"text":"ik ga eerst even naar de Albert Heijn","language":"nl"}"""));
+        // Real TranscribeResponse shape: sessionId/transcript/audioDurationMs/turns, no language field.
+        var handler = new StubHttpHandler((HttpStatusCode.OK,
+            """{"sessionId":"s1","transcript":"ik ga eerst even naar de Albert Heijn","audioDurationMs":2100,"turns":[]}"""));
         var models = TestClients.MetaApi(handler);
 
-        var result = await models.TranscribeAsync(new byte[] { 1, 2, 3 }, "audio/webm");
+        var result = await models.TranscribeAsync(new byte[] { 1, 2, 3 }, "audio/wav");
 
-        Assert.Equal("nl", result.Language);
         Assert.Contains("Albert Heijn", result.Text);
+        Assert.Equal("unknown", result.Language);
+        Assert.Contains("name=request", handler.RequestBodies[0]);    // settings part
+        Assert.Contains("PUSH_TO_TALK", handler.RequestBodies[0]);
+        Assert.Contains("name=audio", handler.RequestBodies[0]);      // audio part
     }
 
     [Fact]

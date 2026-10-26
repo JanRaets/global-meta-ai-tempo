@@ -46,11 +46,11 @@ The system SHALL retry a failed chat or vision call once on the fallback impleme
 - **THEN** the result exposes the tool name and arguments as a typed `ToolCall` and no assistant text is treated as final
 
 ### Requirement: Transcription
-`TranscribeAsync` SHALL accept audio up to 15 seconds in webm/opus or m4a and return text with the detected language.
+`TranscribeAsync` SHALL accept audio up to 15 seconds as WAV (mono integer PCM, 16 or 24 kHz — the only encoding the ASR API accepts) and return the transcript text. The API returns no detected-language field, so `Language` is `"unknown"`; intent classification downstream is language-agnostic. *(Amended 26 Oct 2026 from webm/opus+detected-language after verifying the real API; see design.md D2 API facts.)*
 
 #### Scenario: Dutch utterance
 - **WHEN** the audio is Dutch speech
-- **THEN** the transcript is returned in Dutch with `Language = nl`
+- **THEN** the transcript is returned in Dutch (e.g. "ik ga eerst even naar de Albert Heijn") with `Language = "unknown"`
 
 ### Requirement: Call accounting
 The system SHALL log every model call with provider, model, purpose, token counts where available, and latency, so the README can state usage honestly.

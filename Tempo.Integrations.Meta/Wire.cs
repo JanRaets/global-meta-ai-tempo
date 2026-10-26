@@ -52,10 +52,12 @@ internal sealed record WireResponseFormat(
     [property: JsonPropertyName("type")] string Type,
     [property: JsonPropertyName("json_schema")] WireJsonSchema? JsonSchema = null);
 
+// strict=false: output is schema-constrained either way, and strict mode demands the
+// additionalProperties:false / all-required subset our schemas don't commit to.
 internal sealed record WireJsonSchema(
     [property: JsonPropertyName("name")] string Name,
     [property: JsonPropertyName("schema")] JsonElement Schema,
-    [property: JsonPropertyName("strict")] bool Strict = true);
+    [property: JsonPropertyName("strict")] bool Strict = false);
 
 internal sealed record WireToolCall(
     [property: JsonPropertyName("id")] string Id,
@@ -78,6 +80,14 @@ internal sealed record WireUsage(
     [property: JsonPropertyName("prompt_tokens")] int? PromptTokens,
     [property: JsonPropertyName("completion_tokens")] int? CompletionTokens);
 
-internal sealed record WireTranscription(
-    [property: JsonPropertyName("text")] string? Text,
-    [property: JsonPropertyName("language")] string? Language);
+// POST /v1/asr/transcribe: multipart with a JSON "request" part and an "audio" part (WAV only).
+internal sealed record WireTranscribeRequest(
+    [property: JsonPropertyName("model")] string Model,
+    [property: JsonPropertyName("audioEncoding")] string AudioEncoding,
+    [property: JsonPropertyName("mode")] string Mode);
+
+// TranscribeResponse carries no detected-language field (see design.md D2 API facts).
+internal sealed record WireTranscribeResponse(
+    [property: JsonPropertyName("sessionId")] string? SessionId,
+    [property: JsonPropertyName("transcript")] string? Transcript,
+    [property: JsonPropertyName("audioDurationMs")] long? AudioDurationMs);

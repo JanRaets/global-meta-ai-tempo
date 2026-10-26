@@ -1,5 +1,7 @@
 using System.Diagnostics;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Tempo.Core.Configuration;
@@ -27,6 +29,9 @@ public sealed class MetaApiModels : ChatCompletionsClient, IMetaModels
     protected override ModelProvider Provider => ModelProvider.MetaApi;
     protected override string ChatModel => options.ChatModel;
 
+    /// <summary>POST /v1/asr/transcribe: multipart "request" (JSON settings) + "audio" part.
+    /// The API accepts WAV only (mono PCM 16/24 kHz) and returns no detected language
+    /// (design.md D2 API facts); Language is always "unknown".</summary>
     public async Task<TranscriptionResult> TranscribeAsync(
         ReadOnlyMemory<byte> audio, string contentType, CancellationToken ct = default)
     {
@@ -35,16 +40,18 @@ public sealed class MetaApiModels : ChatCompletionsClient, IMetaModels
         try
         {
             using var form = new MultipartFormDataContent();
-            var file = new ByteArrayContent(audio.ToArray());
-            file.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
-            form.Add(file, "file", contentType.Contains("webm") ? "audio.webm" : "audio.m4a");
-            form.Add(new StringContent(options.TranscribeModel), "model");
-            form.Add(new StringContent("verbose_json"), "response_format");
+            var settings = new WireTranscribeRequest(options.TranscribeModel, "WAV", "PUSH_TO_TALK");
+            var requestPart = new StringContent(JsonSerializer.Serialize(settings, Wire.Json));
+            requestPart.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+            form.Add(requestPart, "request");
+            var audioPart = new ByteArrayContent(audio.ToArray());
+            audioPart.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+            form.Add(audioPart, "audio", "audio.wav");
 
             HttpResponseMessage response;
             try
             {
-                response = await http.PostAsync("audio/transcriptions", form, ct);
+                response = await http.PostAsync("asr/transcribe", form, ct);
             }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException && !ct.IsCancellationRequested)
             {
@@ -58,10 +65,10 @@ public sealed class MetaApiModels : ChatCompletionsClient, IMetaModels
                     $"MetaApi transcription returned {(int)response.StatusCode}: {body[..Math.Min(body.Length, 300)]}");
             }
 
-            var parsed = await response.Content.ReadFromJsonAsync<WireTranscription>(Wire.Json, ct)
+            var parsed = await response.Content.ReadFromJsonAsync<WireTranscribeResponse>(Wire.Json, ct)
                 ?? throw new ModelHttpException(502, "MetaApi transcription returned an empty body");
             success = true;
-            return new TranscriptionResult(parsed.Text ?? "", parsed.Language ?? "unknown", ModelProvider.MetaApi);
+            return new TranscriptionResult(parsed.Transcript ?? "", "unknown", ModelProvider.MetaApi);
         }
         finally
         {

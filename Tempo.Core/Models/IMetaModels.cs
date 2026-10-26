@@ -31,7 +31,8 @@ public interface IMetaModels
         string purpose = "unspecified",
         CancellationToken ct = default);
 
-    /// <summary>Speech to text (Muse Voice Transcribe); audio up to 15 s, webm/opus or m4a.</summary>
+    /// <summary>Speech to text (Muse Voice Transcribe); WAV only (mono PCM 16/24 kHz), ≤15 s in our use.
+    /// The API returns no detected language; Language is "unknown" (design.md D2 API facts).</summary>
     Task<TranscriptionResult> TranscribeAsync(
         ReadOnlyMemory<byte> audio,
         string contentType,

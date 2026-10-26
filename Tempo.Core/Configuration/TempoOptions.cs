@@ -19,9 +19,9 @@ public sealed class ModelsOptions
 public sealed class MetaApiOptions
 {
     public string ApiKey { get; init; } = "";
-    public string BaseUrl { get; init; } = "https://api.llama.com/v1";
-    public string ChatModel { get; init; } = "muse-spark";
-    public string TranscribeModel { get; init; } = "muse-voice-transcribe";
+    public string BaseUrl { get; init; } = "https://api.meta.ai/v1";
+    public string ChatModel { get; init; } = "muse-spark-1.3";
+    public string TranscribeModel { get; init; } = "muse-voice-transcribe-1.0";
 }
 
 public sealed class BasetenOptions

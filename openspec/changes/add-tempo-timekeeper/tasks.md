@@ -20,7 +20,7 @@ Building period 27 Oct – 4 Nov 2026. Target day per section is a guide, not a 
 - [x] 1.5 Call accounting: log provider, model, purpose, tokens, latency; `GET /admin/model-usage`
 - [x] 1.6 Scripted fake `IMetaModels` for tests
 - [x] 1.7 Tests: provider selection, JSON retry, double failure throws, fallback on 429, no foreign SDK packages (CI grep)
-- [x] 1.8 Integration smoke (skipped without keys): one tool-call round trip against each real provider — *written and self-skipping; not yet run with real keys (run `Models__MetaApi__ApiKey=… dotnet test --filter Category=Integration`)*
+- [x] 1.8 Integration smoke (skipped without keys): one tool-call round trip against each real provider — *MetaApi verified live 26 Oct (200 OK, muse-spark-1.3 called the tool); Baseten reports Skipped until a `Models:Baseten:ApiKey` exists. Key read from user-secrets / appsettings.local.json / env; missing key → Skipped, never Passed*
 
 ## 2. Domain (Tempo.Core) — Wed 28 Oct
 - [ ] 2.1 Entities: `Place`, `Appointment` (with `Source = Synced | Captured`), `Visit`, `Habit`, `DeparturePlan`, `PlanOption`, `Nudge`, `Intent`, `AgentTrace`, `UserSettings`
@@ -83,7 +83,7 @@ Building period 27 Oct – 4 Nov 2026. Target day per section is a guide, not a 
 - [ ] 9.4 Tests: sent, replaced, template fallback, quiet-hours deferral of habit batch
 
 ## 10. Voice input — Sun 1 Nov
-- [ ] 10.1 PWA hold-to-talk (MediaRecorder webm/opus, ≤15 s) → `POST /voice`; text-field fallback when mic denied
+- [ ] 10.1 PWA hold-to-talk (Web Audio → WAV mono PCM 16 kHz, ≤15 s; ASR API is WAV-only per design D2) → `POST /voice`; text-field fallback when mic denied
 - [ ] 10.2 Server: `TranscribeAsync` → `ChatJsonAsync<Intent>` (closed set incl. `Unknown`)
 - [ ] 10.3 Apply intent as per-plan input change; trigger agent run; `ConfirmHabit` routes through `ConfirmHabitHandler`
 - [ ] 10.4 Result card: transcript + one-line change + Undo (10 s)

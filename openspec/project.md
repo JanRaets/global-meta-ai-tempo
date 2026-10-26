@@ -8,10 +8,10 @@ Entry for the Meta Global AI Developer Hackathon, Indie Developer track, problem
 ## Tech Stack
 - Backend: .NET 8, FastEndpoints, PostgreSQL 16 + pgvector, Redis, Hangfire
 - Frontend: React 18, TypeScript, Vite, Tailwind — mobile-first PWA (installable, browser Geolocation API and MediaRecorder for voice); Owntracks as the all-day background location source during the building period
-- Models (Meta only, behind `IMetaModels`):
-  - Muse Spark via Meta Model API — the agent model: tool-calling loop, judgement, wording, vision (photo → appointment)
+- Models (Meta only, behind `IMetaModels`; API facts in design.md D2):
+  - Muse Spark (`muse-spark-1.3`) via Meta Model API (`https://api.meta.ai/v1`) — the agent model: tool-calling loop, judgement, wording, vision (photo → appointment)
   - Muse Spark Open via Baseten (`meta-models/muse-spark-open-1026`) — fallback for the same role when Meta API credits are unavailable; also the open-weight bonus eligibility path
-  - Muse Voice Transcribe via Meta Model API — speech to text for voice input
+  - Muse Voice Transcribe (`muse-voice-transcribe-1.0`) via Meta Model API — speech to text for voice input (WAV only, no detected-language field)
 - Routing: OpenRouteService (design D15; bike/walk/car, transit out of scope)
 - Notifications: Telegram Bot API for push (inline keyboards for approvals); the PWA mirrors every nudge and action in-app
 - Infra: docker-compose for local; one public HTTPS endpoint (tunnel or small VM) so the phone can reach the API

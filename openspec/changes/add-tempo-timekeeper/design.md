@@ -38,6 +38,13 @@ IMetaModels
 ```
 Two implementations: `MetaApiModels` (Muse Spark + Voice Transcribe over Meta Model API) and `BasetenModels` (Muse Spark Open `meta-models/muse-spark-open-1026`; transcription delegates to Meta API). `Models:Primary = MetaApi | Baseten`, with automatic fallback to the other on 429/5xx. No other provider SDK in the repo. Rationale: hackathon requirement; fallback protects the demo from credit delays and rate limits.
 
+**Meta Model API facts (verified against dev.meta.ai/docs and the live API, 26 Oct 2026):**
+- Base URL `https://api.meta.ai/v1`, auth `Authorization: Bearer <key>`.
+- Chat: `POST /v1/chat/completions`, OpenAI-compatible wire format. Model id **`muse-spark-1.3`** (tool calling, image understanding, structured output). `tools` with `type:"function"`; `tool_choice` supports only `"auto"`; the assistant message incl. its `tool_calls` must be echoed back before `role:"tool"` results (else 400).
+- Structured output: `response_format: { type:"json_schema", json_schema:{ name, schema, strict? } }`; output lands in `choices[0].message.content` as a JSON string. `strict:true` requires `additionalProperties:false` + all-props-required; we use `strict:false` (output is schema-constrained either way).
+- Transcription: `POST /v1/asr/transcribe`, model **`muse-voice-transcribe-1.0`**, multipart with a JSON `request` part (`model`, `audioEncoding:"WAV"`, `mode:"PUSH_TO_TALK"`, optional `keywords`/`languageBias`) and an `audio` part. **WAV only** (RIFF, mono integer PCM, 16/24 kHz), ≤10 min, ≤32 MB. Response `{ sessionId, transcript, audioDurationMs, turns }` — **no detected-language field**.
+- Muse Spark Open is open-weight, not on the Model API; served via hosted providers (our path: Baseten).
+
 ### D3 — Type-enforced approval
 `Habit` has `State ∈ {Proposed, Confirmed, Rejected}`. `ConfirmedHabit` has an `internal` constructor invoked only by `ConfirmHabitHandler`. `DeparturePlanner.Plan(...)` accepts `IReadOnlyList<ConfirmedHabit>`. A test asserts the constructor is not public. The agent cannot confirm a habit; only the user can, via Telegram button, app button or an explicit voice intent that is itself routed through the same handler.
 
@@ -72,7 +79,7 @@ Rationale: the agent's autonomy is bounded by tool guards, which is both safer a
 - Habit proposals batched to one message per day.
 
 ### D9 — Voice input
-PWA hold-to-talk records ≤ 15 s (MediaRecorder, webm/opus), posts to `POST /voice`. Server: `TranscribeAsync` → `ChatJsonAsync<Intent>` where `Intent` is one of `SkipStop(placeId?)`, `AddStop(placeName, minutes?)`, `RunningLate(minutes)`, `LeavingNow`, `PinMode(mode)`, `Unknown(text)`. A recognised intent is applied as a plan input change (skipped stop for this plan, extra stop, etc.) and triggers an agent run; the app shows the transcript and the resulting change in one card. `Unknown` shows the transcript and asks for a tap on one of three likely intents. Rationale: one tap, hands-free, shows Voice Transcribe + Spark working together; intents are a closed set so the model cannot do anything the UI couldn't.
+PWA hold-to-talk records ≤ 15 s as WAV (Web Audio capture, mono PCM 16 kHz — the ASR API accepts WAV only, see D2 API facts), posts to `POST /voice`. Server: `TranscribeAsync` → `ChatJsonAsync<Intent>` where `Intent` is one of `SkipStop(placeId?)`, `AddStop(placeName, minutes?)`, `RunningLate(minutes)`, `LeavingNow`, `PinMode(mode)`, `Unknown(text)`. A recognised intent is applied as a plan input change (skipped stop for this plan, extra stop, etc.) and triggers an agent run; the app shows the transcript and the resulting change in one card. `Unknown` shows the transcript and asks for a tap on one of three likely intents. Rationale: one tap, hands-free, shows Voice Transcribe + Spark working together; intents are a closed set so the model cannot do anything the UI couldn't.
 
 ### D10 — Capture appointment
 PWA camera button → photo → `POST /capture`. Server: `DescribeImageAsync<CapturedAppointment { title, dateTime, placeText, confidence, rawText }>`; the place is geocoded through the same path as calendar events. The app shows a confirm card (title, time, place, with the photo thumbnail); on confirm, an `Appointment { source = Captured }` is created locally (never written to Google Calendar). Rationale: the "surprise" moment in the demo, and a real daily need (school letters, WhatsApp plans); it reuses calendar-sync's downstream path entirely.
