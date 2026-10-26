@@ -55,4 +55,8 @@ public sealed class PlanOptionStore
 
     public (Guid AppointmentId, PlanOption Option)? TryGet(string optionId) =>
         latest.TryGetValue(optionId, out var entry) ? entry : null;
+
+    /// <summary>Every option from the latest plan.options calls in this scope — the allowed
+    /// time vocabulary for nudge text validation.</summary>
+    public IReadOnlyCollection<(Guid AppointmentId, PlanOption Option)> All() => latest.Values;
 }

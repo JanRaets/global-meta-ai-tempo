@@ -59,14 +59,14 @@ Building period 27 Oct – 4 Nov 2026. Target day per section is a guide, not a 
 - [x] 6.5 Tests: option enumeration, commit valid/invalid optionId, proposed habit ignored, jitter, fallback commit
 
 ## 7. Agent loop — Fri 30 / Sat 31 Oct
-- [ ] 7.1 Tool registry with JSON schemas: `calendar.upcoming`, `location.current`, `plan.options`, `plan.commit`, `plan.current`, `habits.confirmed`, `notify.send`, `trace.note`
-- [ ] 7.2 System prompt (rules per design D7) + loop with 8-call limit; `AgentTrace` persisted per run
-- [ ] 7.3 Triggers: planner tick (only when inputs changed), `AppointmentChanged`, `VisitCreated`, habit confirmed, settings changed, intent applied, appointment captured
-- [ ] 7.4 `notify.send` guards: duplicate, quiet hours (+ late exception), text validation (leave time, mode, ≤2 sentences, no unknown times)
-- [ ] 7.5 Late-state invocation: exactly one commit + one `Late` nudge
-- [ ] 7.6 `GET /traces/{nudgeId}` rendered as plain-language steps
-- [ ] 7.7 Tests with scripted fake: normal plan, nudge window, duplicate refused, fabricated optionId refused, call limit, late skip-stop, nothing feasible, unchanged inputs → no model call
-- [ ] 7.8 Run against the real provider on a real appointment; fix prompt until 5/5 runs commit sensibly
+- [x] 7.1 Tool registry with JSON schemas: `calendar.upcoming`, `location.current`, `plan.options`, `plan.commit`, `plan.current`, `habits.confirmed`, `notify.send`, `trace.note`
+- [x] 7.2 System prompt (rules per design D7) + loop with 8-call limit; `AgentTrace` persisted per run — *prompt in Tempo.Agent/Prompts/agent.system.md, loaded at startup*
+- [x] 7.3 Triggers: planner tick (only when inputs changed), `AppointmentChanged`, `VisitCreated`, habit confirmed, settings changed, intent applied, appointment captured — *tick (2 min, inputs hash + window/late checks) + domain events wired; settings/intent/capture call the same TriggerAsync path when their sections land; failed run → FallbackCommitAsync*
+- [x] 7.4 `notify.send` guards: duplicate, quiet hours (+ late exception), text validation (leave time, mode, ≤2 sentences, no unknown times)
+- [x] 7.5 Late-state invocation: exactly one commit + one `Late` nudge
+- [x] 7.6 `GET /traces/{nudgeId}` rendered as plain-language steps
+- [x] 7.7 Tests with scripted fake: normal plan, nudge window, duplicate refused, fabricated optionId refused, call limit, late skip-stop, nothing feasible, unchanged inputs → no model call
+- [x] 7.8 Run against the real provider on a real appointment; fix prompt until 5/5 runs commit sensibly — *5/5 live Muse Spark runs 26 Oct: normal, window+nudge, duplicate handled, only-feasible-mode, late recovery; no fabricated times, no refusal loops; traces reported*
 
 ## 8. Habit learning — Sat 31 Oct
 - [ ] 8.1 `HabitInferenceJob` nightly + on-demand: thresholds ≥3 visits / stddev ≤8 min

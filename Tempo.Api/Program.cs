@@ -29,12 +29,19 @@ var postgres = builder.Configuration.GetConnectionString("Postgres")
     ?? throw new InvalidOperationException("Missing configuration value ConnectionStrings:Postgres");
 builder.Services.AddDbContext<TempoDbContext>(o => o.UseNpgsql(postgres, b => b.MigrationsAssembly("Tempo.Api")));
 
-builder.Services.AddSingleton<IDomainEvents, LoggingDomainEvents>();
+builder.Services.AddSingleton<IDomainEvents, Tempo.Api.HangfireDomainEvents>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<ConfirmHabitHandler>();
 builder.Services.AddScoped<Tempo.Core.Planning.DeparturePlanner>();
 builder.Services.AddScoped<Tempo.Core.Planning.PlanOptionStore>();
 builder.Services.AddScoped<Tempo.Core.Planning.PlanService>();
+builder.Services.AddScoped<Tempo.Core.Nudging.NudgeService>();
+builder.Services.AddSingleton<Tempo.Core.Nudging.INudgeTransport, Tempo.Core.Nudging.LoggingNudgeTransport>();
+builder.Services.AddSingleton<Tempo.Agent.AgentRunner>();
+builder.Services.AddSingleton<Tempo.Agent.TickStateStore>();
+builder.Services.AddScoped<Tempo.Agent.PlannerTickService>();
+builder.Services.AddScoped<Tempo.Agent.PlannerTickJob>();
+builder.Services.AddScoped<Tempo.Agent.AgentRunJob>();
 builder.Services.AddScoped<PlaceResolver>();
 builder.Services.AddScoped<CalendarSyncService>();
 builder.Services.AddScoped<CalendarSyncJob>();
@@ -104,6 +111,8 @@ app.Services.GetRequiredService<IRecurringJobManager>()
     .AddOrUpdate<CalendarSyncJob>("calendar-sync", j => j.RunAsync(CancellationToken.None), "*/5 * * * *");
 app.Services.GetRequiredService<IRecurringJobManager>()
     .AddOrUpdate<CollapseVisitsJob>("collapse-visits", j => j.RunAsync(CancellationToken.None), "*/10 * * * *");
+app.Services.GetRequiredService<IRecurringJobManager>()
+    .AddOrUpdate<Tempo.Agent.PlannerTickJob>("planner-tick", j => j.RunAsync(CancellationToken.None), "*/2 * * * *");
 
 app.UseDefaultFiles();   // Tempo.Web builds into wwwroot
 app.UseStaticFiles();

@@ -23,57 +23,42 @@ public sealed class PlanService(
 {
     private static readonly TimeSpan JitterTolerance = TimeSpan.FromMinutes(3);
 
+    private sealed record PlanContext(
+        Appointment Appointment, UserSettings Settings, Place? Home, GeoPoint Origin, PlanInputs? Inputs, ContextKey Key);
+
     public async Task<PlanOptionsResult> OptionsAsync(Guid appointmentId, CancellationToken ct = default)
     {
-        var appointment = await db.Appointments.Include(a => a.Place).SingleOrDefaultAsync(a => a.Id == appointmentId, ct);
-        if (appointment is null)
-            return PlanOptionsResult.Empty("appointment not found");
-        if (appointment.Place is null)
-            return PlanOptionsResult.Empty("appointment has no resolvable place");
+        var (ctx, note) = await BuildContextAsync(appointmentId, ct);
+        if (ctx is null)
+            return PlanOptionsResult.Empty(note!);
 
-        var settings = await db.UserSettings.AsNoTracking().FirstAsync(ct);
-        var homePlace = settings.HomePlaceId is { } homeId
-            ? await db.Places.AsNoTracking().SingleOrDefaultAsync(p => p.Id == homeId, ct)
-            : null;
-
-        var current = await location.GetAsync(ct);
-        GeoPoint origin;
-        if (current is { IsStale: false })
-            origin = new GeoPoint(current.Point.Lat, current.Point.Lng);
-        else if (homePlace is not null)
-            origin = new GeoPoint(homePlace.Lat, homePlace.Lng); // stale/no location → home (location-ingest spec)
-        else if (current is not null)
-            origin = new GeoPoint(current.Point.Lat, current.Point.Lng); // stale but better than nothing
-        else
-            return PlanOptionsResult.Empty("no current location and no home place configured");
-
-        var inputs = await db.PlanInputs.AsNoTracking().SingleOrDefaultAsync(p => p.AppointmentId == appointmentId, ct);
-        var effectiveNow = clock.GetUtcNow().AddMinutes(inputs?.LateOffsetMin ?? 0);
-
-        var context = BuildPlanningContext(appointment, settings, homePlace, origin);
-        var skipped = inputs?.SkippedPlaceIds ?? [];
-        var habits = (await db.Habits.Include(h => h.Place)
-                .Where(h => h.State == HabitState.Confirmed)
-                .ToListAsync(ct))
-            .Select(ConfirmHabitHandler.FromPersisted)
-            .Where(h => h.Matches(context) && !skipped.Contains(h.PlaceId))
-            .ToList();
+        var effectiveNow = clock.GetUtcNow().AddMinutes(ctx.Inputs?.LateOffsetMin ?? 0);
+        var habits = await MatchingHabitsAsync(ctx, ct);
 
         var extraStops = new List<PlannerStop>();
-        foreach (var extra in inputs?.ExtraStops ?? [])
+        foreach (var extra in ctx.Inputs?.ExtraStops ?? [])
         {
             var place = await db.Places.AsNoTracking().SingleOrDefaultAsync(p => p.Id == extra.PlaceId, ct);
             if (place is not null)
                 extraStops.Add(new PlannerStop(place.Id, extra.Name, extra.DurationMin, new GeoPoint(place.Lat, place.Lng)));
         }
 
-        var pinned = inputs?.PinnedMode ?? settings.PinnedMode;
-        var modes = pinned is { } pin ? [pin] : settings.EnabledModes;
+        var pinned = ctx.Inputs?.PinnedMode ?? ctx.Settings.PinnedMode;
+        var modes = pinned is { } pin ? [pin] : ctx.Settings.EnabledModes;
 
-        var result = await planner.Plan(appointment, origin, new GeoPoint(appointment.Place.Lat, appointment.Place.Lng),
+        var result = await planner.Plan(ctx.Appointment, ctx.Origin,
+            new GeoPoint(ctx.Appointment.Place!.Lat, ctx.Appointment.Place.Lng),
             habits, extraStops, modes, effectiveNow, ct);
         store.ReplaceFor(appointmentId, result.Options);
         return result;
+    }
+
+    /// <summary>Confirmed habits matching this appointment's planning context (habits.confirmed tool),
+    /// with per-plan skipped stops already removed — the same set the planner uses.</summary>
+    public async Task<IReadOnlyList<ConfirmedHabit>> ConfirmedMatchingAsync(Guid appointmentId, CancellationToken ct = default)
+    {
+        var (ctx, _) = await BuildContextAsync(appointmentId, ct);
+        return ctx is null ? [] : await MatchingHabitsAsync(ctx, ct);
     }
 
     /// <summary>plan.commit: persists the chosen option as the current plan version. Rejects any
@@ -137,6 +122,46 @@ public sealed class PlanService(
             ?? result.Options.OrderByDescending(o => o.SlackMin).First();
         var commit = await CommitAsync(pick.OptionId, "fallback: model unavailable", PlanCommitter.Fallback, ct);
         return commit.Plan;
+    }
+
+    private async Task<(PlanContext? Ctx, string? Note)> BuildContextAsync(Guid appointmentId, CancellationToken ct)
+    {
+        var appointment = await db.Appointments.Include(a => a.Place).SingleOrDefaultAsync(a => a.Id == appointmentId, ct);
+        if (appointment is null)
+            return (null, "appointment not found");
+        if (appointment.Place is null)
+            return (null, "appointment has no resolvable place");
+
+        var settings = await db.UserSettings.AsNoTracking().FirstAsync(ct);
+        var homePlace = settings.HomePlaceId is { } homeId
+            ? await db.Places.AsNoTracking().SingleOrDefaultAsync(p => p.Id == homeId, ct)
+            : null;
+
+        var current = await location.GetAsync(ct);
+        GeoPoint origin;
+        if (current is { IsStale: false })
+            origin = new GeoPoint(current.Point.Lat, current.Point.Lng);
+        else if (homePlace is not null)
+            origin = new GeoPoint(homePlace.Lat, homePlace.Lng); // stale/no location → home (location-ingest spec)
+        else if (current is not null)
+            origin = new GeoPoint(current.Point.Lat, current.Point.Lng); // stale but better than nothing
+        else
+            return (null, "no current location and no home place configured");
+
+        var inputs = await db.PlanInputs.AsNoTracking().SingleOrDefaultAsync(p => p.AppointmentId == appointmentId, ct);
+        var key = BuildPlanningContext(appointment, settings, homePlace, origin);
+        return (new PlanContext(appointment, settings, homePlace, origin, inputs, key), null);
+    }
+
+    private async Task<IReadOnlyList<ConfirmedHabit>> MatchingHabitsAsync(PlanContext ctx, CancellationToken ct)
+    {
+        var skipped = ctx.Inputs?.SkippedPlaceIds ?? [];
+        return (await db.Habits.Include(h => h.Place)
+                .Where(h => h.State == HabitState.Confirmed)
+                .ToListAsync(ct))
+            .Select(ConfirmHabitHandler.FromPersisted)
+            .Where(h => h.Matches(ctx.Key) && !skipped.Contains(h.PlaceId))
+            .ToList();
     }
 
     private static bool SameStops(IReadOnlyList<PlanStop> a, IReadOnlyList<PlanStop> b) =>
