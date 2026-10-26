@@ -95,7 +95,7 @@ public sealed class AgentToolExecutor(
         var options = result.Options.Select(o => new
         {
             optionId = o.OptionId,
-            mode = o.Mode.ToString(),
+            mode = o.Mode.ToString().ToLowerInvariant(),
             stops = o.Stops.Select(s => s.Name).ToList(),
             leaveAt = Fmt(o.LeaveAt),
             arriveAt = Fmt(o.ArriveAt),
@@ -117,7 +117,7 @@ public sealed class AgentToolExecutor(
         Committed = true;
         var plan = result.Plan!;
         var stops = plan.Stops.Count == 0 ? "no stops" : string.Join(", ", plan.Stops.Select(s => s.Name));
-        return (ToJson(new { committed = true, version = plan.Version, mode = plan.Mode.ToString(), leaveAt = Fmt(plan.LeaveAt), arriveAt = Fmt(plan.ArriveAt) }),
+        return (ToJson(new { committed = true, version = plan.Version, mode = plan.Mode.ToString().ToLowerInvariant(), leaveAt = Fmt(plan.LeaveAt), arriveAt = Fmt(plan.ArriveAt) }),
             $"committed v{plan.Version}: {plan.Mode}, leave {Fmt(plan.LeaveAt)}, {stops}");
     }
 
@@ -128,7 +128,7 @@ public sealed class AgentToolExecutor(
             return (ToJson(new { none = true }), "no committed plan");
         return (ToJson(new
         {
-            mode = plan.Mode.ToString(),
+            mode = plan.Mode.ToString().ToLowerInvariant(),
             leaveAt = Fmt(plan.LeaveAt),
             arriveAt = Fmt(plan.ArriveAt),
             stops = plan.Stops.Select(s => s.Name).ToList(),

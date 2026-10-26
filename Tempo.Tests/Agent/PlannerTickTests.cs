@@ -113,6 +113,33 @@ public sealed class PlannerTickTests : IDisposable
     }
 
     [Fact]
+    public async Task The_tick_does_not_rewake_the_model_once_the_leave_nudge_exists()
+    {
+        model.EnqueueFinal("Nothing to do.");
+        await tick.TickAsync(); // stores the inputs hash
+        var options = await plans.OptionsAsync(appointment.Id);
+        await plans.CommitAsync(options.Options[0].OptionId, "test", PlanCommitter.Agent); // leaveAt 08:37Z
+        var plan = (await plans.CurrentAsync(appointment.Id))!;
+        db.Context.Nudges.Add(new Nudge
+        {
+            Id = Guid.NewGuid(),
+            AppointmentId = appointment.Id,
+            PlanId = plan.Id,
+            PlanVersion = plan.Version,
+            Kind = NudgeKind.Leave,
+            Text = "Leave at 09:37 by bike.",
+            Status = NudgeStatus.Sent,
+        });
+        db.Context.SaveChanges();
+        clock.SetUtcNow(DateTimeOffset.Parse("2026-10-27T08:30:00Z")); // window open, nudge already sent
+        buffer.Points.Add(new LocationPoint(52.0906, 5.2332, clock.GetUtcNow().AddMinutes(-1))); // same rounded coords
+
+        await tick.TickAsync();
+
+        Assert.Single(model.ChatInvocations); // every 2 minutes between nudge and leave: silence
+    }
+
+    [Fact]
     public async Task A_failed_run_falls_back_to_a_deterministic_commit()
     {
         model.ThrowOnNextChat = new ModelUnavailableException("both providers down");

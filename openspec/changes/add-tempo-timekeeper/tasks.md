@@ -75,6 +75,7 @@ Building period 27 Oct – 4 Nov 2026. Target day per section is a guide, not a 
 - [ ] 8.4 Telegram batch (one message/day) with Confirm/Reject + Why?; callbacks → `ConfirmHabitHandler` / reject
 - [ ] 8.5 Endpoints: `GET /habits?state=`, `POST /habits/{id}/confirm|reject`
 - [ ] 8.6 Tests: detected, insufficient, irregular, already-decided, confirm triggers agent run
+- [ ] 8.7 With habit learning live: seed one confirmed morning-coffee habit and rerun the five section-7 live scenarios with stops present (keep the coffee, drop the coffee, skip-a-stop recovery); paste the traces — this is the set for the judges
 
 ## 9. Nudging transport — Sat 31 Oct
 - [ ] 9.1 Telegram send with 3× backoff; `Nudge.status`; "Why?" inline button → trace text

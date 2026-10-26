@@ -22,7 +22,8 @@ public sealed class RecordingNudgeTransport : INudgeTransport
 public sealed class NudgeServiceTests : IDisposable
 {
     private readonly TestDb db = new();
-    private readonly FakeTimeProvider clock = new(DateTimeOffset.Parse("2026-10-27T08:00:00Z")); // 09:00 local
+    // 09:30 local — inside the nudge window (opens 09:27 local for the 09:37 plan).
+    private readonly FakeTimeProvider clock = new(DateTimeOffset.Parse("2026-10-27T08:30:00Z"));
     private readonly RecordingNudgeTransport transport = new();
     private readonly PlanOptionStore store = new();
     private readonly Appointment appointment;
@@ -157,7 +158,37 @@ public sealed class NudgeServiceTests : IDisposable
         appointment.Start = clock.GetUtcNow().AddMinutes(45);
         db.Context.SaveChanges();
 
-        var result = await Service().SendAsync(NudgeKind.Late, "You're running late — leave at 09:37 by bike.", appointment.Id, null);
+        var result = await Service().SendAsync(NudgeKind.Late, "You're running late — leave now by bike to arrive at 09:55.", appointment.Id, null);
+
+        Assert.True(result.Sent);
+    }
+
+    [Fact]
+    public async Task Leave_nudge_before_the_window_opens_is_refused()
+    {
+        var earlyClock = new FakeTimeProvider(DateTimeOffset.Parse("2026-10-27T08:00:00Z")); // window opens 08:27Z
+        var service = new NudgeService(db.Context, store, transport, earlyClock, NullLogger<NudgeService>.Instance);
+
+        var result = await service.SendAsync(NudgeKind.Leave, "Leave at 09:37 by bike.", appointment.Id, null);
+
+        Assert.False(result.Sent);
+        Assert.Contains("window not open", result.RefusalReason);
+        Assert.Contains("09:27", result.RefusalReason);
+    }
+
+    [Fact]
+    public async Task Late_nudge_without_the_arrival_time_is_refused()
+    {
+        var result = await Service().SendAsync(NudgeKind.Late, "Leave now by bike, you are late.", appointment.Id, null);
+
+        Assert.False(result.Sent);
+        Assert.Contains("missing arrival time", result.RefusalReason);
+    }
+
+    [Fact]
+    public async Task Late_nudge_with_arrival_and_no_leave_time_is_valid()
+    {
+        var result = await Service().SendAsync(NudgeKind.Late, "Leave now by bike and you'll arrive at 09:55.", appointment.Id, null);
 
         Assert.True(result.Sent);
     }

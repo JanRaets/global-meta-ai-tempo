@@ -46,11 +46,18 @@ public sealed partial class NudgeService(
             return NudgeSendResult.Refused("Refused: duplicate — this nudge was already sent for this plan version");
 
         var now = clock.GetUtcNow();
+        // D8 (amended 27 Oct): the Leave window is enforced here, not only in the tick, so no
+        // caller can nudge early. Late nudges are by definition past the window.
+        if (kind == NudgeKind.Leave && now < plan.LeaveAt.AddMinutes(-settings.NudgeLeadMin))
+        {
+            var opensAt = TimeZoneInfo.ConvertTime(plan.LeaveAt.AddMinutes(-settings.NudgeLeadMin), tz);
+            return NudgeSendResult.Refused($"Refused: nudge window not open yet (opens {opensAt:HH:mm})");
+        }
         if (InQuietHours(TimeOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, tz).DateTime), settings)
             && !(kind == NudgeKind.Late && appointment.Start - now <= TimeSpan.FromMinutes(60)))
             return NudgeSendResult.Refused("Refused: quiet hours");
 
-        if (Validate(text, plan, tz) is { } textProblem)
+        if (Validate(text, plan, kind, tz) is { } textProblem)
             return NudgeSendResult.Refused(textProblem);
 
         var nudge = new Nudge
@@ -79,13 +86,16 @@ public sealed partial class NudgeService(
         return new NudgeSendResult(true, Nudge: nudge);
     }
 
-    private string? Validate(string text, DeparturePlan plan, TimeZoneInfo tz)
+    private string? Validate(string text, DeparturePlan plan, NudgeKind kind, TimeZoneInfo tz)
     {
         string Local(DateTimeOffset t) => TimeZoneInfo.ConvertTime(t, tz).ToString("HH:mm");
 
-        var leaveTime = Local(plan.LeaveAt);
-        if (!TimesIn(text).Contains(leaveTime))
-            return "Refused: missing leave time — the text must contain the plan's leave time " + leaveTime;
+        // Leave nudges name the leave time. Late nudges name the recovery's arrival instead —
+        // the leave time is already in the past and reads wrong (spec amended 27 Oct).
+        if (kind == NudgeKind.Leave && !TimesIn(text).Contains(Local(plan.LeaveAt)))
+            return "Refused: missing leave time — the text must contain the plan's leave time " + Local(plan.LeaveAt);
+        if (kind == NudgeKind.Late && !TimesIn(text).Contains(Local(plan.ArriveAt)))
+            return "Refused: missing arrival time — a late nudge must contain the recovery's arrival time " + Local(plan.ArriveAt);
 
         if (!ModeWords(plan.Mode).Any(w => text.Contains(w, StringComparison.OrdinalIgnoreCase)))
             return $"Refused: missing mode — the text must name the mode ({plan.Mode})";

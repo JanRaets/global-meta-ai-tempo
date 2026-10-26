@@ -73,7 +73,7 @@ Triggered by: planner tick (every 2 min while an appointment is within 6 h), `Ap
 Rationale: the agent's autonomy is bounded by tool guards, which is both safer and the "verifiable agent" story.
 
 ### D8 — Nudge policy (enforced in tools)
-- Leave nudge at `leaveAt − nudgeLeadMin` (default 10). One per plan version.
+- Leave nudge at `leaveAt − nudgeLeadMin` (default 10). One per plan version. *(Amended 27 Oct: the window check is enforced inside `notify.send` too — a Leave nudge before `leaveAt − nudgeLeadMin` is refused — so the tick's timing and the tool's guard agree. Late nudge text names the recovery's arrival time, never a leave time, which would already be in the past.)*
 - Late: when `now > leaveAt` and user not at destination, the agent is invoked with `plan.options` already including the current state; it must commit exactly one recovery option and send one `Late` nudge.
 - Quiet hours suppress everything except a late nudge for an appointment within 60 min.
 - Habit proposals batched to one message per day.

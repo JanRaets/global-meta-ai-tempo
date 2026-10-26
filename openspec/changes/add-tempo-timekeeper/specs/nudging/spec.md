@@ -18,7 +18,7 @@ The system SHALL send one Telegram message per plan version at `leaveAt − nudg
 - **THEN** a new nudge is sent that states it replaces the previous one
 
 ### Requirement: Nudge text validation
-`notify.send` SHALL validate the agent's text against the committed plan: it must contain the plan's leave time and mode, be at most two sentences, and contain no time value that does not appear in the committed plan or its options.
+`notify.send` SHALL validate the agent's text against the committed plan: a `Leave` nudge must contain the plan's leave time, a `Late` nudge must contain the recovery's arrival time (its leave time is already in the past and is not required); every nudge must name the mode, be at most two sentences, and contain no time value that does not appear in the committed plan or its options. `notify.send` SHALL also refuse a `Leave` nudge before the nudge window opens (`now < leaveAt − nudgeLeadMin`), so no caller can nudge early. *(Amended 27 Oct 2026: Late-nudge time requirement switched from leave time to arrival time; window check moved into the tool per D1 "guards in code".)*
 
 #### Scenario: Wording missing required facts
 - **WHEN** the text lacks the leave time
