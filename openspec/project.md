@@ -12,10 +12,10 @@ Entry for the Meta Global AI Developer Hackathon, Indie Developer track, problem
   - Muse Spark via Meta Model API — the agent model: tool-calling loop, judgement, wording, vision (photo → appointment)
   - Muse Spark Open via Baseten (`meta-models/muse-spark-open-1026`) — fallback for the same role when Meta API credits are unavailable; also the open-weight bonus eligibility path
   - Muse Voice Transcribe via Meta Model API — speech to text for voice input
-- Routing: Google Routes API or OpenRouteService (see decisions)
+- Routing: OpenRouteService (design D15; bike/walk/car, transit out of scope)
 - Notifications: Telegram Bot API for push (inline keyboards for approvals); the PWA mirrors every nudge and action in-app
 - Infra: docker-compose for local; one public HTTPS endpoint (tunnel or small VM) so the phone can reach the API
-- Dev tooling: Muse Code for at least the scaffold and one full capability (recorded in README as part of the submission); Claude Code for the rest
+- Dev tooling: Claude Code for most of the build; Muse Code for section 11 (capture-appointment), recorded honestly in the README as part of the submission
 
 ## Project Conventions
 

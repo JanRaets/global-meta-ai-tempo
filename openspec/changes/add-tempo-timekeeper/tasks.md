@@ -2,7 +2,7 @@
 
 Building period 27 Oct – 4 Nov 2026. Target day per section is a guide, not a gate. Sections marked **[Muse Code]** are built with Muse Code and recorded as such in the README.
 
-## 0. Decisions & scaffold — Tue 27 Oct **[Muse Code]**
+## 0. Decisions & scaffold — Tue 27 Oct
 - [x] 0.1 Record human decisions (routing provider; credit status → provider build order) in `design.md`
 - [x] 0.2 `git init` empty public repo; first commit is the OpenSpec folder and a README stub stating hackathon, track, "everything here is built 27 Oct – 4 Nov"
 - [x] 0.3 Create `Tempo.sln`: `Tempo.Core`, `Tempo.Agent`, `Tempo.Api`, `Tempo.Jobs`, `Tempo.Integrations.Meta`, `Tempo.Integrations.Google`, `Tempo.Integrations.Maps`, `Tempo.Integrations.Telegram`, `Tempo.Tests`
@@ -10,7 +10,7 @@ Building period 27 Oct – 4 Nov 2026. Target day per section is a guide, not a 
 - [x] 0.5 docker-compose: Postgres 16 + pgvector, Redis; EF Core migrations run on startup
 - [x] 0.6 Config schema: `Models:*`, `Routing:*`, `Telegram:*`, `Google:*`; fail fast on missing values
 - [ ] 0.7 Public HTTPS endpoint (tunnel); verify the phone can open the PWA and grant geolocation + microphone — *tunnel documented in architecture.md; phone verification is a physical step for the builder*
-- [x] 0.8 Commit `architecture.md`; README section on Muse Code (*section 0 was built with Claude Code — README states tool attribution honestly; Muse Code planned for section 5*)
+- [x] 0.8 Commit `architecture.md`; README tooling line (*decision: "Built with Claude Code; section 11 (capture) with Muse Code."*)
 
 ## 1. Meta models — Tue 27 / Wed 28 Oct
 - [x] 1.1 Define `IMetaModels` (`ChatAsync` with tools, `ChatJsonAsync<T>`, `DescribeImageAsync<T>`, `TranscribeAsync`) and `ToolCall`/`ToolDefinition` types
@@ -41,7 +41,7 @@ Building period 27 Oct – 4 Nov 2026. Target day per section is a guide, not a 
 - [ ] 4.2 Implement chosen provider; 5-min Redis cache keyed by rounded inputs
 - [ ] 4.3 Tests: fixed route pair stable; cache hit
 
-## 5. Location ingest — Thu 29 Oct **[Muse Code]**
+## 5. Location ingest — Thu 29 Oct
 - [ ] 5.1 `POST /location` with per-user API key; validation; Redis list 24h TTL
 - [ ] 5.2 `ILocationSource` + `GpxReplaySource` with speed factor
 - [ ] 5.3 `CollapseVisitsJob` every 10 min: stay detection (≥5 min, 75 m), reverse-geocode, create/update `Visit`
@@ -89,7 +89,7 @@ Building period 27 Oct – 4 Nov 2026. Target day per section is a guide, not a 
 - [ ] 10.4 Result card: transcript + one-line change + Undo (10 s)
 - [ ] 10.5 Tests: each intent from a fixed transcript via scripted fake; Unknown → three chips; undo reverts
 
-## 11. Capture appointment — Sun 1 Nov
+## 11. Capture appointment — Sun 1 Nov **[Muse Code]**
 - [ ] 11.1 PWA camera button → `POST /capture` (resized to ≤1600 px client-side)
 - [ ] 11.2 Server: `DescribeImageAsync<CapturedAppointment>`; relative-date resolution in user timezone; geocode via calendar path
 - [ ] 11.3 Confirm card with editable time; Add → `Appointment { Source = Captured }`; never written to Google

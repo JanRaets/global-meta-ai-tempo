@@ -16,7 +16,7 @@ The spec is the contract: see [`openspec/`](openspec/) (proposal, design decisio
 | `Tempo.Jobs` | Hangfire jobs: calendar sync, visit collapsing, habit inference, planner tick |
 | `Tempo.Integrations.Meta` | `MetaApiModels` (Muse Spark + Muse Voice Transcribe), `BasetenModels` (Muse Spark Open), fallback wrapper |
 | `Tempo.Integrations.Google` | Google Calendar read-only sync (no write methods exist) |
-| `Tempo.Integrations.Maps` | Google Routes + Geocoding (design D15), 5-min Redis cache |
+| `Tempo.Integrations.Maps` | OpenRouteService Directions + Pelias geocoding (design D15), 5-min Redis cache |
 | `Tempo.Integrations.Telegram` | Nudge delivery, inline Confirm/Reject/Why? buttons |
 | `Tempo.Tests` | xUnit; scripted fake `IMetaModels`; Testcontainers integration tests |
 | `Tempo.Web` | Mobile-first PWA (Vite + React 18 + TS + Tailwind); builds into `Tempo.Api/wwwroot` |
@@ -27,14 +27,14 @@ Calendar + location points → deterministic derivation (`Appointment`, `Visit`,
 
 ## Configuration
 
-Schema in `Tempo.Core/Configuration/TempoOptions.cs`, bound from `appsettings.json` + environment variables (`Models__MetaApi__ApiKey=…`). Startup fails fast with an error naming the missing key. Each integration enforces its own required values from the section that wires it up; from section 0/1 the primary model provider's API key is required. Secrets never live in the repo — `.env.example` lands in section 13.
+Schema in `Tempo.Core/Configuration/TempoOptions.cs`, bound from `appsettings.json`, a gitignored `Tempo.Api/appsettings.local.json` (dev keys live there), and environment variables (`Models__MetaApi__ApiKey=…`). Startup fails fast with an error naming the missing key. Each integration enforces its own required values from the section that wires it up; from section 0/1 the primary model provider's API key is required. Secrets never live in the repo — `.env.example` lands in section 13.
 
 ## Run locally
 
 ```sh
 docker compose up -d                 # Postgres 16 + pgvector on :5433, Redis on :6380
 (cd Tempo.Web && npm install && npm run build)   # PWA → Tempo.Api/wwwroot
-Models__MetaApi__ApiKey=… dotnet run --project Tempo.Api   # http://localhost:5000
+Models__MetaApi__ApiKey=… dotnet run --project Tempo.Api   # http://localhost:5181
 ```
 
 Host ports are 5433/6380 to avoid colliding with native installs. EF migrations apply automatically on API startup.
@@ -45,7 +45,7 @@ The PWA needs HTTPS for geolocation, microphone and camera. Quick tunnel:
 
 ```sh
 brew install cloudflared
-cloudflared tunnel --url http://localhost:5000
+cloudflared tunnel --url http://localhost:5181
 ```
 
 Open the printed `https://….trycloudflare.com` URL on the phone, add to home screen, grant location + microphone. (A named tunnel with a stable hostname is nicer for Owntracks later; the quick tunnel is enough to start.)

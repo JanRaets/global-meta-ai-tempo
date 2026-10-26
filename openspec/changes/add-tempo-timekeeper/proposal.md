@@ -26,7 +26,8 @@ Calendar apps tell you when something starts, not when you need to leave. Users 
 - Location sources: the PWA via browser Geolocation while open (demo), Owntracks in HTTP mode for all-day background tracking during the building period, and `GpxReplaySource` for tests and demo mode.
 - Meta Model API credits are live ($150). Section 1 builds `MetaApiModels` first, `BasetenModels` second as fallback.
 - Demo deliverable: a 3-minute video recorded from the phone plus a short screen-recorded trace view; last two days of the building period are reserved for it.
-- Tooling: Muse Code builds section 0 (scaffold) and section 5 (location ingest) end to end; this is stated in the README.
+- Tooling: built mostly with Claude Code; Muse Code is used for section 11 (capture-appointment) only, and if that doesn't happen the README says so. The README's tooling line stays honest either way.
+- Routing provider: OpenRouteService (free; bike/walk/car are what the demo needs; transit out of scope). Recorded as design D15.
 
 ## Decisions required before Phase 0 (BLOCKING — escalate to human, do not guess)
-1. Routing provider: Google Routes (paid, strong NL transit) vs OpenRouteService (free, weak transit)
+None — all resolved above.

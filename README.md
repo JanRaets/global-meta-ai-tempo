@@ -10,8 +10,8 @@ Everything in this repository is built during the building period, **27 Oct – 
 - Principle: **tools compute, the model decides.** No model output is ever used as a time, duration or coordinate; guards live in code.
 - Spec: the full OpenSpec proposal, design and per-capability specs are in [`openspec/`](openspec/).
 
-## Built with Muse Code
+## Tooling
 
-Section 5 (location ingest) is planned to be built with Muse Code; which sections were built with which Meta dev tool is recorded here honestly at submission time.
+Built with Claude Code; section 11 (capture) with Muse Code.
 
 *(Full README — Meta tools table, architecture, how to run, model-usage numbers — lands in section 13 of [tasks.md](openspec/changes/add-tempo-timekeeper/tasks.md).)*

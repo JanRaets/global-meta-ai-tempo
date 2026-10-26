@@ -35,8 +35,9 @@ public sealed class RoutingOptions
 {
     public const string Section = "Routing";
 
-    /// <summary>Google Routes API key (also used for geocoding). Design D15.</summary>
-    public string GoogleApiKey { get; init; } = "";
+    /// <summary>OpenRouteService (design D15): Directions for estimates, Pelias endpoints for geocoding.</summary>
+    public string BaseUrl { get; init; } = "https://api.openrouteservice.org";
+    public string ApiKey { get; init; } = "";
     public int CacheMinutes { get; init; } = 5;
 }
 

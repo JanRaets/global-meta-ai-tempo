@@ -16,6 +16,7 @@ Tempo.Api/wwwroot/
 
 # Secrets — never commit keys
 .env
+appsettings.local.json
 appsettings.*.local.json
 
 # Local notes (not part of the submission)

@@ -6,6 +6,9 @@ using Tempo.Integrations.Meta;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Gitignored local overrides (API keys on a dev machine; see .gitignore). Highest JSON precedence.
+builder.Configuration.AddJsonFile("appsettings.local.json", optional: true, reloadOnChange: true);
+
 // Config schema (fail fast; see architecture.md). Each integration enforces its own
 // required values the moment it is registered.
 builder.Services.AddMetaModels(builder.Configuration);

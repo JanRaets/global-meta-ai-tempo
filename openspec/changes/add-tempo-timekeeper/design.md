@@ -99,14 +99,14 @@ Screens: **Now** (countdown, reason line, hold-to-talk and camera buttons, recen
 ### D14 — Video and submission
 Recorded from the phone (screen recording + a second phone for the walk), 3 minutes, following the demo loop above, ending with the trace sheet. README has: what was built during the hackathon (everything), which Meta tools and where (table), how to run, and the Muse Code sections. Repo public from first commit.
 
-### D15 — Routing provider: Google Routes (decided 26 Oct 2026)
-Google Routes API is the routing provider (`IRoutingClient` in `Tempo.Integrations.Maps`). Rationale: materially better NL transit and cycling estimates than OpenRouteService, and the demo depends on believable leave-at times; the free monthly credit covers a one-user hackathon load, helped by the 5-minute estimate cache. Geocoding uses the Google Geocoding API under the same key. Also recorded here: Meta Model API credits are live, so section 1 builds `MetaApiModels` first and `BasetenModels` second as the fallback (`Models:Primary = MetaApi`).
+### D15 — Routing provider: OpenRouteService (decided 26 Oct 2026)
+OpenRouteService is the routing provider (`IRoutingClient` in `Tempo.Integrations.Maps`). Rationale: free, and bike/walk/car are what the demo needs; transit is out of scope for the hackathon. Section 4 implements the ORS Directions API with profiles `cycling-regular` (bike), `foot-walking` (walk) and `driving-car` (car); geocoding uses ORS's Pelias geocode endpoints under the same key. Mode `train` stays in the mode enum but is disabled by default in `UserSettings`, and `plan.options` skips disabled modes. `Routing:*` config is the ORS base URL + API key. Also recorded here: Meta Model API credits are live, so section 1 builds `MetaApiModels` first and `BasetenModels` second as the fallback (`Models:Primary = MetaApi`).
 
 ## Risks / Trade-offs
 - Meta API credits may arrive late. Mitigation: Baseten path first, API path second; `IMetaModels` makes the swap a config change.
 - Rate limits on the Meta API during a 2-minute tick loop. Mitigation: the tick only invokes the agent when an input changed since the last run; otherwise the committed plan stands.
 - Spark Open on Baseten may differ in tool-calling reliability from Spark. Mitigation: the scripted-fake agent tests pin the expected sequences; a "tool-call sanity" integration test runs against both providers in CI (skipped without keys).
-- Routing transit quality in NL varies; Google Routes is better but paid. Decision escalated.
+- Routing transit quality in NL varies; resolved by D15: transit is out of scope, ORS covers bike/walk/car for free.
 - Foreground-only location: nudges when the app is closed depend on Telegram push. Acceptable.
 - Tunnel is a single point of failure for the live demo. Mitigation: demo mode (GPX replay) and the video are the primary artefacts; live is a bonus.
 - Vision extraction from photos is fuzzy. Mitigation: user always confirms; the confirm card is the feature, not the extraction accuracy.

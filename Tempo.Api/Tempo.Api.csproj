@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
     <ProjectReference Include="..\Tempo.Core\Tempo.Core.csproj" />
@@ -23,6 +23,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>635cc45b-14fa-4382-9e2e-24c979e24fe7</UserSecretsId>
   </PropertyGroup>
 
 </Project>
