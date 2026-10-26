@@ -32,6 +32,9 @@ builder.Services.AddDbContext<TempoDbContext>(o => o.UseNpgsql(postgres, b => b.
 builder.Services.AddSingleton<IDomainEvents, LoggingDomainEvents>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<ConfirmHabitHandler>();
+builder.Services.AddScoped<Tempo.Core.Planning.DeparturePlanner>();
+builder.Services.AddScoped<Tempo.Core.Planning.PlanOptionStore>();
+builder.Services.AddScoped<Tempo.Core.Planning.PlanService>();
 builder.Services.AddScoped<PlaceResolver>();
 builder.Services.AddScoped<CalendarSyncService>();
 builder.Services.AddScoped<CalendarSyncJob>();

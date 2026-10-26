@@ -52,11 +52,11 @@ Building period 27 Oct – 4 Nov 2026. Target day per section is a guide, not a 
 - [x] 5.8 Tests: stay detected, transit ignored, ongoing stay updated, stale fallback, Owntracks mapping
 
 ## 6. Departure planning tools — Thu 29 / Fri 30 Oct
-- [ ] 6.1 `plan.options(appointmentId)` per design D6: modes × stop subsets, per-plan input changes (skipped stop, extra stop, late offset)
-- [ ] 6.2 `plan.commit(optionId, reason)` with same-run optionId validation; `plan.current`
-- [ ] 6.3 Plan versioning with ±3 min routing tolerance
-- [ ] 6.4 Deterministic fallback commit when no agent run commits within 2 min
-- [ ] 6.5 Tests: option enumeration, commit valid/invalid optionId, proposed habit ignored, jitter, fallback commit
+- [x] 6.1 `plan.options(appointmentId)` per design D6: modes × stop subsets, per-plan input changes (skipped stop, extra stop, late offset)
+- [x] 6.2 `plan.commit(optionId, reason)` with same-run optionId validation; `plan.current`
+- [x] 6.3 Plan versioning with ±3 min routing tolerance
+- [x] 6.4 Deterministic fallback commit when no agent run commits within 2 min — *`FallbackCommitAsync` done and tested; the 2-minute tick that invokes it is wired with the section 7 triggers*
+- [x] 6.5 Tests: option enumeration, commit valid/invalid optionId, proposed habit ignored, jitter, fallback commit
 
 ## 7. Agent loop — Fri 30 / Sat 31 Oct
 - [ ] 7.1 Tool registry with JSON schemas: `calendar.upcoming`, `location.current`, `plan.options`, `plan.commit`, `plan.current`, `habits.confirmed`, `notify.send`, `trace.note`

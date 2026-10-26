@@ -107,6 +107,22 @@ public sealed class Intent
     public DateTimeOffset? UndoneAt { get; set; }
 }
 
+public sealed record ExtraStop(Guid PlaceId, string Name, int DurationMin);
+
+/// <summary>Per-appointment planner input changes from voice intents (skip a stop, add a
+/// stop, running late, pin a mode) — scoped to the current appointment only, never to
+/// habits or the calendar (voice-input spec: Apply intent).</summary>
+public sealed class PlanInputs
+{
+    public Guid Id { get; set; }
+    public Guid AppointmentId { get; set; }
+    public List<Guid> SkippedPlaceIds { get; set; } = [];
+    public List<ExtraStop> ExtraStops { get; set; } = [];
+    public int LateOffsetMin { get; set; }
+    public TravelMode? PinnedMode { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
 public sealed record TraceStep(int Seq, string Tool, string ArgsJson, string ResultSummary);
 
 /// <summary>The recorded tool-call sequence and decision of one agent run (design D7).</summary>

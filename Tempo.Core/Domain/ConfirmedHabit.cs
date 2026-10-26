@@ -8,13 +8,15 @@ namespace Tempo.Core.Domain;
 /// </summary>
 public sealed class ConfirmedHabit
 {
-    internal ConfirmedHabit(Guid habitId, Guid placeId, string placeName, double avgDurationMin, ContextKey context)
+    internal ConfirmedHabit(Guid habitId, Guid placeId, string placeName, double avgDurationMin, ContextKey context, double lat, double lng)
     {
         HabitId = habitId;
         PlaceId = placeId;
         PlaceName = placeName;
         AvgDurationMin = avgDurationMin;
         Context = context;
+        Lat = lat;
+        Lng = lng;
     }
 
     public Guid HabitId { get; }
@@ -22,6 +24,8 @@ public sealed class ConfirmedHabit
     public string PlaceName { get; }
     public double AvgDurationMin { get; }
     public ContextKey Context { get; }
+    public double Lat { get; }
+    public double Lng { get; }
 
     public bool Matches(ContextKey planning) => Context.Matches(planning);
 }

@@ -31,11 +31,15 @@ public sealed class ConfirmHabitHandler(TempoDbContext db, IDomainEvents events)
         await db.SaveChangesAsync(ct);
     }
 
-    /// <summary>Rehydrates a ConfirmedHabit from an already-confirmed row (planner load path).</summary>
+    /// <summary>Rehydrates a ConfirmedHabit from an already-confirmed row (planner load path).
+    /// The habit's Place must be loaded — the planner routes through its coordinates.</summary>
     public static ConfirmedHabit FromPersisted(Habit habit)
     {
         if (habit.State != HabitState.Confirmed)
             throw new InvalidOperationException($"Habit {habit.Id} is {habit.State}, not Confirmed");
-        return new ConfirmedHabit(habit.Id, habit.PlaceId, habit.Place?.Name ?? "stop", habit.AvgDurationMin, habit.Context);
+        if (habit.Place is null)
+            throw new InvalidOperationException($"Habit {habit.Id} must be loaded with its Place");
+        return new ConfirmedHabit(habit.Id, habit.PlaceId, habit.Place.Name, habit.AvgDurationMin, habit.Context,
+            habit.Place.Lat, habit.Place.Lng);
     }
 }

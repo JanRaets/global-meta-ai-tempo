@@ -12,6 +12,7 @@ public sealed class TempoDbContext(DbContextOptions<TempoDbContext> options) : D
     public DbSet<DeparturePlan> DeparturePlans => Set<DeparturePlan>();
     public DbSet<Nudge> Nudges => Set<Nudge>();
     public DbSet<Intent> Intents => Set<Intent>();
+    public DbSet<PlanInputs> PlanInputs => Set<PlanInputs>();
     public DbSet<AgentTrace> AgentTraces => Set<AgentTrace>();
     public DbSet<UserSettings> UserSettings => Set<UserSettings>();
     public DbSet<OAuthToken> OAuthTokens => Set<OAuthToken>();
@@ -37,6 +38,13 @@ public sealed class TempoDbContext(DbContextOptions<TempoDbContext> options) : D
         {
             e.OwnsMany(p => p.Stops, b => b.ToJson());
             e.HasIndex(p => new { p.AppointmentId, p.Version }).IsUnique();
+            e.HasOne<Appointment>().WithMany().HasForeignKey(p => p.AppointmentId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PlanInputs>(e =>
+        {
+            e.OwnsMany(p => p.ExtraStops, b => b.ToJson());
+            e.HasIndex(p => p.AppointmentId).IsUnique();
             e.HasOne<Appointment>().WithMany().HasForeignKey(p => p.AppointmentId).OnDelete(DeleteBehavior.Cascade);
         });
 
