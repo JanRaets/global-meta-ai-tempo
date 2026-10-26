@@ -2,19 +2,13 @@ using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using Tempo.Core.Configuration;
 using Tempo.Core.Data;
+using Tempo.Integrations.Meta;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Config schema (fail fast; see architecture.md). Each integration enforces its own
-// required values the moment it is registered; Models is enforced here because the
-// model layer is wired from section 1 on.
-builder.Services.AddOptions<ModelsOptions>()
-    .Bind(builder.Configuration.GetSection(ModelsOptions.Section))
-    .Validate(o => o.Primary is not ModelProvider.MetaApi || o.MetaApi.ApiKey is not "",
-        "Missing configuration value Models:MetaApi:ApiKey (primary provider is MetaApi)")
-    .Validate(o => o.Primary is not ModelProvider.Baseten || o.Baseten.ApiKey is not "",
-        "Missing configuration value Models:Baseten:ApiKey (primary provider is Baseten)")
-    .ValidateOnStart();
+// required values the moment it is registered.
+builder.Services.AddMetaModels(builder.Configuration);
 builder.Services.AddOptions<RoutingOptions>().Bind(builder.Configuration.GetSection(RoutingOptions.Section));
 builder.Services.AddOptions<TelegramOptions>().Bind(builder.Configuration.GetSection(TelegramOptions.Section));
 builder.Services.AddOptions<GoogleOptions>().Bind(builder.Configuration.GetSection(GoogleOptions.Section));

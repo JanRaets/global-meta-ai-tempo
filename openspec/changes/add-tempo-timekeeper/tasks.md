@@ -13,14 +13,14 @@ Building period 27 Oct – 4 Nov 2026. Target day per section is a guide, not a 
 - [x] 0.8 Commit `architecture.md`; README section on Muse Code (*section 0 was built with Claude Code — README states tool attribution honestly; Muse Code planned for section 5*)
 
 ## 1. Meta models — Tue 27 / Wed 28 Oct
-- [ ] 1.1 Define `IMetaModels` (`ChatAsync` with tools, `ChatJsonAsync<T>`, `DescribeImageAsync<T>`, `TranscribeAsync`) and `ToolCall`/`ToolDefinition` types
-- [ ] 1.2 Implement whichever provider has working credits first (Baseten `meta-models/muse-spark-open-1026` or Meta API Muse Spark); then the other
-- [ ] 1.3 Muse Voice Transcribe in `MetaApiModels`; `BasetenModels.TranscribeAsync` delegates to it
-- [ ] 1.4 Fallback wrapper: primary → fallback on 429/5xx; provider recorded on every result
-- [ ] 1.5 Call accounting: log provider, model, purpose, tokens, latency; `GET /admin/model-usage`
-- [ ] 1.6 Scripted fake `IMetaModels` for tests
-- [ ] 1.7 Tests: provider selection, JSON retry, double failure throws, fallback on 429, no foreign SDK packages (CI grep)
-- [ ] 1.8 Integration smoke (skipped without keys): one tool-call round trip against each real provider
+- [x] 1.1 Define `IMetaModels` (`ChatAsync` with tools, `ChatJsonAsync<T>`, `DescribeImageAsync<T>`, `TranscribeAsync`) and `ToolCall`/`ToolDefinition` types
+- [x] 1.2 Implement whichever provider has working credits first (Baseten `meta-models/muse-spark-open-1026` or Meta API Muse Spark); then the other
+- [x] 1.3 Muse Voice Transcribe in `MetaApiModels`; `BasetenModels.TranscribeAsync` delegates to it
+- [x] 1.4 Fallback wrapper: primary → fallback on 429/5xx; provider recorded on every result
+- [x] 1.5 Call accounting: log provider, model, purpose, tokens, latency; `GET /admin/model-usage`
+- [x] 1.6 Scripted fake `IMetaModels` for tests
+- [x] 1.7 Tests: provider selection, JSON retry, double failure throws, fallback on 429, no foreign SDK packages (CI grep)
+- [x] 1.8 Integration smoke (skipped without keys): one tool-call round trip against each real provider — *written and self-skipping; not yet run with real keys (run `Models__MetaApi__ApiKey=… dotnet test --filter Category=Integration`)*
 
 ## 2. Domain (Tempo.Core) — Wed 28 Oct
 - [ ] 2.1 Entities: `Place`, `Appointment` (with `Source = Synced | Captured`), `Visit`, `Habit`, `DeparturePlan`, `PlanOption`, `Nudge`, `Intent`, `AgentTrace`, `UserSettings`
