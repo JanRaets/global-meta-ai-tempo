@@ -29,6 +29,22 @@ public sealed class OrsGeocoder(HttpClient http, IOptions<RoutingOptions> option
         return new GeocodeResult(lat, lng, feature.Properties?.Label);
     }
 
+    public async Task<string?> ReverseAsync(double lat, double lng, CancellationToken ct = default)
+    {
+        if (options.Value.ApiKey is "")
+            throw new InvalidOperationException("Missing configuration value Routing:ApiKey (OpenRouteService)");
+        var response = await http.GetAsync(
+            $"geocode/reverse?point.lat={lat.ToString(System.Globalization.CultureInfo.InvariantCulture)}" +
+            $"&point.lon={lng.ToString(System.Globalization.CultureInfo.InvariantCulture)}&size=1", ct);
+        if (!response.IsSuccessStatusCode)
+        {
+            logger.LogWarning("ORS reverse geocode failed ({Status})", (int)response.StatusCode);
+            return null;
+        }
+        var parsed = await response.Content.ReadFromJsonAsync<WireGeocodeResponse>(cancellationToken: ct);
+        return parsed?.Features?.FirstOrDefault()?.Properties?.Label;
+    }
+
     private sealed record WireGeocodeResponse([property: JsonPropertyName("features")] List<WireFeature>? Features);
 
     private sealed record WireFeature(

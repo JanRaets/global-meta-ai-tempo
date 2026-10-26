@@ -6,6 +6,9 @@ public interface IGeocoder
 {
     /// <summary>Null when the text cannot be geocoded.</summary>
     Task<GeocodeResult?> GeocodeAsync(string text, CancellationToken ct = default);
+
+    /// <summary>Label for a point (visit centroids); null when reverse geocoding fails.</summary>
+    Task<string?> ReverseAsync(double lat, double lng, CancellationToken ct = default);
 }
 
 public static class GeoMath

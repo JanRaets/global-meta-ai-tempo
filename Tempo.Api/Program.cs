@@ -7,6 +7,7 @@ using Tempo.Core.Data;
 using Tempo.Core.Domain;
 using Tempo.Core.Events;
 using Tempo.Core.Geo;
+using Tempo.Core.Redis;
 using Tempo.Integrations.Google;
 using Tempo.Integrations.Maps;
 using Tempo.Integrations.Meta;
@@ -33,6 +34,12 @@ builder.Services.AddScoped<ConfirmHabitHandler>();
 builder.Services.AddScoped<PlaceResolver>();
 builder.Services.AddScoped<CalendarSyncService>();
 builder.Services.AddScoped<CalendarSyncJob>();
+
+var redisConnection = builder.Configuration.GetConnectionString("Redis")
+    ?? throw new InvalidOperationException("Missing configuration value ConnectionStrings:Redis");
+builder.Services.AddSingleton<StackExchange.Redis.IConnectionMultiplexer>(
+    StackExchange.Redis.ConnectionMultiplexer.Connect(redisConnection + ",abortConnect=false"));
+builder.Services.AddSingleton<IRoutingCache, RedisRoutingCache>();
 
 builder.Services.AddDataProtection();
 builder.Services.AddMemoryCache();

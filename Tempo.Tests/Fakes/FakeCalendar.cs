@@ -27,4 +27,9 @@ public sealed class FakeGeocoder : IGeocoder
 
     public Task<GeocodeResult?> GeocodeAsync(string text, CancellationToken ct = default) =>
         Task.FromResult(known.TryGetValue(text, out var result) ? result : null);
+
+    public string ReverseLabel { get; set; } = "Somewhere 1, Utrecht";
+
+    public Task<string?> ReverseAsync(double lat, double lng, CancellationToken ct = default) =>
+        Task.FromResult<string?>(ReverseLabel);
 }

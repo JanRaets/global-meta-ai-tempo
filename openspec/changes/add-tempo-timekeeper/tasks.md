@@ -37,9 +37,9 @@ Building period 27 Oct – 4 Nov 2026. Target day per section is a guide, not a 
 - [x] 3.5 Tests: create/move/delete against a fake Calendar client
 
 ## 4. Routing — Wed 28 / Thu 29 Oct
-- [ ] 4.1 `IRoutingClient.Estimate(from, to, mode, departAt)` and `Detour(from, via[], to, mode)`
-- [ ] 4.2 Implement chosen provider; 5-min Redis cache keyed by rounded inputs
-- [ ] 4.3 Tests: fixed route pair stable; cache hit
+- [x] 4.1 `IRoutingClient.Estimate(from, to, mode, departAt)` and `Detour(from, via[], to, mode)`
+- [x] 4.2 Implement chosen provider; 5-min Redis cache keyed by rounded inputs — *ORS Directions; 429/5xx/network → `RoutingUnavailableException`; verified live: Zeist→Utrecht Centraal bike 37.3 min, detour via De Bilt 40.6 min*
+- [x] 4.3 Tests: fixed route pair stable; cache hit
 
 ## 5. Location ingest — Thu 29 Oct
 - [ ] 5.1 `POST /location` with per-user API key; validation; Redis list 24h TTL

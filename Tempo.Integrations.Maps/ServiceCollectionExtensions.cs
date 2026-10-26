@@ -18,10 +18,19 @@ public static class ServiceCollectionExtensions
             var o = sp.GetRequiredService<IOptions<RoutingOptions>>().Value;
             http.BaseAddress = new Uri(o.BaseUrl.TrimEnd('/') + "/");
             if (o.ApiKey is not "")
-                http.DefaultRequestHeaders.Add("Authorization", o.ApiKey);
+                http.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", o.ApiKey); // raw key; typed parser rejects it
             http.Timeout = TimeSpan.FromSeconds(15);
         });
         services.AddScoped<IGeocoder>(sp => sp.GetRequiredService<OrsGeocoder>());
+        services.AddHttpClient<OrsRoutingClient>((sp, http) =>
+        {
+            var o = sp.GetRequiredService<IOptions<RoutingOptions>>().Value;
+            http.BaseAddress = new Uri(o.BaseUrl.TrimEnd('/') + "/");
+            if (o.ApiKey is not "")
+                http.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", o.ApiKey); // ORS: raw key, no Bearer
+            http.Timeout = TimeSpan.FromSeconds(15);
+        });
+        services.AddScoped<IRoutingClient>(sp => sp.GetRequiredService<OrsRoutingClient>());
         return services;
     }
 }
