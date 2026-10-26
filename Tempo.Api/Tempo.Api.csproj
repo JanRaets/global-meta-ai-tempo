@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Tempo.Core\Tempo.Core.csproj" />
+    <ProjectReference Include="..\Tempo.Agent\Tempo.Agent.csproj" />
+    <ProjectReference Include="..\Tempo.Jobs\Tempo.Jobs.csproj" />
+    <ProjectReference Include="..\Tempo.Integrations.Meta\Tempo.Integrations.Meta.csproj" />
+    <ProjectReference Include="..\Tempo.Integrations.Google\Tempo.Integrations.Google.csproj" />
+    <ProjectReference Include="..\Tempo.Integrations.Maps\Tempo.Integrations.Maps.csproj" />
+    <ProjectReference Include="..\Tempo.Integrations.Telegram\Tempo.Integrations.Telegram.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FastEndpoints" Version="8.3.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.11">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.11" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+</Project>
