@@ -10,6 +10,10 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
+      workbox: {
+        // Server routes must never be swallowed by the SPA's offline navigation fallback.
+        navigateFallbackDenylist: [/^\/(admin|location|auth|sync|health|hangfire|api|voice|capture|traces)/],
+      },
       manifest: {
         name: 'TEMPO',
         short_name: 'TEMPO',
