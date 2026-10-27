@@ -137,3 +137,32 @@ public sealed class LocationKeyEndpoint(TempoDbContext db, IWebHostEnvironment e
         }, ct);
     }
 }
+
+/// <summary>Dev-only key rotation (13.6): generates a fresh key and invalidates the old one.
+/// Update Owntracks (and any saved PWA URL) with the new key immediately — posts with the
+/// old key get 401 from the next request on (the 1-minute auth cache aside).</summary>
+public sealed class RotateLocationKeyEndpoint(TempoDbContext db, IWebHostEnvironment env) : EndpointWithoutRequest
+{
+    public override void Configure()
+    {
+        Post("/admin/location-key/rotate");
+        AllowAnonymous();
+    }
+
+    public override async Task HandleAsync(CancellationToken ct)
+    {
+        if (!env.IsDevelopment())
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+        var settings = await db.UserSettings.FirstAsync(ct);
+        settings.LocationApiKey = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16));
+        await db.SaveChangesAsync(ct);
+        await Send.OkAsync(new
+        {
+            key = settings.LocationApiKey,
+            owntracksUrl = $"https://<tunnel-host>/location/owntracks?key={settings.LocationApiKey}",
+        }, ct);
+    }
+}

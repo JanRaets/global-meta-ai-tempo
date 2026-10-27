@@ -27,7 +27,7 @@ Calendar + location points → deterministic derivation (`Appointment`, `Visit`,
 
 ## Configuration
 
-Schema in `Tempo.Core/Configuration/TempoOptions.cs`, bound from `appsettings.json`, a gitignored `Tempo.Api/appsettings.local.json` (dev keys live there), user-secrets (the VAPID push keys: `Push:VapidPublicKey` / `Push:VapidPrivateKey`), and environment variables (`Models__MetaApi__ApiKey=…`). Startup fails fast with an error naming the missing key. Each integration enforces its own required values from the section that wires it up; from section 0/1 the primary model provider's API key is required. Secrets never live in the repo — `.env.example` lands in section 13.
+Schema in `Tempo.Core/Configuration/TempoOptions.cs`, bound from `appsettings.json`, a gitignored `Tempo.Api/appsettings.local.json` (dev keys live there), user-secrets (the VAPID push keys: `Push:VapidPublicKey` / `Push:VapidPrivateKey`), and environment variables (`Models__MetaApi__ApiKey=…`). Every key is listed in [.env.example](.env.example). `Models:Primary=Baseten` runs Muse Spark Open as the primary agent model (Meta API stays the transcription path and the fallback). The per-user location API key is generated at first startup; rotate it with `POST /admin/location-key/rotate` (dev-only) and update the Owntracks URL on the phone with the new key right away — the old key stops working within a minute. Startup fails fast with an error naming the missing key. Each integration enforces its own required values from the section that wires it up; from section 0/1 the primary model provider's API key is required. Secrets never live in the repo — `.env.example` lands in section 13.
 
 ## Run locally
 

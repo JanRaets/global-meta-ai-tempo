@@ -99,9 +99,11 @@ public sealed class DemoModeService(
         {
             Id = Guid.NewGuid(),
             Source = AppointmentSource.Captured, // calendar sync must never delete it
+            // +30: car travel ~25 min puts leaveAt ~5 min out — the leave nudge fires with a
+            // future time on the first tick, lateness follows mid-replay (verified live 27 Oct).
             Title = "Demo: borrel met Tom",
-            Start = now.AddMinutes(22),
-            End = now.AddMinutes(82),
+            Start = now.AddMinutes(30),
+            End = now.AddMinutes(90),
             PlaceId = destination.Id,
             BufferMin = 5,
         };
