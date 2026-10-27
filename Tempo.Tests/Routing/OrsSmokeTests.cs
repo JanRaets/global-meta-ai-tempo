@@ -35,8 +35,19 @@ public sealed class OrsSmokeTests(ITestOutputHelper output)
         http.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", options.ApiKey);
         var client = new OrsRoutingClient(http, Options.Create(options), new FakeRoutingCache(), NullLogger<OrsRoutingClient>.Instance);
 
-        var estimate = await client.EstimateAsync(Zeist, UtrechtCentraal, TravelMode.Bicycle, DateTimeOffset.UtcNow);
-        var detour = await client.DetourAsync(Zeist, [DeBilt], UtrechtCentraal, TravelMode.Bicycle);
+        TimeSpan estimate, detour;
+        try
+        {
+            estimate = await client.EstimateAsync(Zeist, UtrechtCentraal, TravelMode.Bicycle, DateTimeOffset.UtcNow);
+            detour = await client.DetourAsync(Zeist, [DeBilt], UtrechtCentraal, TravelMode.Bicycle);
+        }
+        catch (RoutingUnavailableException ex) when (ex.Message.Contains("unreachable"))
+        {
+            // A live smoke skips when the service itself is down (observed 27 Oct: ORS
+            // outage, even /health timing out) — it fails only on wrong behaviour.
+            Skip.If(true, $"ORS unreachable: {ex.Message}");
+            return;
+        }
 
         output.WriteLine($"Estimate Zeist -> Utrecht Centraal (cycling-regular): {estimate.TotalMinutes:F1} min");
         output.WriteLine($"Detour Zeist -> De Bilt -> Utrecht Centraal (cycling-regular): {detour.TotalMinutes:F1} min");
