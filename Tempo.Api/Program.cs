@@ -40,6 +40,7 @@ builder.Services.AddWebPush(builder.Configuration); // INudgeTransport (design D
 builder.Services.AddSingleton<Tempo.Agent.AgentRunner>();
 builder.Services.AddSingleton<Tempo.Agent.TickStateStore>();
 builder.Services.AddScoped<Tempo.Agent.VoiceIntentService>();
+builder.Services.AddScoped<Tempo.Agent.CaptureService>();
 builder.Services.AddScoped<Tempo.Agent.PlannerTickService>();
 builder.Services.AddScoped<Tempo.Agent.PlannerTickJob>();
 builder.Services.AddScoped<Tempo.Agent.AgentRunJob>();

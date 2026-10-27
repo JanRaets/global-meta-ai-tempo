@@ -106,6 +106,16 @@ export function PlayIcon({ size = 22, strokeWidth = 2, className }: IconProps) {
   )
 }
 
+export function CameraIcon({ size = 22, strokeWidth = 2, className }: IconProps) {
+  return (
+    <svg {...base(size, strokeWidth)} className={className} aria-hidden="true">
+      <rect x="3" y="7" width="18" height="13" rx="2" />
+      <circle cx="12" cy="13" r="3.5" />
+      <path d="M8.5 7L10 4.5h4L15.5 7" />
+    </svg>
+  )
+}
+
 export function ArrowIcon({ size = 22, strokeWidth = 2.4, className }: IconProps) {
   return (
     <svg {...base(size, strokeWidth)} className={className} aria-hidden="true">

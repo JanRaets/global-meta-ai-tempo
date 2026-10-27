@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { api, type NowPayload } from '../api'
+import { CapturePhoto } from '../CapturePhoto'
 import { HoldToTalk } from '../HoldToTalk'
 import { ModeIcon } from '../Icons'
 import { TraceSheet } from '../TraceSheet'
@@ -79,7 +80,7 @@ export function NowScreen({ locationLive }: { locationLive: boolean }) {
       {!late && (
         <div className="px-6">
           <HoldToTalk onApplied={refresh} />
-          {/* Camera capture button mounts here — section 11 (Muse Code) */}
+          <CapturePhoto onApplied={refresh} />
         </div>
       )}
 

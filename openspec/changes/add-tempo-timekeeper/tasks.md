@@ -94,11 +94,11 @@ Building period 27 Oct – 4 Nov 2026. Target day per section is a guide, not a 
 - [x] 10.4 Result card: transcript + one-line change + Undo (10 s) *(HoldToTalk.tsx; undo info stored in Intent.ArgsJson, `POST /api/voice/undo/{id}` reverts and re-runs)*
 - [x] 10.5 Tests: each intent from a fixed transcript via scripted fake; Unknown → three chips; undo reverts *(13 new server tests + 4 vitest encoder tests; 165 green; five live utterances through real ASR+Spark pasted in the section log)*
 
-## 11. Capture appointment — Sun 1 Nov **[Muse Code]**
-- [ ] 11.1 PWA camera button → `POST /capture` (resized to ≤1600 px client-side)
-- [ ] 11.2 Server: `DescribeImageAsync<CapturedAppointment>`; relative-date resolution in user timezone; geocode via calendar path
-- [ ] 11.3 Confirm card with editable time; Add → `Appointment { Source = Captured }`; never written to Google
-- [ ] 11.4 Tests: relative date, no appointment found, captured appointment gets a plan and a nudge
+## 11. Capture appointment — Sun 1 Nov **[Muse Code]** *(done 27 Oct)*
+- [x] 11.1 PWA camera button → `POST /capture` (resized to ≤1600 px client-side) *(route is `POST /api/capture` per the /api consolidation; mounted on the section-12 Now screen below hold-to-talk; canvas resize ≤1600 px + JPEG ladder to <500 KB)*
+- [x] 11.2 Server: `DescribeImageAsync<CapturedAppointment>`; relative-date resolution in user timezone; geocode via calendar path *(strict schema; literal dateText/timeText, deterministic resolver EN/NL incl. day-first numerics and 19u30; place preview via IGeocoder, confirm via PlaceResolver with 50 m reuse)*
+- [x] 11.3 Confirm card with editable time; Add → `Appointment { Source = Captured }`; never written to Google *(card: title, datetime-local, place/no-location, thumbnail, amber hint <0.5; Add → End=+1h + AppointmentChanged like calendar sync)*
+- [x] 11.4 Tests: relative date, no appointment found, captured appointment gets a plan and a nudge *(20 resolver cases + 11 scripted service tests + 4 live images through the real Meta API; 201 green; agent planning for the captured appointment follows from the shared AppointmentChanged trigger)*
 
 ## 12. Mobile PWA — Mon 2 Nov *(done 27 Oct)*
 - [x] 12.1 API: `GET /now`, `GET /timeline/today`, `GET /nudges?limit=20`, `GET/PUT /settings`, `GET /habits?state=` *(all under `/api/*`; habits + traces moved there too, so the SPA routes `/now` and `/habits` — the push deep links — no longer collide with JSON endpoints; server computes `leaveInMin`/`lateByMin`, the client only displays)*
