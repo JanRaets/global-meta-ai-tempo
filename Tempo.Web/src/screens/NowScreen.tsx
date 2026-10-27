@@ -141,7 +141,7 @@ function Shell({ locationLive }: { locationLive: boolean }) {
 function Header({ locationLive, late, reconnecting = false }: { locationLive: boolean; late: boolean; reconnecting?: boolean }) {
   return (
     <div className="flex justify-between items-center px-6" style={{ paddingTop: 'max(env(safe-area-inset-top), 24px)' }}>
-      <BrandHeader late={late} />
+      <BrandHeader />
       <div className={`flex items-center gap-1.5 text-[13px] font-medium ${late ? 'text-[#FFE4D6]' : 'text-[#4B5563]'}`}>
         <span
           className={`w-2 h-2 rounded-full inline-block ${
