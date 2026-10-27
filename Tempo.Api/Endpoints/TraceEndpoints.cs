@@ -10,7 +10,7 @@ public sealed class TraceByNudgeEndpoint(TempoDbContext db) : EndpointWithoutReq
 {
     public override void Configure()
     {
-        Get("/traces/{nudgeId}");
+        Get("/api/traces/{nudgeId}");
         AllowAnonymous();
     }
 

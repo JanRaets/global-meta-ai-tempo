@@ -1,1 +1,16 @@
 @import "tailwindcss";
+
+/* Design canvas (TEMPO mobile screens): Inter Tight everywhere. */
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: "Inter Tight", system-ui, sans-serif;
+  background: #ffffff;
+  color: #111318;
+  overscroll-behavior-y: none;
+}

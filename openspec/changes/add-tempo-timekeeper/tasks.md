@@ -100,16 +100,16 @@ Building period 27 Oct – 4 Nov 2026. Target day per section is a guide, not a 
 - [ ] 11.3 Confirm card with editable time; Add → `Appointment { Source = Captured }`; never written to Google
 - [ ] 11.4 Tests: relative date, no appointment found, captured appointment gets a plan and a nudge
 
-## 12. Mobile PWA — Mon 2 Nov
-- [ ] 12.1 API: `GET /now`, `GET /timeline/today`, `GET /nudges?limit=20`, `GET/PUT /settings`, `GET /habits?state=`
-- [ ] 12.2 PWA shell: manifest, service worker, standalone, bottom tabs, safe-area insets
-- [ ] 12.3 **Now**: dominant countdown, reason line, mode icon, hold-to-talk + camera buttons, recent nudges with Why?; late state = full-screen colour + single recovery button
-- [ ] 12.4 **Today**: timeline incl. captured appointments; greyed no-place/virtual
-- [ ] 12.5 **Habits**: proposed cards + confirmed list with pause
-- [ ] 12.6 **Settings**: home, modes, pinned mode, nudge lead, quiet hours, demo-mode toggle, "Enable notifications" (push subscribe + test notification; iOS install hint when not on the home screen)
-- [ ] 12.7 **Trace sheet**: plain-language steps + provider footer
-- [ ] 12.8 Polling 15 s; optimistic UI on confirm/reject/undo
-- [ ] 12.9 Match the design canvas (TEMPO mobile screens) for type, colour and spacing
+## 12. Mobile PWA — Mon 2 Nov *(done 27 Oct)*
+- [x] 12.1 API: `GET /now`, `GET /timeline/today`, `GET /nudges?limit=20`, `GET/PUT /settings`, `GET /habits?state=` *(all under `/api/*`; habits + traces moved there too, so the SPA routes `/now` and `/habits` — the push deep links — no longer collide with JSON endpoints; server computes `leaveInMin`/`lateByMin`, the client only displays)*
+- [x] 12.2 PWA shell: manifest, service worker, standalone, bottom tabs, safe-area insets *(tab bar on real paths via pushState/popstate so deep links land on the right screen)*
+- [x] 12.3 **Now**: dominant countdown, reason line, mode icon, hold-to-talk + camera buttons, recent nudges with Why?; late state = full-screen colour + single recovery button *(camera button is a marked mount slot — section 11 lands it from Muse Code)*
+- [x] 12.4 **Today**: timeline incl. captured appointments; greyed no-place/virtual *(captured tag on `Source = Captured`)*
+- [x] 12.5 **Habits**: proposed cards + confirmed list with pause *(new `Habit.IsPaused` column, `POST /api/habits/{id}/pause` toggle; the planner skips paused habits — migration HabitPause, planner test)*
+- [x] 12.6 **Settings**: home, modes, pinned mode, nudge lead, quiet hours, demo-mode toggle, "Enable notifications" (push subscribe + test notification; iOS install hint when not on the home screen) *(design canvas's Telegram row became this, per D16; `POST /api/push/test` sends straight through the transport)*
+- [x] 12.7 **Trace sheet**: plain-language steps + provider footer *(bottom sheet from any Recent nudge's Why?)*
+- [x] 12.8 Polling 15 s; optimistic UI on confirm/reject/undo *(usePoll hook: 15 s interval + refresh on tab focus; optimistic state with refresh reconciliation)*
+- [x] 12.9 Match the design canvas (TEMPO mobile screens) for type, colour and spacing *(Inter Tight, #111318/#1F5EFF/#B42318 palette, 24px gutters, 128px countdown, exact tab bar/timeline/proposal-card/settings-row specs from the canvas artboards)*
 
 ## 13. Hardening & demo prep — Tue 3 Nov
 - [ ] 13.1 Seed script as safety net (home, 3 places, a week of Visits → two habit candidates, today's appointments) — used only if real data is thin

@@ -10,7 +10,7 @@ public sealed class ListHabitsEndpoint(TempoDbContext db) : EndpointWithoutReque
 {
     public override void Configure()
     {
-        Get("/habits");
+        Get("/api/habits");
         AllowAnonymous();
     }
 
@@ -34,6 +34,7 @@ public sealed class ListHabitsEndpoint(TempoDbContext db) : EndpointWithoutReque
             direction = h.Context.Direction.ToString(),
             kind = h.Context.AdjacentAppointmentKind,
             decidedAt = h.DecidedAt,
+            isPaused = h.IsPaused,
         }).ToList(), ct);
     }
 }
@@ -44,7 +45,7 @@ public sealed class ConfirmHabitEndpoint(ConfirmHabitHandler handler) : Endpoint
 {
     public override void Configure()
     {
-        Post("/habits/{id}/confirm");
+        Post("/api/habits/{id}/confirm");
         AllowAnonymous();
     }
 
@@ -63,11 +64,34 @@ public sealed class ConfirmHabitEndpoint(ConfirmHabitHandler handler) : Endpoint
     }
 }
 
+/// <summary>Pause toggle (D12 Habits screen): a paused habit stays confirmed, the planner skips it.</summary>
+public sealed class PauseHabitEndpoint(TempoDbContext db) : EndpointWithoutRequest
+{
+    public override void Configure()
+    {
+        Post("/api/habits/{id}/pause");
+        AllowAnonymous();
+    }
+
+    public override async Task HandleAsync(CancellationToken ct)
+    {
+        var habit = await db.Habits.SingleOrDefaultAsync(h => h.Id == Route<Guid>("id"), ct);
+        if (habit is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+        habit.IsPaused = !habit.IsPaused;
+        await db.SaveChangesAsync(ct);
+        await Send.OkAsync(new { id = habit.Id, isPaused = habit.IsPaused }, ct);
+    }
+}
+
 public sealed class RejectHabitEndpoint(ConfirmHabitHandler handler) : EndpointWithoutRequest
 {
     public override void Configure()
     {
-        Post("/habits/{id}/reject");
+        Post("/api/habits/{id}/reject");
         AllowAnonymous();
     }
 

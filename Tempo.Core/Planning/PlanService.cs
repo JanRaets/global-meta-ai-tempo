@@ -161,7 +161,7 @@ public sealed class PlanService(
         // Morning). Match both buckets (D5 note, 27 Oct).
         var preKey = ctx.Key with { TimeBucket = PreviousBucket(ctx.Key.TimeBucket) };
         return (await db.Habits.Include(h => h.Place)
-                .Where(h => h.State == HabitState.Confirmed)
+                .Where(h => h.State == HabitState.Confirmed && !h.IsPaused)
                 .ToListAsync(ct))
             .Select(ConfirmHabitHandler.FromPersisted)
             .Where(h => (h.Matches(ctx.Key) || h.Matches(preKey)) && !skipped.Contains(h.PlaceId))

@@ -54,6 +54,8 @@ public sealed class Habit
     public int VisitCount { get; set; }
     public string? ProposalText { get; set; }
     public string? Rationale { get; set; }
+    /// <summary>A paused confirmed habit stays confirmed but the planner skips it (D12 Habits screen).</summary>
+    public bool IsPaused { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? DecidedAt { get; set; }
     public DateTimeOffset? LastProposedAt { get; set; }

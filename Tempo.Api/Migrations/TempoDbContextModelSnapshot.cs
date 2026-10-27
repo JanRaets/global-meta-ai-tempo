@@ -187,6 +187,9 @@ namespace Tempo.Api.Migrations
                     b.Property<DateTimeOffset?>("DecidedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<bool>("IsPaused")
+                        .HasColumnType("boolean");
+
                     b.Property<DateTimeOffset?>("LastProposedAt")
                         .HasColumnType("timestamp with time zone");
 

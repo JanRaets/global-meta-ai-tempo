@@ -36,7 +36,7 @@ self.addEventListener('notificationclick', (event) => {
 
   // Confirm/Reject call the same endpoints as the app's buttons (ConfirmHabitHandler).
   if ((event.action === 'confirm' || event.action === 'reject') && data.habitId) {
-    event.waitUntil(fetch(`/habits/${data.habitId}/${event.action}`, { method: 'POST' }))
+    event.waitUntil(fetch(`/api/habits/${data.habitId}/${event.action}`, { method: 'POST' }))
     return
   }
 

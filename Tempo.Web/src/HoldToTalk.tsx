@@ -17,7 +17,7 @@ type Phase = 'idle' | 'recording' | 'listening' | 'micDenied'
  * the recorder is created inside the press handler (iOS AudioContext rule). When the
  * microphone is denied, a text field with the three intent chips takes its place.
  */
-export function HoldToTalk() {
+export function HoldToTalk({ onApplied }: { onApplied?: () => void } = {}) {
   const [phase, setPhase] = useState<Phase>('idle')
   const [result, setResult] = useState<VoiceResult | null>(null)
   const [undone, setUndone] = useState(false)
@@ -34,6 +34,7 @@ export function HoldToTalk() {
     setUndoVisible(r.applied && r.intentId !== null)
     window.clearTimeout(undoTimer.current)
     undoTimer.current = window.setTimeout(() => setUndoVisible(false), 10_000) // Undo for 10 s
+    if (r.applied) onApplied?.()
   }
 
   const press = async () => {
@@ -90,6 +91,7 @@ export function HoldToTalk() {
     if (response.ok) {
       setUndone(true)
       setUndoVisible(false)
+      onApplied?.()
     }
   }
 

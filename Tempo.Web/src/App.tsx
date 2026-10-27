@@ -1,43 +1,45 @@
-import { useState } from 'react'
-import { HoldToTalk } from './HoldToTalk'
+import { useEffect, useState } from 'react'
+import { api, type NowPayload } from './api'
+import { TabBar, type Tab } from './TabBar'
+import { HabitsScreen } from './screens/HabitsScreen'
+import { NowScreen } from './screens/NowScreen'
+import { SettingsScreen } from './screens/SettingsScreen'
+import { TodayScreen } from './screens/TodayScreen'
 import { useLocationPosting } from './useLocationPosting'
+import { usePoll } from './usePoll'
 
+const pathToTab = (path: string): Tab =>
+  path.startsWith('/today') ? 'today' : path.startsWith('/habits') ? 'habits' : path.startsWith('/settings') ? 'settings' : 'now'
+
+/**
+ * Tab shell on real paths so push deep links (/now, /habits — design D16) land on the
+ * right screen. The late state repaints the whole frame red (D13), tab bar included.
+ */
 export function App() {
-  const [sharing, setSharing] = useState(false)
-  const status = useLocationPosting(sharing)
+  const [tab, setTab] = useState<Tab>(() => pathToTab(window.location.pathname))
+  const locationStatus = useLocationPosting(true)
+  // The shell polls /api/now too (cheap, single row reads) so the late repaint covers every tab.
+  const { data: now } = usePoll<NowPayload>(api.now)
+  const late = now?.state === 'late'
+
+  useEffect(() => {
+    const onPop = () => setTab(pathToTab(window.location.pathname))
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
+
+  const select = (next: Tab) => {
+    setTab(next)
+    window.history.pushState(null, '', `/${next}`)
+  }
 
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center bg-white px-4 text-center">
-      <h1 className="text-4xl font-bold tracking-tight text-[#111318]">TEMPO</h1>
-      <p className="mt-2 text-[#4B5563]">
-        Nothing to plan yet — the Now screen lands in section 12.
-      </p>
-      <HoldToTalk />
-      {!sharing && (
-        <>
-          <p className="mt-8 max-w-xs text-sm text-[#4B5563]">
-            TEMPO uses your location to time your departures — nothing is stored beyond 24 hours.
-          </p>
-          <button
-            className="mt-3 rounded-xl bg-[#1F5EFF] px-6 py-3 font-medium text-white"
-            onClick={() => setSharing(true)}
-          >
-            Share location
-          </button>
-        </>
-      )}
-      {sharing && (
-        <p className="mt-8 flex items-center gap-2 text-sm text-[#4B5563]">
-          {status === 'live' && (
-            <>
-              <span className="h-2.5 w-2.5 rounded-full bg-green-500" /> live
-            </>
-          )}
-          {status === 'asking' && 'waiting for permission…'}
-          {status === 'denied' && 'location denied — TEMPO will plan from your home place'}
-          {status === 'error' && 'location unavailable'}
-        </p>
-      )}
-    </main>
+    <div className={`flex flex-col h-full ${late ? 'bg-[#B42318] text-white' : 'bg-white'}`}>
+      {tab === 'now' && <NowScreen locationLive={locationStatus === 'live'} />}
+      {tab === 'today' && <TodayScreen />}
+      {tab === 'habits' && <HabitsScreen />}
+      {tab === 'settings' && <SettingsScreen />}
+      <TabBar active={tab} onSelect={select} late={late && tab === 'now'} />
+    </div>
   )
 }

@@ -113,6 +113,20 @@ public sealed class PlanServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task A_paused_confirmed_habit_is_skipped_by_the_planner()
+    {
+        AddConfirmedCoffeeHabit();
+        var habit = db.Context.Habits.Single();
+        habit.IsPaused = true;
+        db.Context.SaveChanges();
+
+        var result = await Service().OptionsAsync(appointment.Id);
+
+        var option = Assert.Single(result.Options);
+        Assert.Empty(option.Stops);
+    }
+
+    [Fact]
     public async Task Proposed_habit_is_ignored()
     {
         AddConfirmedCoffeeHabit(HabitState.Proposed);
