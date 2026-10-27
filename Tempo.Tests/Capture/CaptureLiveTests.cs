@@ -49,7 +49,7 @@ public sealed class CaptureLiveTests(ITestOutputHelper output) : IDisposable
     /// resolves to a fixed Utrecht point, empty text to nothing.</summary>
     private sealed class LiveGeocoder : IGeocoder
     {
-        public Task<GeocodeResult?> GeocodeAsync(string text, CancellationToken ct = default) =>
+        public Task<GeocodeResult?> GeocodeAsync(string text, GeoPoint? focus = null, CancellationToken ct = default) =>
             Task.FromResult(string.IsNullOrWhiteSpace(text)
                 ? null : new GeocodeResult(52.0907, 5.1214, text));
 

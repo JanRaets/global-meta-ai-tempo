@@ -1,4 +1,5 @@
 using FastEndpoints;
+using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using Tempo.Core.Data;
 using Tempo.Core.Domain;
@@ -206,7 +207,7 @@ public sealed class PutSettingsRequest
     public bool? DemoMode { get; set; }
 }
 
-public sealed class PutSettingsEndpoint(TempoDbContext db) : Endpoint<PutSettingsRequest>
+public sealed class PutSettingsEndpoint(TempoDbContext db, Hangfire.IBackgroundJobClient jobs) : Endpoint<PutSettingsRequest>
 {
     public override void Configure()
     {
@@ -249,9 +250,12 @@ public sealed class PutSettingsEndpoint(TempoDbContext db) : Endpoint<PutSetting
             settings.QuietHoursStart = start;
         if (req.QuietEnd is { } qe && TimeOnly.TryParse(qe, out var end))
             settings.QuietHoursEnd = end;
+        var startDemo = req.DemoMode == true && !settings.DemoMode; // flip detection
         if (req.DemoMode is { } demo)
             settings.DemoMode = demo;
         await db.SaveChangesAsync(ct);
+        if (startDemo)
+            jobs.Enqueue<Tempo.Jobs.DemoModeJob>(j => j.RunAsync(CancellationToken.None)); // 13.1/13.2
         await Send.OkAsync(new { saved = true }, ct);
     }
 }

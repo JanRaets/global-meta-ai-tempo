@@ -118,7 +118,7 @@ public sealed class CaptureService(
         var hasLocation = false;
         if (!string.IsNullOrWhiteSpace(captured.PlaceText))
         {
-            var geo = await TryGeocodeAsync(captured.PlaceText.Trim(), ct);
+            var geo = await TryGeocodeAsync(captured.PlaceText.Trim(), await places.HomeFocusAsync(ct), ct);
             if (geo is not null)
             {
                 placeName = geo.Label ?? captured.PlaceText.Trim();
@@ -167,6 +167,26 @@ public sealed class CaptureService(
             }
             if (placeId is not null)
                 placeName = (await db.Places.FindAsync([placeId.Value], ct))?.Name;
+
+            // 13.a: a stored place more than 50 km from home is almost certainly a
+            // mis-geocode (same-named venue abroad); retry with the home focus and take
+            // the nearby result when one exists. The far place stays if nothing better.
+            if (placeId is not null && await places.HomeFocusAsync(ct) is { } home)
+            {
+                var place = await db.Places.FindAsync([placeId.Value], ct);
+                if (place is not null && GeoMath.DistanceMeters(place.Lat, place.Lng, home.Lat, home.Lng) > 50_000)
+                {
+                    var retry = await TryGeocodeAsync(req.PlaceText!.Trim(), home, ct);
+                    if (retry is not null && GeoMath.DistanceMeters(retry.Lat, retry.Lng, home.Lat, home.Lng) <= 50_000)
+                    {
+                        var better = await places.ResolvePointAsync(retry.Lat, retry.Lng, retry.Label ?? req.PlaceText!.Trim(), ct);
+                        placeId = better.Id;
+                        placeName = better.Name;
+                        logger.LogInformation("Capture confirm: re-geocoded '{Text}' near home ({Old} was >50 km away)",
+                            req.PlaceText!.Trim(), place.Name);
+                    }
+                }
+            }
         }
 
         var appointment = new Appointment
@@ -189,11 +209,11 @@ public sealed class CaptureService(
     }
 
     /// <summary>A failed place preview degrades to "no location", never to a failed capture.</summary>
-    private async Task<GeocodeResult?> TryGeocodeAsync(string placeText, CancellationToken ct)
+    private async Task<GeocodeResult?> TryGeocodeAsync(string placeText, GeoPoint? focus, CancellationToken ct)
     {
         try
         {
-            return await geocoder.GeocodeAsync(placeText, ct);
+            return await geocoder.GeocodeAsync(placeText, focus, ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

@@ -95,6 +95,20 @@ public sealed class AgentRunnerTests : IDisposable
     }
 
     [Fact]
+    public async Task The_daily_run_cap_refuses_a_run_without_a_model_call()
+    {
+        var capped = new AgentRunner(provider.GetRequiredService<IServiceScopeFactory>(),
+            NullLogger<AgentRunner>.Instance, new Tempo.Core.Configuration.AgentOptions { MaxRunsPerDay = 1 });
+        db.Context.AgentTraces.Add(new AgentTrace { Id = Guid.NewGuid(), Trigger = "earlier", StartedAt = clock.GetUtcNow().AddHours(-1) });
+        db.Context.SaveChanges();
+
+        var trace = await capped.RunAsync("tick:inputs-changed", appointment.Id);
+
+        Assert.Null(trace);
+        Assert.Empty(model.ChatInvocations); // the cap blocks before any model call
+    }
+
+    [Fact]
     public async Task Normal_plan_commits_one_option_and_sends_no_nudge()
     {
         model

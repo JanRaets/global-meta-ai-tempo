@@ -17,9 +17,13 @@ namespace Tempo.Agent;
 /// Each run gets its own DI scope, so plan.commit can only use optionIds from this run's
 /// latest plan.options. Ends on a final message or after 8 tool calls (trace: Truncated).
 /// </summary>
-public sealed class AgentRunner(IServiceScopeFactory scopeFactory, ILogger<AgentRunner> logger)
+public sealed class AgentRunner(
+    IServiceScopeFactory scopeFactory,
+    ILogger<AgentRunner> logger,
+    Tempo.Core.Configuration.AgentOptions? options = null)
 {
     public const int MaxToolCalls = 8;
+    private readonly Tempo.Core.Configuration.AgentOptions limits = options ?? new();
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
     private static readonly Lazy<string> SystemPrompt = new(() =>
@@ -35,6 +39,20 @@ public sealed class AgentRunner(IServiceScopeFactory scopeFactory, ILogger<Agent
         var settings = await db.UserSettings.AsNoTracking().FirstAsync(ct);
         var tz = TimeZoneInfo.FindSystemTimeZoneById(settings.TimeZone);
         var now = clock.GetUtcNow();
+
+        // 13.c: hard daily cap against a runaway loop burning credits. Counted client-side
+        // (SQLite in tests can't compare DateTimeOffset); the traces table stays small.
+        var dayStart = new DateTimeOffset(TimeZoneInfo.ConvertTime(now, tz).Date, TimeZoneInfo.ConvertTime(now, tz).Offset)
+            .ToUniversalTime();
+        var runsToday = (await db.AgentTraces.AsNoTracking().Select(t => t.StartedAt).ToListAsync(ct))
+            .Count(t => t >= dayStart);
+        if (runsToday >= limits.MaxRunsPerDay)
+        {
+            logger.LogError(
+                "DAILY AGENT-RUN CAP HIT ({Cap}): run '{Trigger}' refused — no model calls until local midnight. " +
+                "Raise Agent:MaxRunsPerDay only if this is expected.", limits.MaxRunsPerDay, trigger);
+            return null;
+        }
 
         var appointment = appointmentId is { } id
             ? await db.Appointments.AsNoTracking().Include(a => a.Place).SingleOrDefaultAsync(a => a.Id == id, ct)

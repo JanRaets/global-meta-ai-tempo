@@ -9,7 +9,7 @@ import { usePoll } from '../usePoll'
 /** The Now screen (task 12.3, design canvas Main + Late artboards): one dominant number,
  * the committed plan as the reason line, voice input, recent nudges with Why?. */
 export function NowScreen({ locationLive }: { locationLive: boolean }) {
-  const { data, refresh } = usePoll<NowPayload>(api.now)
+  const { data, error, refresh } = usePoll<NowPayload>(api.now, 15_000, 'tempo:last-now')
   const [traceFor, setTraceFor] = useState<string | null>(null)
 
   if (!data) return <Shell locationLive={locationLive} />
@@ -17,7 +17,7 @@ export function NowScreen({ locationLive }: { locationLive: boolean }) {
 
   return (
     <div className={`flex flex-col flex-grow overflow-y-auto ${late ? 'bg-[#B42318] text-white' : 'bg-white text-[#111318]'}`}>
-      <Header locationLive={locationLive} late={late} />
+      <Header locationLive={locationLive} late={late} reconnecting={error} />
 
       {data.state === 'none' && (
         <div className="px-6 pt-11 flex flex-col gap-2">
@@ -124,17 +124,17 @@ function Shell({ locationLive }: { locationLive: boolean }) {
   )
 }
 
-function Header({ locationLive, late }: { locationLive: boolean; late: boolean }) {
+function Header({ locationLive, late, reconnecting = false }: { locationLive: boolean; late: boolean; reconnecting?: boolean }) {
   return (
     <div className="flex justify-between items-center px-6" style={{ paddingTop: 'max(env(safe-area-inset-top), 24px)' }}>
       <div className="text-[15px] font-bold tracking-[0.08em]">TEMPO</div>
       <div className={`flex items-center gap-1.5 text-[13px] font-medium ${late ? 'text-[#FFE4D6]' : 'text-[#4B5563]'}`}>
         <span
           className={`w-2 h-2 rounded-full inline-block ${
-            late ? 'bg-white' : locationLive ? 'bg-[#1F5EFF]' : 'bg-[#D1D5DB]'
+            reconnecting ? 'bg-[#F59E0B]' : late ? 'bg-white' : locationLive ? 'bg-[#1F5EFF]' : 'bg-[#D1D5DB]'
           }`}
         />
-        {locationLive ? 'live' : 'no location'}
+        {reconnecting ? 'reconnecting…' : locationLive ? 'live' : 'no location'}
       </div>
     </div>
   )

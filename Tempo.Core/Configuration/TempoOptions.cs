@@ -14,6 +14,18 @@ public sealed class ModelsOptions
     public ModelProvider Primary { get; init; } = ModelProvider.MetaApi;
     public MetaApiOptions MetaApi { get; init; } = new();
     public BasetenOptions Baseten { get; init; } = new();
+    /// <summary>For the /admin/model-usage spend estimate; 0 shows token counts only.</summary>
+    public double EstimatedUsdPer1MPromptTokens { get; init; }
+    public double EstimatedUsdPer1MCompletionTokens { get; init; }
+}
+
+/// <summary>Agent loop limits (13.c): the tick already avoids redundant runs; the daily cap
+/// is the hard stop against a runaway loop burning credits.</summary>
+public sealed class AgentOptions
+{
+    public const string Section = "Agent";
+
+    public int MaxRunsPerDay { get; init; } = 200;
 }
 
 public sealed class MetaApiOptions
@@ -39,6 +51,8 @@ public sealed class RoutingOptions
     public string BaseUrl { get; init; } = "https://api.openrouteservice.org";
     public string ApiKey { get; init; } = "";
     public int CacheMinutes { get; init; } = 5;
+    /// <summary>Pelias boundary.country for geocoding; empty disables the filter.</summary>
+    public string GeocodeCountry { get; init; } = "NL";
 }
 
 /// <summary>Web Push (design D16). VAPID keys live in user-secrets, never in the repo.</summary>

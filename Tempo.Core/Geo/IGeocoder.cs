@@ -4,8 +4,9 @@ public sealed record GeocodeResult(double Lat, double Lng, string? Label);
 
 public interface IGeocoder
 {
-    /// <summary>Null when the text cannot be geocoded.</summary>
-    Task<GeocodeResult?> GeocodeAsync(string text, CancellationToken ct = default);
+    /// <summary>Null when the text cannot be geocoded. A focus point biases ranking toward
+    /// nearby results (Pelias focus.point) — short venue names resolve wrongly without it.</summary>
+    Task<GeocodeResult?> GeocodeAsync(string text, GeoPoint? focus = null, CancellationToken ct = default);
 
     /// <summary>Label for a point (visit centroids); null when reverse geocoding fails.</summary>
     Task<string?> ReverseAsync(double lat, double lng, CancellationToken ct = default);

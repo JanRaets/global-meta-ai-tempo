@@ -25,8 +25,13 @@ public sealed class FakeGeocoder : IGeocoder
         return this;
     }
 
-    public Task<GeocodeResult?> GeocodeAsync(string text, CancellationToken ct = default) =>
-        Task.FromResult(known.TryGetValue(text, out var result) ? result : null);
+    public List<(string Text, GeoPoint? Focus)> Lookups { get; } = [];
+
+    public Task<GeocodeResult?> GeocodeAsync(string text, GeoPoint? focus = null, CancellationToken ct = default)
+    {
+        Lookups.Add((text, focus));
+        return Task.FromResult(known.TryGetValue(text, out var result) ? result : null);
+    }
 
     public string ReverseLabel { get; set; } = "Somewhere 1, Utrecht";
 

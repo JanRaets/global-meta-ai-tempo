@@ -10,11 +10,17 @@ namespace Tempo.Integrations.Maps;
 /// <summary>OpenRouteService Pelias geocoding (design D15). Directions and the Redis cache land in section 4.</summary>
 public sealed class OrsGeocoder(HttpClient http, IOptions<RoutingOptions> options, ILogger<OrsGeocoder> logger) : IGeocoder
 {
-    public async Task<GeocodeResult?> GeocodeAsync(string text, CancellationToken ct = default)
+    public async Task<GeocodeResult?> GeocodeAsync(string text, GeoPoint? focus = null, CancellationToken ct = default)
     {
         if (options.Value.ApiKey is "")
             throw new InvalidOperationException("Missing configuration value Routing:ApiKey (OpenRouteService)");
-        var response = await http.GetAsync($"geocode/search?text={Uri.EscapeDataString(text)}&size=1", ct);
+        var inv = System.Globalization.CultureInfo.InvariantCulture;
+        var url = $"geocode/search?text={Uri.EscapeDataString(text)}&size=1";
+        if (options.Value.GeocodeCountry is { Length: > 0 } country)
+            url += $"&boundary.country={country}";
+        if (focus is { } f)
+            url += $"&focus.point.lat={f.Lat.ToString(inv)}&focus.point.lon={f.Lng.ToString(inv)}";
+        var response = await http.GetAsync(url, ct);
         if (!response.IsSuccessStatusCode)
         {
             var body = await response.Content.ReadAsStringAsync(ct);

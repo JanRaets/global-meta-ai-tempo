@@ -37,6 +37,8 @@ builder.Services.AddScoped<Tempo.Core.Planning.PlanOptionStore>();
 builder.Services.AddScoped<Tempo.Core.Planning.PlanService>();
 builder.Services.AddScoped<Tempo.Core.Nudging.NudgeService>();
 builder.Services.AddWebPush(builder.Configuration); // INudgeTransport (design D16); logs instead when VAPID keys are missing
+builder.Services.AddOptions<AgentOptions>().Bind(builder.Configuration.GetSection(AgentOptions.Section));
+builder.Services.AddSingleton(sp => sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<AgentOptions>>().Value);
 builder.Services.AddSingleton<Tempo.Agent.AgentRunner>();
 builder.Services.AddSingleton<Tempo.Agent.TickStateStore>();
 builder.Services.AddScoped<Tempo.Agent.VoiceIntentService>();
@@ -52,6 +54,7 @@ var redisConnection = builder.Configuration.GetConnectionString("Redis")
     ?? throw new InvalidOperationException("Missing configuration value ConnectionStrings:Redis");
 builder.Services.AddSingleton<StackExchange.Redis.IConnectionMultiplexer>(
     StackExchange.Redis.ConnectionMultiplexer.Connect(redisConnection + ",abortConnect=false"));
+builder.Services.AddSingleton<RoutingCacheStats>();
 builder.Services.AddSingleton<IRoutingCache, RedisRoutingCache>();
 builder.Services.AddSingleton<ILocationBuffer, RedisLocationBuffer>();
 builder.Services.AddSingleton<LocationIngestService>();
@@ -64,6 +67,8 @@ builder.Services.AddScoped<HabitInferenceService>();
 builder.Services.AddScoped<HabitInferenceJob>();
 builder.Services.AddScoped<HabitProposalBatchService>();
 builder.Services.AddScoped<HabitProposalBatchJob>();
+builder.Services.AddScoped<DemoModeService>();
+builder.Services.AddScoped<DemoModeJob>();
 
 builder.Services.AddDataProtection();
 builder.Services.AddMemoryCache();

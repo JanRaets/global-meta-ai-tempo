@@ -1,0 +1,66 @@
+# CI (task 13.3): unit + scripted E2E tests, PWA build, then the API booted against a
+# fresh compose-equivalent stack (pgvector Postgres + Redis) and smoke-tested over HTTP.
+# Live-API tests skip themselves without keys; no secret is ever needed here.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: tempo
+          POSTGRES_USER: tempo
+          POSTGRES_PASSWORD: tempo
+        ports: ["5433:5432"]
+        options: >-
+          --health-cmd "pg_isready -U tempo -d tempo"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6380:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Web tests and build (into wwwroot)
+        working-directory: Tempo.Web
+        run: |
+          npm ci
+          npm test
+          npm run build
+
+      - name: .NET tests (unit + scripted E2E; live tests skip without keys)
+        run: dotnet test Tempo.sln --logger "console;verbosity=minimal"
+
+      - name: Boot the API against the fresh stack and smoke-test it
+        env:
+          Models__MetaApi__ApiKey: ci-dummy-key # fail-fast wants non-empty; no call is made
+        run: |
+          dotnet run --project Tempo.Api --no-build -c Debug &
+          API_PID=$!
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:5181/health && break
+            sleep 2
+          done
+          curl -sf http://localhost:5181/health
+          curl -sf http://localhost:5181/api/now
+          curl -sf http://localhost:5181/api/settings > /dev/null
+          kill $API_PID

@@ -14,10 +14,21 @@ public sealed class PlaceResolver(TempoDbContext db, IGeocoder geocoder)
     {
         if (string.IsNullOrWhiteSpace(rawLocation))
             return null;
-        var geo = await geocoder.GeocodeAsync(rawLocation, ct);
+        var geo = await geocoder.GeocodeAsync(rawLocation, await HomeFocusAsync(ct), ct);
         if (geo is null)
             return null;
         return (await ResolvePointAsync(geo.Lat, geo.Lng, geo.Label ?? rawLocation, ct)).Id;
+    }
+
+    /// <summary>Home as the Pelias focus point (13.a): short venue names from captures and
+    /// calendar entries should resolve near the user, not to a same-named street abroad.</summary>
+    public async Task<GeoPoint?> HomeFocusAsync(CancellationToken ct = default)
+    {
+        var homeId = await db.UserSettings.AsNoTracking().Select(s => s.HomePlaceId).FirstOrDefaultAsync(ct);
+        if (homeId is null)
+            return null;
+        var home = await db.Places.AsNoTracking().SingleOrDefaultAsync(p => p.Id == homeId, ct);
+        return home is null ? null : new GeoPoint(home.Lat, home.Lng);
     }
 
     /// <summary>Point → Place with the same 50 m reuse; also the path visits take (section 5).</summary>

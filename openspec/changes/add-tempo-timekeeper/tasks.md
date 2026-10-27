@@ -112,6 +112,10 @@ Building period 27 Oct – 4 Nov 2026. Target day per section is a guide, not a 
 - [x] 12.9 Match the design canvas (TEMPO mobile screens) for type, colour and spacing *(Inter Tight, #111318/#1F5EFF/#B42318 palette, 24px gutters, 128px countdown, exact tab bar/timeline/proposal-card/settings-row specs from the canvas artboards)*
 
 ## 13. Hardening & demo prep — Tue 3 Nov
+- [ ] 13.a Geocoder proximity: Pelias `focus.point` = home + `boundary.country` (config, default NL); before/after on "De Jonge Haan" and "Albert Heijn"; captured appointments re-geocode on confirm when the stored place is >50 km from home
+- [ ] 13.b Open-weight path live: Baseten smoke un-skipped; `Models:Primary=Baseten` documented; the five 7.8 scenarios against Muse Spark Open with traces; tool-calling/strict-JSON differences reported and fixed in prompt/shape only; `/admin/model-usage` shows per-provider counts
+- [ ] 13.c Rate/credit safety: daily agent-run cap (`Agent:MaxRunsPerDay`, default 200) with a loud log; spend estimate from token counts on `/admin/model-usage`; routing cache hit/miss counters confirmed on the tick path
+- [ ] 13.d Week-of-use resilience: push subscriptions + Hangfire jobs survive an API restart (verified); Owntracks points arriving after a 2-minute API stop are accepted; the PWA opens offline with the last-known plan and a "reconnecting" state
 - [ ] 13.1 Seed script as safety net (home, 3 places, a week of Visits → two habit candidates, today's appointments) — used only if real data is thin
 - [ ] 13.2 Demo GPX trail: leave nudge → late nudge within a 5-minute replay
 - [ ] 13.3 E2E: seed → inference → proposal → confirm → plan includes stop → voice "skip coffee" → plan drops stop → capture photo → new appointment → replay lateness → recovery nudge → trace available
