@@ -92,6 +92,12 @@ public sealed class Nudge
     public required string Text { get; set; }
     public NudgeStatus Status { get; set; } = NudgeStatus.Pending;
     public Guid? AgentTraceId { get; set; }
+    /// <summary>Set when this nudge supersedes an earlier sent one for the same appointment
+    /// and kind (plan version moved); the notification then presents itself as an update.</summary>
+    public Guid? ReplacesNudgeId { get; set; }
+    /// <summary>For a single-proposal HabitProposal nudge: the habit the Android
+    /// notification's Confirm/Reject actions act on (design D16).</summary>
+    public Guid? HabitId { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? SentAt { get; set; }
 }
@@ -154,5 +160,16 @@ public sealed class UserSettings
     /// <summary>Per-user API key for POST /location (location-ingest spec); generated at first startup.</summary>
     public required string LocationApiKey { get; set; }
     public string TimeZone { get; set; } = "Europe/Amsterdam";
-    public long? TelegramChatId { get; set; }
+}
+
+/// <summary>One browser push endpoint of the installed PWA (design D16). The endpoint plus
+/// the client keys is everything the push service needs; 410/404 from it deletes the row.</summary>
+public sealed class PushSubscription
+{
+    public Guid Id { get; set; }
+    public required string Endpoint { get; set; }
+    public required string P256dh { get; set; }
+    public required string Auth { get; set; }
+    public string? UserAgent { get; set; }
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }

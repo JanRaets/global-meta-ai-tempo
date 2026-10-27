@@ -53,12 +53,29 @@ public sealed partial class NudgeService(
             var opensAt = TimeZoneInfo.ConvertTime(plan.LeaveAt.AddMinutes(-settings.NudgeLeadMin), tz);
             return NudgeSendResult.Refused($"Refused: nudge window not open yet (opens {opensAt:HH:mm})");
         }
-        if (InQuietHours(TimeOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, tz).DateTime), settings)
+        if (QuietHours.IsIn(TimeOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, tz).DateTime), settings)
             && !(kind == NudgeKind.Late && appointment.Start - now <= TimeSpan.FromMinutes(60)))
             return NudgeSendResult.Refused("Refused: quiet hours");
 
         if (Validate(text, plan, kind, tz) is { } textProblem)
             return NudgeSendResult.Refused(textProblem);
+
+        // Nudging spec "Plan version changes after nudge": when an earlier version of this
+        // plan was already nudged and leaveAt moved by more than 5 minutes, the new nudge
+        // presents itself as a replacement (the transport words the notification as an update).
+        var previous = await db.Nudges
+            .Where(n => n.AppointmentId == appointmentId && n.Kind == kind
+                && n.Status == NudgeStatus.Sent && n.PlanVersion < plan.Version)
+            .OrderByDescending(n => n.PlanVersion)
+            .FirstOrDefaultAsync(ct);
+        Guid? replaces = null;
+        if (previous is not null)
+        {
+            var previousPlan = await db.DeparturePlans.AsNoTracking()
+                .SingleOrDefaultAsync(p => p.Id == previous.PlanId, ct);
+            if (previousPlan is not null && (plan.LeaveAt - previousPlan.LeaveAt).Duration() > TimeSpan.FromMinutes(5))
+                replaces = previous.Id;
+        }
 
         var nudge = new Nudge
         {
@@ -69,6 +86,7 @@ public sealed partial class NudgeService(
             Kind = kind,
             Text = text,
             AgentTraceId = traceId,
+            ReplacesNudgeId = replaces,
         };
         db.Nudges.Add(nudge);
         await db.SaveChangesAsync(ct);
@@ -129,11 +147,6 @@ public sealed partial class NudgeService(
         TravelMode.Train => ["train", "trein"],
         _ => [mode.ToString()],
     };
-
-    private static bool InQuietHours(TimeOnly nowLocal, UserSettings settings) =>
-        settings.QuietHoursStart <= settings.QuietHoursEnd
-            ? nowLocal >= settings.QuietHoursStart && nowLocal < settings.QuietHoursEnd
-            : nowLocal >= settings.QuietHoursStart || nowLocal < settings.QuietHoursEnd;
 
     [GeneratedRegex(@"\b(\d{1,2}):(\d{2})\b")]
     private static partial Regex TimePattern();

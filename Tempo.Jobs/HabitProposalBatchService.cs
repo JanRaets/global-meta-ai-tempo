@@ -22,7 +22,15 @@ public sealed class HabitProposalBatchService(
         var settings = await db.UserSettings.AsNoTracking().FirstAsync(ct);
         var tz = TimeZoneInfo.FindSystemTimeZoneById(settings.TimeZone);
         var now = clock.GetUtcNow();
-        var today = TimeZoneInfo.ConvertTime(now, tz).Date;
+        var nowLocal = TimeZoneInfo.ConvertTime(now, tz);
+        var today = nowLocal.Date;
+
+        // Nudging spec: a proposal due in quiet hours is deferred to the next batch after them.
+        if (QuietHours.IsIn(TimeOnly.FromDateTime(nowLocal.DateTime), settings))
+        {
+            logger.LogInformation("Habit proposal batch deferred: quiet hours");
+            return;
+        }
 
         var sentToday = (await db.Nudges.AsNoTracking()
                 .Where(n => n.Kind == NudgeKind.HabitProposal)
@@ -50,6 +58,9 @@ public sealed class HabitProposalBatchService(
             PlanVersion = 0,
             Kind = NudgeKind.HabitProposal,
             Text = text,
+            // Single proposal → the Android notification's Confirm/Reject actions know
+            // which habit they act on; a multi-proposal batch deep-links to /habits instead.
+            HabitId = due.Count == 1 ? due[0].Id : null,
         };
         db.Nudges.Add(nudge);
         nudge.Status = await transport.SendAsync(nudge, ct) ? NudgeStatus.Sent : NudgeStatus.Failed;

@@ -260,6 +260,9 @@ namespace Tempo.Api.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("HabitId")
+                        .HasColumnType("uuid");
+
                     b.Property<int>("Kind")
                         .HasColumnType("integer");
 
@@ -268,6 +271,9 @@ namespace Tempo.Api.Migrations
 
                     b.Property<int>("PlanVersion")
                         .HasColumnType("integer");
+
+                    b.Property<Guid?>("ReplacesNudgeId")
+                        .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset?>("SentAt")
                         .HasColumnType("timestamp with time zone");
@@ -343,6 +349,38 @@ namespace Tempo.Api.Migrations
                     b.ToTable("PlanInputs");
                 });
 
+            modelBuilder.Entity("Tempo.Core.Domain.PushSubscription", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Auth")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Endpoint")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("P256dh")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("UserAgent")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Endpoint")
+                        .IsUnique();
+
+                    b.ToTable("PushSubscriptions");
+                });
+
             modelBuilder.Entity("Tempo.Core.Domain.UserSettings", b =>
                 {
                     b.Property<Guid>("Id")
@@ -374,9 +412,6 @@ namespace Tempo.Api.Migrations
 
                     b.Property<TimeOnly>("QuietHoursStart")
                         .HasColumnType("time without time zone");
-
-                    b.Property<long?>("TelegramChatId")
-                        .HasColumnType("bigint");
 
                     b.Property<string>("TimeZone")
                         .IsRequired()

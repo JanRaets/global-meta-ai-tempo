@@ -7,7 +7,7 @@
     <ProjectReference Include="..\Tempo.Integrations.Meta\Tempo.Integrations.Meta.csproj" />
     <ProjectReference Include="..\Tempo.Integrations.Google\Tempo.Integrations.Google.csproj" />
     <ProjectReference Include="..\Tempo.Integrations.Maps\Tempo.Integrations.Maps.csproj" />
-    <ProjectReference Include="..\Tempo.Integrations.Telegram\Tempo.Integrations.Telegram.csproj" />
+    <ProjectReference Include="..\Tempo.Integrations.Push\Tempo.Integrations.Push.csproj" />
   </ItemGroup>
 
   <ItemGroup>

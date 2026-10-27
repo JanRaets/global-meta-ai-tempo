@@ -77,15 +77,15 @@ Building period 27 Oct – 4 Nov 2026. Target day per section is a guide, not a 
 - [x] 8.6 Tests: detected, insufficient, irregular, already-decided, confirm triggers agent run
 - [x] 8.7 With habit learning live: seed one confirmed morning-coffee habit and rerun the five section-7 live scenarios with stops present (keep the coffee, drop the coffee, skip-a-stop recovery); paste the traces — this is the set for the judges — *done 27 Oct: inference → live Spark wording → confirms → 5/5 scenarios incl. coffee kept/dropped, skip-stop recovery, nothing-feasible, Thursday supermarket; traces reported. Added en route: previous-bucket habit matching (D5 note) and `nudgeWindowOpen` computed in tool results*
 
-## 9. Push notifications — Sat 31 Oct *(was Telegram; replaced 27 Oct, design D16)*
-- [ ] 9.1 VAPID keys (user-secrets) + `Push:*` config; delete `Tempo.Integrations.Telegram` from the solution
-- [ ] 9.2 `PushSubscription` entity + `POST /push/subscribe` + `DELETE /push/subscribe`
-- [ ] 9.3 `WebPushTransport` behind `INudgeTransport`: send to every subscription, 410/404 → delete subscription, 3× retry with backoff, `Nudge.status` recorded
-- [ ] 9.4 Service worker `push` + `notificationclick` handlers; deep links to `/now` (nudges) and `/habits` (proposals)
-- [ ] 9.5 Android notification actions for habit Confirm/Reject → same endpoints/handler
-- [ ] 9.6 Replacement nudge on >5 min plan shift
-- [ ] 9.7 Template fallback when the run ends without a valid send
-- [ ] 9.8 Tests: sent, replaced, template fallback, 410 cleanup, retry, quiet-hours deferral of habit batch
+## 9. Push notifications — Sat 31 Oct *(was Telegram; replaced 27 Oct, design D16; done 27 Oct)*
+- [x] 9.1 VAPID keys (user-secrets) + `Push:*` config; delete `Tempo.Integrations.Telegram` from the solution *(new `Tempo.Integrations.Push` project; `Lib.Net.Http.WebPush` 3.3.1 — aes128gcm, required by iOS; keys generated and set in user-secrets; missing keys log a warning and fall back to the logging transport instead of failing startup, so a fresh clone still runs)*
+- [x] 9.2 `PushSubscription` entity + `POST /push/subscribe` + `DELETE /push/subscribe` *(upsert by endpoint; plus `GET /push/vapid-public-key` — the browser needs it as `applicationServerKey`; migration `PushSubscriptions` also drops `UserSettings.TelegramChatId`)*
+- [x] 9.3 `WebPushTransport` behind `INudgeTransport`: send to every subscription, 410/404 → delete subscription, 3× retry with backoff, `Nudge.status` recorded *(payload {kind,title,body,url,nudgeId,habitId,tag}; tag=planId so the OS replaces a stale notification; false when zero subscriptions → status Failed, honest)*
+- [x] 9.4 Service worker `push` + `notificationclick` handlers; deep links to `/now` (nudges) and `/habits` (proposals) *(public/push-sw.js via workbox importScripts; live delivery to the phone pending the named tunnel — subscriptions bind to the origin; note: `/now`+`/habits` SPA screens land in section 12, which must move the JSON APIs under `/api`)*
+- [x] 9.5 Android notification actions for habit Confirm/Reject → same endpoints/handler *(actions shown only when the payload names a single habit — `Nudge.HabitId`, set by the batch when exactly one proposal is due; multi-proposal batches deep-link to /habits)*
+- [x] 9.6 Replacement nudge on >5 min plan shift *(detected in `NudgeService.SendAsync`: earlier Sent same-kind nudge for the appointment + >5 min leaveAt shift → `Nudge.ReplacesNudgeId`; transport titles it "TEMPO — updated plan")*
+- [x] 9.7 Template fallback when the run ends without a valid send *(`NudgeTemplates` built only from the committed plan; `PlannerTickService` sends it through the same guarded notify path after any run that leaves the window/late state unnudged — including the model-down fallback commit)*
+- [x] 9.8 Tests: sent, replaced, template fallback, 410 cleanup, retry, quiet-hours deferral of habit batch *(152 green; batch also tests single-proposal HabitId)*
 
 ## 10. Voice input — Sun 1 Nov
 - [ ] 10.1 PWA hold-to-talk (Web Audio → WAV mono PCM 16 kHz, ≤15 s; ASR API is WAV-only per design D2) → `POST /voice`; text-field fallback when mic denied

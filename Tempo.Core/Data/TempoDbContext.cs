@@ -16,6 +16,7 @@ public sealed class TempoDbContext(DbContextOptions<TempoDbContext> options) : D
     public DbSet<AgentTrace> AgentTraces => Set<AgentTrace>();
     public DbSet<UserSettings> UserSettings => Set<UserSettings>();
     public DbSet<OAuthToken> OAuthTokens => Set<OAuthToken>();
+    public DbSet<PushSubscription> PushSubscriptions => Set<PushSubscription>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -57,6 +58,9 @@ public sealed class TempoDbContext(DbContextOptions<TempoDbContext> options) : D
 
         modelBuilder.Entity<OAuthToken>()
             .HasIndex(t => t.Provider).IsUnique();
+
+        modelBuilder.Entity<PushSubscription>()
+            .HasIndex(s => s.Endpoint).IsUnique();
     }
 }
 

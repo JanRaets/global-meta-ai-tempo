@@ -21,6 +21,7 @@ public sealed class PlannerTickTests : IDisposable
     private readonly FakeLocationBuffer buffer = new();
     private readonly FakeRoutingClient routing = new();
     private readonly ScriptedMetaModels model = new();
+    private readonly RecordingNudgeTransport transport = new();
     private readonly ServiceProvider provider;
     private readonly PlannerTickService tick;
     private readonly PlanService plans;
@@ -55,16 +56,18 @@ public sealed class PlannerTickTests : IDisposable
         services.AddScoped<DeparturePlanner>();
         services.AddScoped<PlanOptionStore>();
         services.AddScoped<PlanService>();
-        services.AddSingleton<INudgeTransport>(new RecordingNudgeTransport());
+        services.AddSingleton<INudgeTransport>(transport);
         services.AddScoped<NudgeService>();
         provider = services.BuildServiceProvider();
 
         var runner = new AgentRunner(provider.GetRequiredService<IServiceScopeFactory>(), NullLogger<AgentRunner>.Instance);
         var location = provider.GetRequiredService<CurrentLocationProvider>();
+        var optionStore = new PlanOptionStore();
         plans = new PlanService(db.Context,
             new DeparturePlanner(routing, NullLogger<DeparturePlanner>.Instance),
-            new PlanOptionStore(), location, clock, NullLogger<PlanService>.Instance);
-        tick = new PlannerTickService(db.Context, runner, plans, new TickStateStore(), location, clock,
+            optionStore, location, clock, NullLogger<PlanService>.Instance);
+        var nudges = new NudgeService(db.Context, optionStore, transport, clock, NullLogger<NudgeService>.Instance);
+        tick = new PlannerTickService(db.Context, runner, plans, nudges, new TickStateStore(), location, clock,
             NullLogger<PlannerTickService>.Instance);
     }
 
@@ -149,6 +152,41 @@ public sealed class PlannerTickTests : IDisposable
         var plan = Assert.Single(db.Context.DeparturePlans);
         Assert.Equal("fallback: model unavailable", plan.Reason);
         Assert.Equal(PlanCommitter.Fallback, plan.CommittedBy);
+    }
+
+    [Fact]
+    public async Task A_run_that_ends_without_a_nudge_in_the_open_window_sends_the_template()
+    {
+        model.EnqueueFinal("Nothing to do.");
+        await tick.TickAsync(); // stores the inputs hash
+        var options = await plans.OptionsAsync(appointment.Id);
+        await plans.CommitAsync(options.Options[0].OptionId, "test", PlanCommitter.Agent); // leaveAt 08:37Z
+        clock.SetUtcNow(DateTimeOffset.Parse("2026-10-27T08:30:00Z")); // window open
+        buffer.Points.Add(new LocationPoint(52.0906, 5.2332, clock.GetUtcNow().AddMinutes(-1)));
+
+        model.EnqueueFinal("Committed earlier; staying quiet."); // the model fumbles the nudge
+        await tick.TickAsync();
+
+        var nudge = Assert.Single(transport.Delivered);
+        Assert.Equal(NudgeKind.Leave, nudge.Kind);
+        Assert.Contains("09:37", nudge.Text); // local leave time, from the plan, not the model
+        Assert.Contains("bicycle", nudge.Text);
+    }
+
+    [Fact]
+    public async Task A_failed_run_in_the_late_state_still_nudges_via_the_template()
+    {
+        clock.SetUtcNow(DateTimeOffset.Parse("2026-10-27T08:45:00Z")); // past leaveAt 08:37Z
+        buffer.Points.Add(new LocationPoint(52.0906, 5.2332, clock.GetUtcNow().AddMinutes(-1)));
+        model.ThrowOnNextChat = new ModelUnavailableException("both providers down");
+
+        await tick.TickAsync();
+
+        var plan = Assert.Single(db.Context.DeparturePlans);
+        Assert.Equal(PlanCommitter.Fallback, plan.CommittedBy);
+        var nudge = Assert.Single(transport.Delivered);
+        Assert.Equal(NudgeKind.Late, nudge.Kind);
+        Assert.Contains("Leave now by bicycle", nudge.Text);
     }
 
     public void Dispose()

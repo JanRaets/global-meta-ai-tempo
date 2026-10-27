@@ -41,12 +41,17 @@ public sealed class RoutingOptions
     public int CacheMinutes { get; init; } = 5;
 }
 
-public sealed class TelegramOptions
+/// <summary>Web Push (design D16). VAPID keys live in user-secrets, never in the repo.</summary>
+public sealed class PushOptions
 {
-    public const string Section = "Telegram";
+    public const string Section = "Push";
 
-    public string BotToken { get; init; } = "";
-    public long ChatId { get; init; }
+    /// <summary>VAPID contact, sent to the push services (mailto: or https: URL).</summary>
+    public string Subject { get; init; } = "mailto:tempo@personalbot.nl";
+    public string VapidPublicKey { get; init; } = "";
+    public string VapidPrivateKey { get; init; } = "";
+    /// <summary>Base delay for transient-error retries; doubled per attempt. 0 in tests.</summary>
+    public int RetryBaseMs { get; init; } = 500;
 }
 
 public sealed class GoogleOptions

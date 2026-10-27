@@ -32,6 +32,7 @@ public sealed class PlannerTickService(
     TempoDbContext db,
     AgentRunner runner,
     PlanService plans,
+    Tempo.Core.Nudging.NudgeService nudges,
     TickStateStore state,
     CurrentLocationProvider location,
     TimeProvider clock,
@@ -76,7 +77,33 @@ public sealed class PlannerTickService(
                 logger.LogInformation("Deterministic fallback for {Appointment}: {Result}",
                     appointment.Title, fallback is null ? "no options" : $"v{fallback.Version} committed");
             }
+            // Nudging spec: "after the run ends without a valid send, the system sends a
+            // deterministic template". The model had its chance this run; if a nudge is
+            // still owed, send the template through the same guarded notify path.
+            await SendTemplateIfOwedAsync(appointment, trace?.Id, ct);
         }
+    }
+
+    private async Task SendTemplateIfOwedAsync(Appointment appointment, Guid? traceId, CancellationToken ct)
+    {
+        var plan = await plans.CurrentAsync(appointment.Id, ct);
+        if (plan is null)
+            return;
+        var settings = await db.UserSettings.AsNoTracking().FirstAsync(ct);
+        var now = clock.GetUtcNow();
+        NudgeKind? owed =
+            now > plan.LeaveAt && !await AtDestinationAsync(appointment, ct)
+                && !await NudgeExistsAsync(plan, NudgeKind.Late, ct) ? NudgeKind.Late
+            : now >= plan.LeaveAt.AddMinutes(-settings.NudgeLeadMin)
+                && !await NudgeExistsAsync(plan, NudgeKind.Leave, ct) ? NudgeKind.Leave
+            : null;
+        if (owed is null)
+            return;
+        var tz = TimeZoneInfo.FindSystemTimeZoneById(settings.TimeZone);
+        var text = Tempo.Core.Nudging.NudgeTemplates.Build(owed.Value, plan, appointment, tz);
+        var result = await nudges.SendAsync(owed.Value, text, appointment.Id, traceId, ct);
+        logger.LogInformation("Template fallback nudge ({Kind}): {Outcome}",
+            owed, result.Sent ? "sent" : result.RefusalReason);
     }
 
     private Task<bool> NudgeExistsAsync(DeparturePlan plan, NudgeKind kind, CancellationToken ct) =>

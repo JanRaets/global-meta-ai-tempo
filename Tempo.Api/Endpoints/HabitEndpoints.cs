@@ -5,7 +5,7 @@ using Tempo.Core.Domain;
 
 namespace Tempo.Api.Endpoints;
 
-/// <summary>Habit management API (habit-learning spec): the app mirrors the Telegram actions.</summary>
+/// <summary>Habit management API (habit-learning spec): app + notification actions share these routes.</summary>
 public sealed class ListHabitsEndpoint(TempoDbContext db) : EndpointWithoutRequest
 {
     public override void Configure()
@@ -38,7 +38,7 @@ public sealed class ListHabitsEndpoint(TempoDbContext db) : EndpointWithoutReque
     }
 }
 
-/// <summary>Runs the same ConfirmHabitHandler as the Telegram button and the voice intent;
+/// <summary>Runs the same ConfirmHabitHandler as the notification action and the voice intent;
 /// the HabitConfirmed event re-runs the planner via the agent (habit-learning spec).</summary>
 public sealed class ConfirmHabitEndpoint(ConfirmHabitHandler handler) : EndpointWithoutRequest
 {

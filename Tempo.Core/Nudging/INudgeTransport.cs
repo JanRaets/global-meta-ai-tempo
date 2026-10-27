@@ -3,8 +3,8 @@ using Tempo.Core.Domain;
 
 namespace Tempo.Core.Nudging;
 
-/// <summary>Delivers a nudge to the user. Telegram implements this in section 9;
-/// until then the logging transport makes nudges visible in the console.</summary>
+/// <summary>Delivers a nudge to the user. `WebPushTransport` (design D16) is the real
+/// implementation; the logging transport serves tests and key-less dev runs.</summary>
 public interface INudgeTransport
 {
     Task<bool> SendAsync(Nudge nudge, CancellationToken ct = default);

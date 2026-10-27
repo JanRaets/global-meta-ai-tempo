@@ -5,7 +5,7 @@ using Tempo.Core.Events;
 namespace Tempo.Core.Domain;
 
 /// <summary>
-/// Sole producer of <see cref="ConfirmedHabit"/> (design D3). Telegram buttons, the app's
+/// Sole producer of <see cref="ConfirmedHabit"/> (design D3). The app’s buttons, the notification’s
 /// confirm button and the ConfirmHabit voice intent all route here; nothing else can
 /// construct a ConfirmedHabit, enforced by the internal constructor and a reflection test.
 /// </summary>

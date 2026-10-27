@@ -1,6 +1,6 @@
 # TEMPO architecture
 
-The spec is the contract: see [`openspec/`](openspec/) (proposal, design decisions D1–D15, per-capability specs). This file is the 5-minute orientation.
+The spec is the contract: see [`openspec/`](openspec/) (proposal, design decisions D1–D16, per-capability specs). This file is the 5-minute orientation.
 
 ## Principle
 
@@ -17,7 +17,7 @@ The spec is the contract: see [`openspec/`](openspec/) (proposal, design decisio
 | `Tempo.Integrations.Meta` | `MetaApiModels` (Muse Spark + Muse Voice Transcribe), `BasetenModels` (Muse Spark Open), fallback wrapper |
 | `Tempo.Integrations.Google` | Google Calendar read-only sync (no write methods exist) |
 | `Tempo.Integrations.Maps` | OpenRouteService Directions + Pelias geocoding (design D15), 5-min Redis cache |
-| `Tempo.Integrations.Telegram` | Nudge delivery, inline Confirm/Reject/Why? buttons |
+| `Tempo.Integrations.Push` | Web Push nudge delivery (design D16): VAPID auth, 3× retry, expired-subscription cleanup |
 | `Tempo.Tests` | xUnit; scripted fake `IMetaModels`; Testcontainers integration tests |
 | `Tempo.Web` | Mobile-first PWA (Vite + React 18 + TS + Tailwind); builds into `Tempo.Api/wwwroot` |
 
@@ -27,7 +27,7 @@ Calendar + location points → deterministic derivation (`Appointment`, `Visit`,
 
 ## Configuration
 
-Schema in `Tempo.Core/Configuration/TempoOptions.cs`, bound from `appsettings.json`, a gitignored `Tempo.Api/appsettings.local.json` (dev keys live there), and environment variables (`Models__MetaApi__ApiKey=…`). Startup fails fast with an error naming the missing key. Each integration enforces its own required values from the section that wires it up; from section 0/1 the primary model provider's API key is required. Secrets never live in the repo — `.env.example` lands in section 13.
+Schema in `Tempo.Core/Configuration/TempoOptions.cs`, bound from `appsettings.json`, a gitignored `Tempo.Api/appsettings.local.json` (dev keys live there), user-secrets (the VAPID push keys: `Push:VapidPublicKey` / `Push:VapidPrivateKey`), and environment variables (`Models__MetaApi__ApiKey=…`). Startup fails fast with an error naming the missing key. Each integration enforces its own required values from the section that wires it up; from section 0/1 the primary model provider's API key is required. Secrets never live in the repo — `.env.example` lands in section 13.
 
 ## Run locally
 

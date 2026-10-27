@@ -96,5 +96,41 @@ public sealed class HabitBatchTests : IDisposable
         Assert.Empty(transport.Delivered);
     }
 
+    [Fact]
+    public async Task A_batch_due_in_quiet_hours_is_deferred_to_the_next_run_after_them()
+    {
+        var habit = AddProposed("Bar Bello");
+        clock.SetUtcNow(DateTimeOffset.Parse("2026-10-27T21:30:00Z")); // 22:30 local, quiet 22–07
+
+        await Service().RunAsync();
+        Assert.Empty(transport.Delivered);
+        Assert.Equal(0, habit.ProposalSentCount);
+
+        clock.SetUtcNow(DateTimeOffset.Parse("2026-10-28T07:05:00Z")); // 08:05 local next day
+        await Service().RunAsync();
+        Assert.Single(transport.Delivered);
+    }
+
+    [Fact]
+    public async Task A_single_proposal_nudge_carries_its_habit_id_for_notification_actions()
+    {
+        var habit = AddProposed("Bar Bello");
+
+        await Service().RunAsync();
+
+        Assert.Equal(habit.Id, Assert.Single(transport.Delivered).HabitId);
+    }
+
+    [Fact]
+    public async Task A_multi_proposal_nudge_carries_no_habit_id()
+    {
+        AddProposed("Bar Bello");
+        AddProposed("Albert Heijn");
+
+        await Service().RunAsync();
+
+        Assert.Null(Assert.Single(transport.Delivered).HabitId);
+    }
+
     public void Dispose() => db.Dispose();
 }

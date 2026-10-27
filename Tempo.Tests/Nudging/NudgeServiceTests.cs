@@ -193,5 +193,47 @@ public sealed class NudgeServiceTests : IDisposable
         Assert.True(result.Sent);
     }
 
+    /// <summary>Adds a v2 plan whose leaveAt shifted by <paramref name="shiftMin"/> minutes.</summary>
+    private DeparturePlan AddPlanV2(int shiftMin)
+    {
+        var v2 = new DeparturePlan
+        {
+            Id = Guid.NewGuid(),
+            AppointmentId = appointment.Id,
+            Version = 2,
+            Mode = TravelMode.Bicycle,
+            LeaveAt = plan.LeaveAt.AddMinutes(shiftMin),
+            ArriveAt = plan.ArriveAt.AddMinutes(shiftMin),
+            Reason = "test v2",
+        };
+        db.Context.DeparturePlans.Add(v2);
+        db.Context.SaveChanges();
+        return v2;
+    }
+
+    [Fact]
+    public async Task A_nudged_plan_that_shifts_more_than_five_minutes_sends_a_replacement()
+    {
+        var first = await Service().SendAsync(NudgeKind.Leave, "Leave at 09:37 by bike.", appointment.Id, null);
+        AddPlanV2(shiftMin: -10); // leave 09:27 local; window already open
+
+        var second = await Service().SendAsync(NudgeKind.Leave, "Leave at 09:27 by bike.", appointment.Id, null);
+
+        Assert.True(second.Sent);
+        Assert.Equal(first.Nudge!.Id, second.Nudge!.ReplacesNudgeId);
+    }
+
+    [Fact]
+    public async Task A_shift_of_five_minutes_or_less_is_not_marked_as_a_replacement()
+    {
+        await Service().SendAsync(NudgeKind.Leave, "Leave at 09:37 by bike.", appointment.Id, null);
+        AddPlanV2(shiftMin: -4); // leave 09:33 local
+
+        var second = await Service().SendAsync(NudgeKind.Leave, "Leave at 09:33 by bike.", appointment.Id, null);
+
+        Assert.True(second.Sent);
+        Assert.Null(second.Nudge!.ReplacesNudgeId);
+    }
+
     public void Dispose() => db.Dispose();
 }

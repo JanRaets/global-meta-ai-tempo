@@ -12,7 +12,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       workbox: {
         // Server routes must never be swallowed by the SPA's offline navigation fallback.
-        navigateFallbackDenylist: [/^\/(admin|location|auth|sync|health|hangfire|api|voice|capture|traces)/],
+        navigateFallbackDenylist: [/^\/(admin|location|auth|sync|health|hangfire|api|voice|capture|traces|push)/],
+        // Web Push handlers (design D16) live in public/push-sw.js.
+        importScripts: ['push-sw.js'],
       },
       manifest: {
         name: 'TEMPO',
@@ -40,6 +42,8 @@ export default defineConfig({
       '/admin': 'http://localhost:5181',
       '/auth': 'http://localhost:5181',
       '/sync': 'http://localhost:5181',
+      '/push': 'http://localhost:5181',
+      '/habits': 'http://localhost:5181',
     },
   },
 })

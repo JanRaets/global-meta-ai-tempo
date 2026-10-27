@@ -12,6 +12,7 @@ using Tempo.Core.Redis;
 using Tempo.Integrations.Google;
 using Tempo.Integrations.Maps;
 using Tempo.Integrations.Meta;
+using Tempo.Integrations.Push;
 using Tempo.Jobs;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -22,7 +23,6 @@ builder.Configuration.AddJsonFile("appsettings.local.json", optional: true, relo
 // Config schema (fail fast; see architecture.md). Each integration enforces its own
 // required values the moment it is registered.
 builder.Services.AddMetaModels(builder.Configuration);
-builder.Services.AddOptions<TelegramOptions>().Bind(builder.Configuration.GetSection(TelegramOptions.Section));
 // Routing and Google options are bound by AddMapsIntegration / AddGoogleCalendar below.
 
 var postgres = builder.Configuration.GetConnectionString("Postgres")
@@ -36,7 +36,7 @@ builder.Services.AddScoped<Tempo.Core.Planning.DeparturePlanner>();
 builder.Services.AddScoped<Tempo.Core.Planning.PlanOptionStore>();
 builder.Services.AddScoped<Tempo.Core.Planning.PlanService>();
 builder.Services.AddScoped<Tempo.Core.Nudging.NudgeService>();
-builder.Services.AddSingleton<Tempo.Core.Nudging.INudgeTransport, Tempo.Core.Nudging.LoggingNudgeTransport>();
+builder.Services.AddWebPush(builder.Configuration); // INudgeTransport (design D16); logs instead when VAPID keys are missing
 builder.Services.AddSingleton<Tempo.Agent.AgentRunner>();
 builder.Services.AddSingleton<Tempo.Agent.TickStateStore>();
 builder.Services.AddScoped<Tempo.Agent.PlannerTickService>();
@@ -84,6 +84,10 @@ await using (var scope = app.Services.CreateAsyncScope())
     // Force options validation before touching the database, so a missing key
     // fails startup with the configuration error, not a DB error.
     _ = scope.ServiceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<ModelsOptions>>().Value;
+
+    var push = scope.ServiceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<PushOptions>>().Value;
+    if (string.IsNullOrEmpty(push.VapidPublicKey) || string.IsNullOrEmpty(push.VapidPrivateKey))
+        app.Logger.LogWarning("Push: VAPID keys missing — nudges go to the log only (set Push:VapidPublicKey/VapidPrivateKey in user-secrets)");
 
     var db = scope.ServiceProvider.GetRequiredService<TempoDbContext>();
     for (var attempt = 1; ; attempt++)
