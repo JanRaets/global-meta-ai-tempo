@@ -75,7 +75,7 @@ export function CapturePhoto({ onApplied }: { onApplied?: () => void } = {}) {
       onApplied?.()
     } catch {
       setPhase('card')
-      setMessage('Could not add it — check the time and try again.')
+      setMessage("Couldn't save it yet — it still needs a date and time.")
     }
   }
 

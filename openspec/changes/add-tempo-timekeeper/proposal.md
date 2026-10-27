@@ -1,7 +1,9 @@
 # Change: Add TEMPO proactive time-keeper
 
 ## Why
-Calendar apps tell you when something starts, not when you need to leave. Users are late not because they forget appointments but because they misjudge travel time and forget the small stops they always make on the way. TEMPO closes that gap with an agent that plans departures, learns the user's habits, and can be told or shown things in the moment. Hackathon entry: Meta Global AI Developer Hackathon, Indie Developer track, "Build for Your World". Submission due 4 Nov 2026 21:00 ET.
+Calendar apps tell you when something starts, not when you need to leave. Users are late not because they forget appointments but because they misjudge travel time and forget the small stops they always make on the way. TEMPO closes that gap with an agent that plans departures, learns the user's habits, and can be told or shown things in the moment.
+
+That gap is widest for people who find time hard: time blindness and executive-function load make "when do I actually need to stand up" the expensive question, not "what's on my calendar". Many people with ADHD and other neurodivergent people live with this daily; so do plenty of neurotypical people. TEMPO is designed with that audience in mind — one number, one tap, one recovery — as a productivity tool, never a health product. Hackathon entry: Meta Global AI Developer Hackathon, Indie Developer track, "Build for Your World". Submission due 4 Nov 2026 21:00 ET.
 
 ## What Changes
 - **ADD** `meta-models`: single `IMetaModels` abstraction with Muse Spark (Meta Model API) and Muse Spark Open (Baseten) implementations, plus Muse Voice Transcribe
@@ -28,6 +30,7 @@ Calendar apps tell you when something starts, not when you need to leave. Users 
 - Demo deliverable: a 3-minute video recorded from the phone plus a short screen-recorded trace view; last two days of the building period are reserved for it.
 - Tooling: built mostly with Claude Code; Muse Code is used for section 11 (capture-appointment) only, and if that doesn't happen the README says so. The README's tooling line stays honest either way.
 - Routing provider: OpenRouteService (free; bike/walk/car are what the demo needs; transit out of scope). Recorded as design D15.
+- Audience framing: time-blindness / executive-function support, stated as design intent, never as a health claim. The app never asks about or stores anything diagnosis-related (design D17).
 - Notifications: Web Push to the installed PWA (design D16). Telegram dropped. iOS requires the PWA installed to the home screen; Android supports notification action buttons, iOS does not.
 
 ## Decisions required before Phase 0 (BLOCKING — escalate to human, do not guess)

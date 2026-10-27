@@ -116,7 +116,7 @@ export function HoldToTalk({ onApplied }: { onApplied?: () => void } = {}) {
         <div className="flex w-full flex-col gap-2">
           <input
             className="w-full rounded-xl border border-[#D1D5DB] px-4 py-3"
-            placeholder="Microphone denied — type instead"
+            placeholder="Mic is off — type what you need instead"
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && sendText(text)}

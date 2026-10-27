@@ -20,7 +20,7 @@ export function TodayScreen() {
         <div className="text-[34px] font-extrabold tracking-[-0.03em] leading-none">Today</div>
         <div className="text-[15px] text-[#4B5563] mt-2">
           {data.items.length === 0
-            ? 'Nothing on the calendar.'
+            ? "Nothing here yet — synced and captured appointments become today's timeline."
             : `${data.items.filter((i) => !i.isVirtual && i.place).length} place(s) to be.`}
         </div>
       </div>

@@ -57,6 +57,12 @@ export function HabitsScreen() {
           </div>
         ))}
 
+        {proposed.length === 0 && confirmed.length === 0 && (
+          <div className="text-[15px] text-[#4B5563]">
+            Watching for patterns — a habit shows up here after three similar stops.
+          </div>
+        )}
+
         {confirmed.length > 0 && (
           <div className="text-[13px] font-semibold text-[#4B5563] tracking-[0.06em] mt-3">PLANNING FOR</div>
         )}

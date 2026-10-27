@@ -22,7 +22,9 @@ export function NowScreen({ locationLive }: { locationLive: boolean }) {
       {data.state === 'none' && (
         <div className="px-6 pt-11 flex flex-col gap-2">
           <div className="text-[34px] font-extrabold tracking-[-0.03em] leading-none">All clear</div>
-          <p className="text-[15px] text-[#4B5563]">Nothing to plan in the next six hours.</p>
+          <p className="text-[15px] text-[#4B5563]">
+            Nothing to plan in the next six hours — the next appointment with a place starts the clock.
+          </p>
         </div>
       )}
 

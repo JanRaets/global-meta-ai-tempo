@@ -179,7 +179,7 @@ export function SettingsScreen() {
               disabled={pushState === 'busy'}
               onClick={onEnablePush}
             >
-              {pushState === 'busy' ? '…' : pushState === 'denied' ? 'Denied — check browser' : pushState === 'unsupported' ? 'Not supported here' : 'Enable'}
+              {pushState === 'busy' ? '…' : pushState === 'denied' ? 'Allow notifications in the browser first' : pushState === 'unsupported' ? 'Not available in this browser' : 'Enable'}
             </button>
           )}
         </div>

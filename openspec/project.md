@@ -3,6 +3,8 @@
 ## Purpose
 TEMPO is a proactive time-keeper agent: it watches a user's calendar and location, computes real departure times, nudges them to leave on time, and learns habitual stops (coffee, groceries) so those are factored into timing and routing. The user can also talk to it ("I'm grabbing a coffee first") or show it things (a photo of an invite) and the agent adjusts the plan.
 
+TEMPO is built for people who find time hard. Time blindness — not feeling how far away "in 40 minutes" is, or how long "a quick stop" takes — is a daily reality for many people with ADHD and other neurodivergent people, and for plenty of neurotypical people too. TEMPO is designed with that audience in mind, as a productivity tool and nothing more. The design consequence runs through every screen: one number leads, every action is one tap, the late state offers one recovery instead of a list, and nudges arrive at the moment of action rather than as a schedule to track.
+
 Entry for the Meta Global AI Developer Hackathon, Indie Developer track, problem statement "Build for Your World". Building period 27 Oct – 4 Nov 2026; submission (public repo + 3-minute demo video) due 4 Nov 21:00 ET. Single-user MVP. Fresh build: the repo is created empty on 27 Oct 2026 and no code is copied from any prior project.
 
 ## Tech Stack
@@ -58,6 +60,7 @@ Entry for the Meta Global AI Developer Hackathon, Indie Developer track, problem
 - Agent never creates, moves or deletes calendar events
 - Quiet hours respected for all nudges
 - Everything demoed must be built during the hackathon; the README states what was built and with which Meta tools
+- Not a health product: no diagnosis-related data, questions, or claims anywhere
 
 ## External Dependencies
 - Meta Model API (Muse Spark, Muse Voice Transcribe)

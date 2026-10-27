@@ -96,7 +96,11 @@ Rationale: PWAs cannot track in the background on iOS; Owntracks is a 30-minute 
 Screens: **Now** (countdown, reason line, hold-to-talk and camera buttons, recent nudges), **Today** (timeline), **Habits** (proposed/confirmed), **Settings**, plus a **Trace** sheet reachable from any nudge ("why?") that lists the agent's tool calls in plain language. No desktop dashboard. Every action lives in the app; a notification tap deep-links to `/now` (nudges) or `/habits` (proposals). On Android, proposal notifications carry Confirm/Reject actions that call the same handlers; iOS has no notification actions.
 
 ### D13 — UX rules
+These rules exist to minimise cognitive load for people who find time hard (project.md Purpose): the app answers one question per screen and never makes the user do time arithmetic.
 - One number dominates each screen. On **Now** that is "leave in N min".
+- No countdown anxiety: the dominant number is minutes-to-leave, never seconds, and it changes colour only at the late threshold.
+- Nudges are phrased as the next physical action ("grab your keys, bike's 18 min"), not as time arithmetic the user must verify.
+- Nothing nags: one nudge per plan version, one late nudge, no reminders of reminders — enforced by the duplicate guard in `notify.send` (D8) and the tick's no-rewake check (D7), not by UI convention.
 - Never show raw data the user must interpret. Show the decision and the reason in one line.
 - Habit proposals read like a friend noticing something; evidence in one line; two large buttons.
 - Late state changes the whole screen colour and leads with the single recovery action.
@@ -112,6 +116,10 @@ OpenRouteService is the routing provider (`IRoutingClient` in `Tempo.Integration
 
 ### D16 — Web Push (decided 27 Oct 2026; replaces Telegram)
 Nudges and habit proposals are Web Push notifications to the installed PWA. VAPID keys live in user-secrets (`Push:VapidPublicKey` / `Push:VapidPrivateKey`), never in the repo. A `PushSubscription` entity stores `endpoint`, `p256dh`, `auth`, `userAgent`, `createdAt`; the user subscribes from Settings; the service worker handles `push` (show notification) and `notificationclick` (deep link). Payload: `{kind, title, body, url, nudgeId|habitId}`. A push endpoint answering 410/404 means the subscription is gone and the row is deleted. Rationale: one surface (the PWA) for everything, no bot dependency, and notifications work with the app closed — at the cost of requiring the iOS home-screen install and a stable origin.
+
+### D17 — Non-health boundary (decided 27 Oct 2026)
+What TEMPO does: plan departures, time nudges to the moment of action, and keep every interaction one number / one tap, designed with time blindness and executive-function load in mind. It says "built for people who find time hard" and nothing stronger.
+What TEMPO will not do: ask about, store, or infer anything diagnosis-related; use symptom or condition language anywhere in UI, prompts, or notifications; or claim to treat, manage, or improve any condition. A string scan test enforces the banned terms in UI copy, prompt files and the README.
 
 ## Risks / Trade-offs
 - iOS push requires the home-screen install and a stable origin; a quick-tunnel restart changes the hostname and kills the subscription — a named tunnel is mandatory before installing the PWA.
