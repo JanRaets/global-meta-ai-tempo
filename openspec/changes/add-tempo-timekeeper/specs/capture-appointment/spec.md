@@ -10,11 +10,11 @@ The app SHALL provide a camera button on the Now screen that takes or picks a ph
 - **THEN** the photo is posted and a confirm card appears within 10 seconds
 
 ### Requirement: Extract with Spark vision
-The system SHALL call `DescribeImageAsync<CapturedAppointment>` to extract `title`, `dateTime` (resolved relative to today in the user's timezone), `placeText`, `confidence` and `rawText`, and SHALL geocode `placeText` through the same path as calendar locations.
+The system SHALL call `DescribeImageAsync<CapturedAppointment>` to extract `title`, `dateText` and `timeText` (the date/time words literally as written — the model never resolves a date, per design D1), `placeText`, `confidence` and `rawText`; a deterministic resolver SHALL turn the words into a start time relative to today in the user's timezone, and the system SHALL geocode `placeText` through the same path as calendar locations. *(Amended 27 Oct 2026: `dateTime` split into literal `dateText`/`timeText` + code-side resolution, so no model output is ever used as a time — D1 enforced in the schema, not the prompt.)*
 
 #### Scenario: Relative date
 - **WHEN** the image says "Thursday 19:00" and today is Monday
-- **THEN** `dateTime` is the coming Thursday at 19:00 local time
+- **THEN** `dateText` is "Thursday", `timeText` is "19:00", and the resolved start is the coming Thursday at 19:00 local time
 
 #### Scenario: No appointment found
 - **WHEN** the image contains no date or place

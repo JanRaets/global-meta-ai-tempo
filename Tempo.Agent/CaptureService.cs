@@ -149,7 +149,8 @@ public sealed class CaptureService(
                 CultureInfo.InvariantCulture, DateTimeStyles.None, out var local))
             throw new CaptureValidationException("Pick a date and time.");
         var tz = await UserTimeZoneAsync(ct);
-        var start = new DateTimeOffset(local, tz.GetUtcOffset(local));
+        // ToUniversalTime: Npgsql rejects any non-UTC DateTimeOffset (same fix as the seed endpoints).
+        var start = new DateTimeOffset(local, tz.GetUtcOffset(local)).ToUniversalTime();
 
         Guid? placeId = null;
         string? placeName = null;

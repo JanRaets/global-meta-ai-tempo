@@ -54,7 +54,9 @@ public sealed class OrsRoutingClientTests
     {
         var handler = new StubHttpHandler((HttpStatusCode.OK, RouteBody));
         var client = Client(handler);
-        var departAt = DateTimeOffset.UtcNow;
+        // Bucket-aligned fixed time: with UtcNow this flaked whenever "now" fell within
+        // 30 s of a 5-minute bucket boundary (the two calls then hit different buckets).
+        var departAt = DateTimeOffset.FromUnixTimeSeconds(1_762_000_000);
 
         var first = await client.EstimateAsync(Zeist, UtrechtCentraal, TravelMode.Bicycle, departAt);
         var second = await client.EstimateAsync(Zeist, UtrechtCentraal, TravelMode.Bicycle, departAt.AddSeconds(30));
