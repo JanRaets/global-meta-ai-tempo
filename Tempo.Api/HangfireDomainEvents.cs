@@ -23,6 +23,9 @@ public sealed class HangfireDomainEvents(IBackgroundJobClient jobs, ILogger<Hang
             case HabitConfirmed:
                 jobs.Enqueue<AgentRunJob>(j => j.RunAsync("event:habit-confirmed", null, CancellationToken.None));
                 break;
+            case IntentApplied intent:
+                jobs.Enqueue<AgentRunJob>(j => j.RunAsync($"intent:{intent.Kind}", intent.AppointmentId, CancellationToken.None));
+                break;
         }
         return Task.CompletedTask;
     }

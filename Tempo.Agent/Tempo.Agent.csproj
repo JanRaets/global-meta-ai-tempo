@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <None Update="Prompts\agent.system.md" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Prompts\intent.system.md" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

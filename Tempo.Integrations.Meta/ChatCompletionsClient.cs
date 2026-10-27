@@ -109,8 +109,13 @@ public abstract class ChatCompletionsClient(HttpClient http, IModelCallLog log, 
     private async Task<ModelResult<T>> CompleteJsonAsync<T>(
         IReadOnlyList<WireMessage> messages, string jsonSchema, string purpose, CancellationToken ct)
     {
+        // A schema that declares additionalProperties:false (and all-props-required, the
+        // strict-mode contract per design D2 API facts) opts into strict:true — constrained
+        // decoding prevents the occasional corrupted property key the lax mode produces.
+        var schemaElement = JsonDocument.Parse(jsonSchema).RootElement;
+        var strict = schemaElement.TryGetProperty("additionalProperties", out var ap) && ap.ValueKind == JsonValueKind.False;
         var responseFormat = new WireResponseFormat("json_schema",
-            new WireJsonSchema(typeof(T).Name, JsonDocument.Parse(jsonSchema).RootElement));
+            new WireJsonSchema(typeof(T).Name, schemaElement, strict));
         var options = new ChatCallOptions { Purpose = purpose };
         var attemptMessages = messages;
         Exception? firstFailure = null;

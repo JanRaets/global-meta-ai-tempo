@@ -17,6 +17,9 @@ public sealed record VisitCreated(Guid VisitId) : IDomainEvent;
 
 public sealed record HabitConfirmed(Guid HabitId) : IDomainEvent;
 
+/// <summary>A voice/text intent was applied (or undone) — the agent re-plans (voice-input spec).</summary>
+public sealed record IntentApplied(Guid IntentId, string Kind, Guid? AppointmentId) : IDomainEvent;
+
 /// <summary>In-process domain events. Section 7 subscribes the agent loop to these;
 /// until then the logging implementation just records that they fired.</summary>
 public interface IDomainEvents

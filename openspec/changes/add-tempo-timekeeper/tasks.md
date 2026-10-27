@@ -87,12 +87,12 @@ Building period 27 Oct – 4 Nov 2026. Target day per section is a guide, not a 
 - [x] 9.7 Template fallback when the run ends without a valid send *(`NudgeTemplates` built only from the committed plan; `PlannerTickService` sends it through the same guarded notify path after any run that leaves the window/late state unnudged — including the model-down fallback commit)*
 - [x] 9.8 Tests: sent, replaced, template fallback, 410 cleanup, retry, quiet-hours deferral of habit batch *(152 green; batch also tests single-proposal HabitId)*
 
-## 10. Voice input — Sun 1 Nov
-- [ ] 10.1 PWA hold-to-talk (Web Audio → WAV mono PCM 16 kHz, ≤15 s; ASR API is WAV-only per design D2) → `POST /voice`; text-field fallback when mic denied
-- [ ] 10.2 Server: `TranscribeAsync` → `ChatJsonAsync<Intent>` (closed set incl. `Unknown`)
-- [ ] 10.3 Apply intent as per-plan input change; trigger agent run; `ConfirmHabit` routes through `ConfirmHabitHandler`
-- [ ] 10.4 Result card: transcript + one-line change + Undo (10 s)
-- [ ] 10.5 Tests: each intent from a fixed transcript via scripted fake; Unknown → three chips; undo reverts
+## 10. Voice input — Sun 1 Nov *(done 27 Oct)*
+- [x] 10.1 PWA hold-to-talk (Web Audio → WAV mono PCM 16 kHz, ≤15 s; ASR API is WAV-only per design D2) → `POST /voice`; text-field fallback when mic denied *(route is `POST /api/voice` — first under the /api prefix section 12 adopts; raw WAV body; `wavRecorder.ts` hand-rolls downsample + RIFF header, AudioContext created+resumed inside the pointer handler for iOS; encoder unit-tested via vitest)*
+- [x] 10.2 Server: `TranscribeAsync` → `ChatJsonAsync<Intent>` (closed set incl. `Unknown`) *(`VoiceIntentService` + `Prompts/intent.system.md`; prompt receives current-plan stop names and proposed-habit names as candidates so placeId/habitId are code lookups, never model output; classifier schema is the first strict:true one — lax mode corrupted a property key live, see amended D2)*
+- [x] 10.3 Apply intent as per-plan input change; trigger agent run; `ConfirmHabit` routes through `ConfirmHabitHandler` *(writes `PlanInputs` only; `IntentApplied` event → Hangfire agent run `intent:<kind>`; `/api/voice/text` is the mic-denied fallback path)*
+- [x] 10.4 Result card: transcript + one-line change + Undo (10 s) *(HoldToTalk.tsx; undo info stored in Intent.ArgsJson, `POST /api/voice/undo/{id}` reverts and re-runs)*
+- [x] 10.5 Tests: each intent from a fixed transcript via scripted fake; Unknown → three chips; undo reverts *(13 new server tests + 4 vitest encoder tests; 165 green; five live utterances through real ASR+Spark pasted in the section log)*
 
 ## 11. Capture appointment — Sun 1 Nov **[Muse Code]**
 - [ ] 11.1 PWA camera button → `POST /capture` (resized to ≤1600 px client-side)

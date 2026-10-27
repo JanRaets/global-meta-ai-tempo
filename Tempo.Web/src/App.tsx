@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { HoldToTalk } from './HoldToTalk'
 import { useLocationPosting } from './useLocationPosting'
 
 export function App() {
@@ -11,6 +12,7 @@ export function App() {
       <p className="mt-2 text-[#4B5563]">
         Nothing to plan yet — the Now screen lands in section 12.
       </p>
+      <HoldToTalk />
       {!sharing && (
         <>
           <p className="mt-8 max-w-xs text-sm text-[#4B5563]">
