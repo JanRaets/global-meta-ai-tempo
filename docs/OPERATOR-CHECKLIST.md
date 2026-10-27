@@ -3,20 +3,14 @@
 In dependency order. Each item: why it waits on you, exact steps, how to verify, what it unblocks.
 API runs on `http://localhost:5181`; `/admin/*` endpoints are dev-only (404 otherwise).
 
-## 1. Named tunnel: tempo.personalbot.nl — REQUIRED, unblocks 2, 3, 6
+## 1. Named tunnel: tempo.personalbot.dev — ✅ DONE 27 Oct (unblocked 2, 3, 6)
 
-Why you: Cloudflare account + registrar login + a browser auth. Push subscriptions and the iOS
-home-screen install bind to the origin (design D16), so this comes before any phone step.
+Live via the `tempo` Cloudflare tunnel (zone personalbot.dev), run by the LaunchAgent
+`~/Library/LaunchAgents/dev.personalbot.tempo-tunnel.plist` (KeepAlive; starts at login —
+after a reboot it is up once you log in). Config: `~/.cloudflared/config.yml` → `http://localhost:5181`.
 
-1. dash.cloudflare.com → Add a site → `personalbot.nl` → Free. Verify the imported records
-   (A @ → 2.28.235.13, www, both TXT) and set A/www to **DNS only** (grey cloud).
-2. At Hostnet (Domein → nameservers): replace `ns01/ns02.hostnet.nl` with the two Cloudflare
-   nameservers it shows. Wait for Cloudflare's "site is active" mail.
-3. In a terminal: `cloudflared tunnel login` (pick personalbot.nl). Then tell Claude —
-   the rest (create tunnel, DNS route, config.yml, launchd service, Google redirect update)
-   is scripted and done for you.
-
-Verify: `https://tempo.personalbot.nl/health` → `{"status":"ok"}`; survives a Mac reboot.
+Verify any time: `https://tempo.personalbot.dev/health` → `{"status":"ok"}`.
+Logs: `~/Library/Logs/tempo-tunnel.log`. Restart: `launchctl kickstart -k gui/$(id -u)/dev.personalbot.tempo-tunnel`.
 
 ## 2. Owntracks: rotated key + new hostname — REQUIRED (live habit data; tasks 5.7)
 
@@ -24,8 +18,7 @@ Why you: the settings live in the app on your phone. The old key was rotated on 
 no longer works; location posting is dead until this is done.
 
 1. New key: `curl http://localhost:5181/admin/location-key` (shows key + full URL).
-2. Owntracks → Settings: Mode **HTTP**; URL `https://tempo.personalbot.nl/location/owntracks?key=<key>`
-   (until item 1 lands, use the current quick-tunnel host instead and redo after);
+2. Owntracks → Settings: Mode **HTTP**; URL `https://tempo.personalbot.dev/location/owntracks?key=<key>`;
    Tracking: Significant changes (monitoring 1) or Move during demo walks.
 
 Verify: `curl http://localhost:5181/admin/location-stats` → `pointsLastHour` > 0 after moving.
@@ -35,7 +28,7 @@ Verify: `curl http://localhost:5181/admin/location-stats` → `pointsLastHour` >
 Why you: physical phone, Safari prompts, Apple's install gesture. Do this only AFTER item 1 —
 installing against a quick tunnel binds everything to a hostname that will die (task 0.7).
 
-1. iPhone Safari → `https://tempo.personalbot.nl` → Share → **Add to Home Screen** → open from
+1. iPhone Safari → `https://tempo.personalbot.dev` → Share → **Add to Home Screen** → open from
    the home screen icon (must run standalone for push on iOS).
 2. Grant location when asked (header dot turns blue "live").
 3. Settings tab → Notifications → **Enable** → allow → **Send test** → a notification arrives.

@@ -61,7 +61,7 @@ public sealed class PushOptions
     public const string Section = "Push";
 
     /// <summary>VAPID contact, sent to the push services (mailto: or https: URL).</summary>
-    public string Subject { get; init; } = "mailto:tempo@personalbot.nl";
+    public string Subject { get; init; } = "mailto:tempo@personalbot.dev";
     public string VapidPublicKey { get; init; } = "";
     public string VapidPrivateKey { get; init; } = "";
     /// <summary>Base delay for transient-error retries; doubled per attempt. 0 in tests.</summary>

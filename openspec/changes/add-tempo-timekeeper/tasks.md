@@ -9,7 +9,7 @@ Building period 27 Oct – 4 Nov 2026. Target day per section is a guide, not a 
 - [x] 0.4 Create `Tempo.Web` (Vite + React 18 + TS + Tailwind + vite-plugin-pwa), served as static files by `Tempo.Api`
 - [x] 0.5 docker-compose: Postgres 16 + pgvector, Redis; EF Core migrations run on startup
 - [x] 0.6 Config schema: `Models:*`, `Routing:*`, `Push:*`, `Google:*`; fail fast on missing values *(Push:* replaces the old notification section in 9.1)*
-- [ ] 0.7 Public HTTPS endpoint (tunnel); verify the phone can open the PWA and grant geolocation + microphone — *tunnel documented in architecture.md; phone verification is a physical step for the builder. A named tunnel with a stable hostname is required before installing the PWA: push subscriptions and the iOS home-screen install bind to the origin (D16)*
+- [x] 0.7 Public HTTPS endpoint (tunnel); verify the phone can open the PWA and grant geolocation + microphone *(named tunnel tempo.personalbot.dev live 27 Oct via LaunchAgent; phone PWA install + permissions remain operator checklist item 3)*
 - [x] 0.8 Commit `architecture.md`; README tooling line (*decision: "Built with Claude Code; section 11 (capture) with Muse Code."*)
 
 ## 1. Meta models — Tue 27 / Wed 28 Oct

@@ -50,7 +50,7 @@ cloudflared tunnel --url http://localhost:5181
 
 Open the printed `https://….trycloudflare.com` URL on the phone, add to home screen, grant location + microphone.
 
-**The quick tunnel's hostname changes on every restart** — after a restart, Owntracks (and the home-screen PWA) point at a dead host until you update them. For a stable hostname, make a named tunnel once (needs a free Cloudflare account and a domain in it):
+**Named tunnel (live since 27 Oct):** `tempo.personalbot.dev` runs via the LaunchAgent `dev.personalbot.tempo-tunnel` (config `~/.cloudflared/config.yml`, logs `~/Library/Logs/tempo-tunnel.log`). The quick tunnel above is only a fallback — **its hostname changes on every restart** — after a restart, Owntracks (and the home-screen PWA) point at a dead host until you update them. For a stable hostname, make a named tunnel once (needs a free Cloudflare account and a domain in it):
 
 ```sh
 cloudflared tunnel login
