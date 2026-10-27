@@ -1,3 +1,4 @@
+import { BrandHeader } from '../Brand'
 import { useState } from 'react'
 import { api, type Settings } from '../api'
 import { enablePush } from '../push'
@@ -42,7 +43,7 @@ export function SettingsScreen() {
   return (
     <div className="flex flex-col flex-grow bg-white text-[#111318] overflow-y-auto">
       <div className="px-6" style={{ paddingTop: 'max(env(safe-area-inset-top), 24px)' }}>
-        <div className="text-[15px] font-bold tracking-[0.08em]">TEMPO</div>
+        <BrandHeader />
       </div>
       <div className="px-6 pt-9">
         <div className="text-[34px] font-extrabold tracking-[-0.03em] leading-none">Settings</div>

@@ -1,3 +1,4 @@
+import { BrandHeader } from '../Brand'
 import { api, type Habit } from '../api'
 import { ModeIcon, PauseIcon, PlayIcon } from '../Icons'
 import { usePoll } from '../usePoll'
@@ -24,7 +25,7 @@ export function HabitsScreen() {
   return (
     <div className="flex flex-col flex-grow bg-white text-[#111318] overflow-y-auto">
       <div className="px-6" style={{ paddingTop: 'max(env(safe-area-inset-top), 24px)' }}>
-        <div className="text-[15px] font-bold tracking-[0.08em]">TEMPO</div>
+        <BrandHeader />
       </div>
 
       <div className="px-6 pt-9">

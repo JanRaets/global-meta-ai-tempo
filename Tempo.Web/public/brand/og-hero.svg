@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+<style>@import url('https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700;800&amp;display=swap');text{font-family:'Inter Tight',Inter,system-ui,sans-serif}</style>
+<rect width="1200" height="630" fill="#FFFFFF"/>
+<g transform="translate(90 70)">
+    <rect x="0" y="0" width="280" height="560" rx="44" fill="#111318"/>
+    <rect x="12" y="12" width="256" height="536" rx="34" fill="#FFFFFF"/>
+    <text x="36" y="70" font-size="12" font-weight="700" letter-spacing="1.2" fill="#111318">TEMPO</text>
+    <circle cx="224" cy="66" r="4" fill="#1F5EFF"/>
+    <text x="36" y="140" font-size="14" font-weight="500" fill="#4B5563">Leave in</text>
+    <text x="30" y="258" font-size="128" font-weight="800" letter-spacing="-5" fill="#111318">14</text>
+    <text x="180" y="258" font-size="30" font-weight="600" fill="#4B5563">min</text>
+    <text x="36" y="312" font-size="22" font-weight="700" letter-spacing="-0.5" fill="#111318">Dentist — Dr. Vos</text>
+    <text x="36" y="338" font-size="14" fill="#4B5563">10:00 · Slotlaan 12, Zeist</text>
+    <rect x="36" y="364" width="208" height="64" rx="14" fill="#F3F4F6"/>
+    <g transform="translate(52 384)" fill="none" stroke="#111318" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6h-2l-3 7H5.5M12 6l3.5 7.5M8 6h3"/></g>
+    <text x="88" y="389" font-size="14" font-weight="600" fill="#111318">18 min by bike</text>
+    <text x="88" y="410" font-size="12" fill="#4B5563">+ 9 min coffee at Bar Bello</text>
+  </g>
+  <g transform="translate(500 0)">
+    <rect x="0" y="190" width="72" height="72" rx="16" fill="#1F5EFF"/>
+    <g transform="translate(36 226) scale(0.068)">
+    <circle cx="0" cy="20" r="290" fill="none" stroke="#FFFFFF" stroke-width="76" stroke-dasharray="655 512 655" stroke-linecap="round" transform="rotate(-90 0 20)"/>
+    <g transform="translate(0 20) rotate(32)">
+      <rect x="-38" y="-440" width="76" height="440" rx="38" fill="#FFFFFF"/>
+      <polygon points="-120,-390 0,-540 120,-390" fill="#FFFFFF"/>
+    </g>
+    <circle cx="0" cy="20" r="60" fill="#FFFFFF"/>
+  </g>
+    <text x="92" y="246" font-size="64" font-weight="800" letter-spacing="4" fill="#111318">TEMPO</text>
+    <text x="0" y="330" font-size="40" font-weight="700" letter-spacing="-1" fill="#111318">Tells you when to leave,</text>
+    <text x="0" y="380" font-size="40" font-weight="700" letter-spacing="-1" fill="#111318">not just when it starts.</text>
+    <text x="0" y="440" font-size="20" font-weight="500" fill="#4B5563">A time-keeper agent for people who find time hard.</text>
+    <text x="0" y="520" font-size="15" font-weight="600" letter-spacing="1" fill="#9CA3AF">BUILT WITH MUSE SPARK · META GLOBAL AI DEVELOPER HACKATHON 2026</text>
+  </g>
+</svg>

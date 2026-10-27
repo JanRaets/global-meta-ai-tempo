@@ -1,3 +1,7 @@
+<img src="Tempo.Web/public/brand/og-hero-1200x630.png" alt="TEMPO — tells you when to leave, not just when it starts" width="100%">
+
+<img src="Tempo.Web/public/brand/wordmark-dark.svg" alt="TEMPO" height="48">
+
 # TEMPO
 
 A proactive time-keeper agent. TEMPO watches your calendar and location, computes real departure times, nudges you to leave on time, and learns the small recurring stops (coffee, groceries) that make you late — so they're part of the plan, not the reason you missed it. You can talk to it ("I'm grabbing a coffee first") or show it things (a photo of an invite) and the plan adjusts.

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { api, type NowPayload } from '../api'
+import { BrandHeader } from '../Brand'
 import { CapturePhoto } from '../CapturePhoto'
 import { HoldToTalk } from '../HoldToTalk'
 import { ModeIcon } from '../Icons'
@@ -140,7 +141,7 @@ function Shell({ locationLive }: { locationLive: boolean }) {
 function Header({ locationLive, late, reconnecting = false }: { locationLive: boolean; late: boolean; reconnecting?: boolean }) {
   return (
     <div className="flex justify-between items-center px-6" style={{ paddingTop: 'max(env(safe-area-inset-top), 24px)' }}>
-      <div className="text-[15px] font-bold tracking-[0.08em]">TEMPO</div>
+      <BrandHeader late={late} />
       <div className={`flex items-center gap-1.5 text-[13px] font-medium ${late ? 'text-[#FFE4D6]' : 'text-[#4B5563]'}`}>
         <span
           className={`w-2 h-2 rounded-full inline-block ${

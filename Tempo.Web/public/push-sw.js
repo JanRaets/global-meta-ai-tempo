@@ -12,8 +12,9 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title || 'TEMPO', {
       body: data.body || '',
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
+      icon: '/brand/icon-192.png',
+      badge: '/brand/badge-96.png', // monochrome mark: Android status bar renders it white
+
       data,
       // Same tag per plan: an updated plan replaces the stale notification.
       tag: data.tag || data.nudgeId,

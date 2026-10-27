@@ -1,3 +1,4 @@
+import { BrandHeader } from '../Brand'
 import { api, type TimelinePayload } from '../api'
 import { ModeIcon } from '../Icons'
 import { usePoll } from '../usePoll'
@@ -12,7 +13,7 @@ export function TodayScreen() {
   return (
     <div className="flex flex-col flex-grow bg-white text-[#111318] overflow-y-auto">
       <div className="flex justify-between items-center px-6" style={{ paddingTop: 'max(env(safe-area-inset-top), 24px)' }}>
-        <div className="text-[15px] font-bold tracking-[0.08em]">TEMPO</div>
+        <BrandHeader />
         <div className="text-[13px] font-medium text-[#4B5563]">{data.date}</div>
       </div>
 
