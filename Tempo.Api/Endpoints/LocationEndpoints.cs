@@ -33,7 +33,9 @@ public sealed class LocationPointRequest
     public double? AccuracyM { get; set; }
 }
 
-public sealed class LocationIngestEndpoint(LocationIngestService ingest, LocationApiKeyAuth auth) : Endpoint<LocationPointRequest>
+public sealed class LocationIngestEndpoint(
+    LocationIngestService ingest, LocationApiKeyAuth auth, Tempo.Core.Planning.PlanPhaseService phases)
+    : Endpoint<LocationPointRequest>
 {
     public override void Configure()
     {
@@ -54,13 +56,16 @@ public sealed class LocationIngestEndpoint(LocationIngestService ingest, Locatio
             await Send.StringAsync(result.Reason!, 400, cancellation: ct);
             return;
         }
+        await phases.EvaluateAllAsync(ct); // phase transitions fire on every accepted post (D6)
         await Send.StringAsync("", statusCode: 202, cancellation: ct); // 202 Accepted per spec
     }
 }
 
 /// <summary>Owntracks HTTP mode: always answer 200 with a JSON array ([]) once authenticated,
 /// or Owntracks keeps the message queued forever. Invalid or stale points are dropped quietly.</summary>
-public sealed class OwntracksEndpoint(LocationIngestService ingest, LocationApiKeyAuth auth, ILogger<OwntracksEndpoint> logger)
+public sealed class OwntracksEndpoint(
+    LocationIngestService ingest, LocationApiKeyAuth auth, Tempo.Core.Planning.PlanPhaseService phases,
+    ILogger<OwntracksEndpoint> logger)
     : EndpointWithoutRequest
 {
     public override void Configure()
@@ -83,6 +88,8 @@ public sealed class OwntracksEndpoint(LocationIngestService ingest, LocationApiK
             var result = await ingest.IngestAsync(point, ct);
             if (!result.Accepted)
                 logger.LogInformation("Owntracks point dropped: {Reason}", result.Reason);
+            else
+                await phases.EvaluateAllAsync(ct); // phase transitions fire on every accepted post (D6)
         }
         await Send.StringAsync("[]", contentType: "application/json", cancellation: ct);
     }

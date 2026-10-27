@@ -80,6 +80,12 @@ public sealed class DeparturePlan
     public required string Reason { get; set; }
     public PlanCommitter CommittedBy { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    /// <summary>Design D6 phase model; transitions are deterministic (PlanPhaseService).</summary>
+    public PlanPhase Phase { get; set; } = PlanPhase.Upcoming;
+    public DateTimeOffset? PhaseChangedAt { get; set; }
+    /// <summary>The fix (or home) at the moment leaveAt passed — the en-route reference point.</summary>
+    public double? LeaveFixLat { get; set; }
+    public double? LeaveFixLng { get; set; }
 }
 
 /// <summary>An outbound message tied to a plan version. PlanId/AppointmentId are plain ids

@@ -67,7 +67,9 @@ public sealed class PlannerTickTests : IDisposable
             new DeparturePlanner(routing, NullLogger<DeparturePlanner>.Instance),
             optionStore, location, clock, NullLogger<PlanService>.Instance);
         var nudges = new NudgeService(db.Context, optionStore, transport, clock, NullLogger<NudgeService>.Instance);
-        tick = new PlannerTickService(db.Context, runner, plans, nudges, new TickStateStore(), location, clock,
+        var phases = new PlanPhaseService(db.Context, location, new Tempo.Core.Configuration.PhaseOptions(), clock,
+            NullLogger<PlanPhaseService>.Instance);
+        tick = new PlannerTickService(db.Context, runner, plans, phases, nudges, new TickStateStore(), location, clock,
             NullLogger<PlannerTickService>.Instance);
     }
 

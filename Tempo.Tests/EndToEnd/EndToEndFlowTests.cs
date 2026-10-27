@@ -164,8 +164,11 @@ public sealed class EndToEndFlowTests : IDisposable
         scripted?.EnqueueFinal("Late run that fumbles the nudge."); // the template then takes over
         var runner = BuildRunner(models);
         var nudges = new NudgeService(db.Context, store, transport, clock, NullLogger<NudgeService>.Instance);
-        var tick = new PlannerTickService(db.Context, runner, plans, nudges, new TickStateStore(),
-            new CurrentLocationProvider(buffer, clock), clock, NullLogger<PlannerTickService>.Instance);
+        var locationProvider = new CurrentLocationProvider(buffer, clock);
+        var phaseService = new PlanPhaseService(db.Context, locationProvider, new PhaseOptions(), clock,
+            NullLogger<PlanPhaseService>.Instance);
+        var tick = new PlannerTickService(db.Context, runner, plans, phaseService, nudges, new TickStateStore(),
+            locationProvider, clock, NullLogger<PlannerTickService>.Instance);
         await tick.TickAsync();
 
         var late = Assert.Single(transport.Delivered.Where(n => n.Kind == NudgeKind.Late));

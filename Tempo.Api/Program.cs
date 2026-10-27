@@ -39,6 +39,9 @@ builder.Services.AddScoped<Tempo.Core.Nudging.NudgeService>();
 builder.Services.AddWebPush(builder.Configuration); // INudgeTransport (design D16); logs instead when VAPID keys are missing
 builder.Services.AddOptions<AgentOptions>().Bind(builder.Configuration.GetSection(AgentOptions.Section));
 builder.Services.AddSingleton(sp => sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<AgentOptions>>().Value);
+builder.Services.AddOptions<PhaseOptions>().Bind(builder.Configuration.GetSection(PhaseOptions.Section));
+builder.Services.AddSingleton(sp => sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<PhaseOptions>>().Value);
+builder.Services.AddScoped<Tempo.Core.Planning.PlanPhaseService>();
 builder.Services.AddSingleton<Tempo.Agent.AgentRunner>();
 builder.Services.AddSingleton<Tempo.Agent.TickStateStore>();
 builder.Services.AddScoped<Tempo.Agent.VoiceIntentService>();

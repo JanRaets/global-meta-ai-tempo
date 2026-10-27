@@ -21,10 +21,24 @@ public sealed class DemoModeService(
     TempoDbContext db,
     PlaceResolver places,
     LocationIngestService ingest,
+    Tempo.Core.Planning.PlanPhaseService phases,
     IDomainEvents events,
     TimeProvider clock,
     ILogger<DemoModeService> logger)
 {
+    /// <summary>Toggling demo mode off removes what demo mode created: the demo appointment
+    /// (plans cascade). Nudges stay as history (plain ids by design); the thin-data seed
+    /// stays too — it only ever ran on an empty install.</summary>
+    public async Task CleanupAsync(CancellationToken ct = default)
+    {
+        var demoAppointments = await db.Appointments.Where(a => a.Title.StartsWith("Demo: ")).ToListAsync(ct);
+        if (demoAppointments.Count == 0)
+            return;
+        db.Appointments.RemoveRange(demoAppointments);
+        await db.SaveChangesAsync(ct);
+        logger.LogInformation("Demo mode off: removed {Count} demo appointment(s)", demoAppointments.Count);
+    }
+
     public async Task RunAsync(CancellationToken ct = default)
     {
         var settings = await db.UserSettings.FirstAsync(ct);
@@ -45,8 +59,8 @@ public sealed class DemoModeService(
             return;
         }
 
-        await EnsureDemoAppointmentAsync(ct);
-        await ReplayTrailAsync(home, ct);
+        var destination = await EnsureDemoAppointmentAsync(ct);
+        await ReplayTrailAsync(home, destination, ct);
     }
 
     /// <summary>13.1: the seed is a safety net, used only when real data is thin.</summary>
@@ -86,14 +100,14 @@ public sealed class DemoModeService(
         await db.SaveChangesAsync(ct);
     }
 
-    private async Task EnsureDemoAppointmentAsync(CancellationToken ct)
+    private async Task<Place> EnsureDemoAppointmentAsync(CancellationToken ct)
     {
         var now = clock.GetUtcNow();
+        var destination = await places.ResolvePointAsync(52.0894, 5.1100, "Utrecht Centraal", ct);
         var upcoming = (await db.Appointments.AsNoTracking().ToListAsync(ct))
             .Any(a => a.PlaceId != null && !a.IsVirtual && a.Start > now && a.Start <= now.AddMinutes(60));
         if (upcoming)
-            return;
-        var destination = await places.ResolvePointAsync(52.0894, 5.1100, "Utrecht Centraal", ct);
+            return destination;
         await db.SaveChangesAsync(ct);
         var appointment = new Appointment
         {
@@ -111,21 +125,26 @@ public sealed class DemoModeService(
         await db.SaveChangesAsync(ct);
         await events.PublishAsync(new AppointmentChanged(appointment.Id, AppointmentChangeKind.Created), ct);
         logger.LogWarning("Demo mode: seeded appointment '{Title}' at {Start:HH:mm} UTC", appointment.Title, appointment.Start);
+        return destination;
     }
 
-    /// <summary>13.2: a ~5½-minute trail of points around the home place, replayed in real
-    /// time into the same ingest path as the phone. Staying near home while leaveAt passes
-    /// is what turns the leave nudge into a late one.</summary>
-    private async Task ReplayTrailAsync(Place home, CancellationToken ct)
+    /// <summary>13.2 + 13.e: a ~10-minute trail replayed in real time into the same ingest
+    /// path as the phone. Phase arc: near home while leaveAt passes (leave nudge → late
+    /// nudge), then moving away (EnRoute — no more nudges), ending within the arrived
+    /// radius of the destination (Arrived → "Made it").</summary>
+    private async Task ReplayTrailAsync(Place home, Place destination, CancellationToken ct)
     {
-        var source = new GpxReplaySource(BuildTrailGpx(home, clock.GetUtcNow()), speedFactor: 1, clock);
+        var source = new GpxReplaySource(BuildTrailGpx(home, destination, clock.GetUtcNow()), speedFactor: 1, clock);
         var posted = 0;
-        logger.LogWarning("Demo mode: replaying the GPX trail from {Home} (~5 min)", home.Name);
+        logger.LogWarning("Demo mode: replaying the GPX trail {Home} → {Destination} (~10 min)", home.Name, destination.Name);
         await foreach (var point in source.StreamAsync(ct))
         {
             var result = await ingest.IngestAsync(point, ct);
             if (result.Accepted)
+            {
                 posted++;
+                await phases.EvaluateAllAsync(ct); // phase transitions fire on every post (D6)
+            }
             var fresh = await db.UserSettings.AsNoTracking().FirstAsync(ct);
             if (!fresh.DemoMode)
             {
@@ -136,15 +155,27 @@ public sealed class DemoModeService(
         logger.LogWarning("Demo mode: trail replay finished ({Posted} point(s) posted)", posted);
     }
 
-    private static string BuildTrailGpx(Place home, DateTimeOffset start)
+    private static string BuildTrailGpx(Place home, Place destination, DateTimeOffset start)
     {
-        // 22 points, 15 s apart (~5½ min), wandering within ~80 m of home. The wander also
-        // changes the rounded location in the tick's inputs hash, which wakes the agent.
+        // 40 points, 15 s apart (~10 min). 0–26: jitter within ~70 m of home (Upcoming → Late).
+        // 26–34: progressively away from home (> EnRouteMeters → EnRoute). 34–39: closing in
+        // on the destination, the last points inside the arrived radius (→ Arrived).
         var inv = CultureInfo.InvariantCulture;
-        var points = Enumerable.Range(0, 22).Select(i =>
+        var points = Enumerable.Range(0, 40).Select(i =>
         {
-            var lat = home.Lat + 0.0006 * Math.Sin(i / 3.0);
-            var lng = home.Lng + 0.0006 * Math.Cos(i / 4.0);
+            double lat, lng;
+            if (i < 26)
+            {
+                lat = home.Lat + 0.0006 * Math.Sin(i / 3.0);
+                lng = home.Lng + 0.0006 * Math.Cos(i / 4.0);
+            }
+            else
+            {
+                // fraction of the way home → destination: 3 % … 100 %
+                var t = i >= 39 ? 1.0 : 0.03 + (i - 26) * 0.075;
+                lat = home.Lat + (destination.Lat - home.Lat) * t;
+                lng = home.Lng + (destination.Lng - home.Lng) * t;
+            }
             var time = start.AddSeconds(i * 15).UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ssZ", inv);
             return $"<trkpt lat=\"{lat.ToString(inv)}\" lon=\"{lng.ToString(inv)}\"><time>{time}</time></trkpt>";
         });
@@ -152,8 +183,10 @@ public sealed class DemoModeService(
     }
 }
 
-/// <summary>Hangfire entry point, enqueued when the Settings demo toggle flips on.</summary>
+/// <summary>Hangfire entry points, enqueued when the Settings demo toggle flips.</summary>
 public sealed class DemoModeJob(DemoModeService demo)
 {
     public Task RunAsync(CancellationToken ct) => demo.RunAsync(ct);
+
+    public Task CleanupAsync(CancellationToken ct) => demo.CleanupAsync(ct);
 }

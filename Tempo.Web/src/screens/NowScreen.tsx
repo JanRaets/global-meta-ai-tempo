@@ -28,18 +28,27 @@ export function NowScreen({ locationLive }: { locationLive: boolean }) {
         </div>
       )}
 
-      {data.state !== 'none' && data.appointment && (
+      {data.state === 'arrived' && data.appointment && (
+        <div className="px-6 pt-11 flex flex-col gap-2">
+          <div className="text-[34px] font-extrabold tracking-[-0.03em] leading-none">Made it</div>
+          <p className="text-[15px] text-[#4B5563]">
+            {data.appointment.title} · {data.appointment.start}
+          </p>
+        </div>
+      )}
+
+      {data.state !== 'none' && data.state !== 'arrived' && data.appointment && (
         <>
           <div className="px-6 pt-11 flex flex-col gap-1.5">
             <div className={`text-[15px] font-medium ${late ? 'text-[#FFE4D6]' : 'text-[#4B5563]'}`}>
-              {late ? "You're running" : 'Leave in'}
+              {late ? "You're running" : data.state === 'enroute' ? 'On your way' : 'Leave in'}
             </div>
             <div className="flex items-baseline gap-2.5">
               <div className="text-[128px] font-extrabold leading-none tracking-[-0.04em]">
-                {late ? data.lateByMin : Math.max(0, data.leaveInMin ?? 0)}
+                {late ? data.lateByMin : data.state === 'enroute' ? data.minutesRemaining : Math.max(0, data.leaveInMin ?? 0)}
               </div>
               <div className={`text-[32px] font-semibold ${late ? 'text-[#FFE4D6]' : 'text-[#4B5563]'}`}>
-                {late ? 'min late' : 'min'}
+                {late ? 'min late' : data.state === 'enroute' ? 'min to go' : 'min'}
               </div>
             </div>
           </div>
@@ -66,7 +75,9 @@ export function NowScreen({ locationLive }: { locationLive: boolean }) {
               <ModeIcon mode={data.plan.mode} size={28} />
               <div className="flex flex-col gap-0.5">
                 <div className="text-base font-semibold">
-                  {data.plan.travelMin} min by {data.plan.mode} · leave {data.plan.leaveAt}
+                  {data.state === 'enroute'
+                    ? `By ${data.plan.mode} · arrive ${data.plan.arriveAt}`
+                    : `${data.plan.travelMin} min by ${data.plan.mode} · leave ${data.plan.leaveAt}`}
                 </div>
                 {data.plan.stops.length > 0 && (
                   <div className="text-sm text-[#4B5563]">

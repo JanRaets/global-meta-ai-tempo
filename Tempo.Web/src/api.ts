@@ -2,7 +2,7 @@
 // the server computes every time value — the client only displays (design D1 habit).
 
 export type NowPayload = {
-  state: 'none' | 'normal' | 'late'
+  state: 'none' | 'normal' | 'late' | 'enroute' | 'arrived'
   appointment?: { id: string; title: string; start: string; place: string }
   plan?: {
     version: number
@@ -16,6 +16,7 @@ export type NowPayload = {
   } | null
   leaveInMin?: number | null
   lateByMin?: number
+  minutesRemaining?: number
   nudges: RecentNudge[]
 }
 

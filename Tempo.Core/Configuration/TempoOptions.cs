@@ -28,6 +28,22 @@ public sealed class AgentOptions
     public int MaxRunsPerDay { get; init; } = 200;
 }
 
+/// <summary>Plan phase thresholds (design D6). Forgiving on purpose: Owntracks significant
+/// mode is coarse; the PWA's watchPosition is the fine-grained signal while open.</summary>
+public sealed class PhaseOptions
+{
+    public const string Section = "Phase";
+
+    /// <summary>Moved this far from the leave reference → EnRoute.</summary>
+    public int EnRouteMeters { get; init; } = 150;
+
+    /// <summary>Within this of the destination → Arrived.</summary>
+    public int ArrivedMeters { get; init; } = 100;
+
+    /// <summary>No fix proof needed: this long after the appointment start → Arrived.</summary>
+    public int ArrivedFallbackMin { get; init; } = 15;
+}
+
 public sealed class MetaApiOptions
 {
     public string ApiKey { get; init; } = "";

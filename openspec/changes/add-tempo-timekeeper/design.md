@@ -64,6 +64,8 @@ leaveAt    = A.start − A.bufferMin − baseTravel − stopTime − detour
 ```
 `plan.commit(optionId, reason)` persists the chosen option as the current `DeparturePlan` version with the agent's reason. The agent chooses; the tool computes. Plan version increments on any input change; nudges are keyed by `(planId, version)`.
 
+**Phase model (amended 27 Oct 2026, from real use):** a plan carries `PlanPhase { Upcoming, Late, EnRoute, Arrived }`, evaluated deterministically on every tick and every accepted location post — never by the model. `Upcoming → Late` when now passes `leaveAt` (the current fix, or home, is snapshotted as the leave reference). `→ EnRoute` from Upcoming or Late when the user has moved more than `Phase:EnRouteMeters` (default 150) from that reference. `→ Arrived` when within `Phase:ArrivedMeters` (default 100) of the destination, or at `start + Phase:ArrivedFallbackMin` (default 15) as a fallback; Arrived clears the plan from Now and the next appointment takes over. Thresholds are forgiving because Owntracks significant mode is coarse; the PWA's `watchPosition` posts are the primary signal while open. While Late or EnRoute, the tick re-runs the planner deterministically and refreshes the committed option's `leaveAt`/`arriveAt` **in place** for the same mode and stops — same version, no new nudge, no model call; only when a different option arrives more than 5 minutes earlier than the refreshed choice does the agent run again (that is an input change). Phase transitions are recorded as plain-language trace rows (`trigger "phase"`), excluded from the daily run cap.
+
 ### D7 — Agent loop
 Triggered by: planner tick (every 2 min while an appointment is within 6 h), `AppointmentChanged`, `VisitCreated`, habit confirmed, settings changed, a voice intent, a captured appointment. One run:
 1. System prompt states the rules (tools compute; never invent times; one recovery option; ≤ 2 sentences; respect quiet hours) and the user's standing preferences.
@@ -77,6 +79,7 @@ Rationale: the agent's autonomy is bounded by tool guards, which is both safer a
 - Leave nudge at `leaveAt − nudgeLeadMin` (default 10). One per plan version. *(Amended 27 Oct: the window check is enforced inside `notify.send` too — a Leave nudge before `leaveAt − nudgeLeadMin` is refused — so the tick's timing and the tool's guard agree. Late nudge text names the recovery's arrival time, never a leave time, which would already be in the past.)*
 - Late: when `now > leaveAt` and user not at destination, the agent is invoked with `plan.options` already including the current state; it must commit exactly one recovery option and send one `Late` nudge.
 - Quiet hours suppress everything except a late nudge for an appointment within 60 min.
+- **No nudges once en route (amended 27 Oct 2026):** when the plan phase is EnRoute or Arrived, `notify.send` refuses Leave and Late nudges and the tick does not wake the agent for them — the user is already moving; nagging them is the one thing TEMPO never does (D13).
 - Habit proposals batched to one message per day.
 
 ### D9 — Voice input

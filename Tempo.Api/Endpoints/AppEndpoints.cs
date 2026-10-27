@@ -1,6 +1,7 @@
 using FastEndpoints;
 using Hangfire;
 using Microsoft.EntityFrameworkCore;
+using Tempo.Core.Configuration;
 using Tempo.Core.Data;
 using Tempo.Core.Domain;
 using Tempo.Core.Nudging;
@@ -11,8 +12,9 @@ namespace Tempo.Api.Endpoints;
 // The PWA's JSON API (D12, task 12.1), all under /api so SPA routes like /now and
 // /habits (push deep links) never collide with endpoints.
 
-/// <summary>GET /api/now — everything the Now screen shows in one payload.</summary>
-public sealed class NowEndpoint(TempoDbContext db, PlanService plans, TimeProvider clock) : EndpointWithoutRequest
+/// <summary>GET /api/now — everything the Now screen shows in one payload. The state comes
+/// from the deterministic plan phase (D6): normal, late, enroute, arrived (for ~30 s), none.</summary>
+public sealed class NowEndpoint(TempoDbContext db, PlanService plans, PhaseOptions phaseOptions, TimeProvider clock) : EndpointWithoutRequest
 {
     public override void Configure()
     {
@@ -27,21 +29,48 @@ public sealed class NowEndpoint(TempoDbContext db, PlanService plans, TimeProvid
         var now = clock.GetUtcNow();
         string Fmt(DateTimeOffset t) => TimeZoneInfo.ConvertTime(t, tz).ToString("HH:mm");
 
-        var appointment = (await db.Appointments.AsNoTracking().Include(a => a.Place).ToListAsync(ct))
-            .Where(a => a.PlaceId != null && !a.IsVirtual && a.Start > now && a.Start <= now.AddHours(6))
+        // Include just-started appointments: a late or en-route trip outlives the start time.
+        var candidates = (await db.Appointments.AsNoTracking().Include(a => a.Place).ToListAsync(ct))
+            .Where(a => a.PlaceId != null && !a.IsVirtual
+                && a.Start > now.AddMinutes(-phaseOptions.ArrivedFallbackMin) && a.Start <= now.AddHours(6))
             .OrderBy(a => a.Start)
-            .FirstOrDefault();
+            .ToList();
+
+        Appointment? appointment = null;
+        DeparturePlan? plan = null;
+        var arrivedRecently = false;
+        foreach (var candidate in candidates)
+        {
+            var candidatePlan = await plans.CurrentAsync(candidate.Id, ct);
+            if (candidatePlan?.Phase == PlanPhase.Arrived)
+            {
+                // "Made it" shows for ~30 s, then the next appointment takes over.
+                if (candidatePlan.PhaseChangedAt is { } at && now - at <= TimeSpan.FromSeconds(30))
+                {
+                    (appointment, plan, arrivedRecently) = (candidate, candidatePlan, true);
+                    break;
+                }
+                continue;
+            }
+            (appointment, plan) = (candidate, candidatePlan);
+            break;
+        }
         if (appointment is null)
         {
             await Send.OkAsync(new { state = "none", nudges = await RecentNudgesAsync(db, tz, 3, ct) }, ct);
             return;
         }
 
-        var plan = await plans.CurrentAsync(appointment.Id, ct);
-        var late = plan is not null && now > plan.LeaveAt;
+        var state = arrivedRecently ? "arrived"
+            : plan?.Phase switch
+            {
+                PlanPhase.Late => "late",
+                PlanPhase.EnRoute => "enroute",
+                _ => "normal",
+            };
         await Send.OkAsync(new
         {
-            state = late ? "late" : "normal",
+            state,
             appointment = new
             {
                 id = appointment.Id,
@@ -62,7 +91,9 @@ public sealed class NowEndpoint(TempoDbContext db, PlanService plans, TimeProvid
             },
             // Server computes the minutes (D1 habit: clients display, they don't do time math).
             leaveInMin = plan is null ? (int?)null : (int)Math.Floor((plan.LeaveAt - now).TotalMinutes),
-            lateByMin = late ? (int)Math.Ceiling((now - plan!.LeaveAt).TotalMinutes) : 0,
+            lateByMin = state == "late" ? (int)Math.Ceiling((now - plan!.LeaveAt).TotalMinutes) : 0,
+            // En route: the dominant number; arriveAt refreshes in place every tick (13.e).
+            minutesRemaining = state == "enroute" ? Math.Max(0, (int)Math.Ceiling((plan!.ArriveAt - now).TotalMinutes)) : 0,
             nudges = await RecentNudgesAsync(db, tz, 3, ct),
         }, ct);
     }
@@ -251,11 +282,14 @@ public sealed class PutSettingsEndpoint(TempoDbContext db, Hangfire.IBackgroundJ
         if (req.QuietEnd is { } qe && TimeOnly.TryParse(qe, out var end))
             settings.QuietHoursEnd = end;
         var startDemo = req.DemoMode == true && !settings.DemoMode; // flip detection
+        var stopDemo = req.DemoMode == false && settings.DemoMode;
         if (req.DemoMode is { } demo)
             settings.DemoMode = demo;
         await db.SaveChangesAsync(ct);
         if (startDemo)
             jobs.Enqueue<Tempo.Jobs.DemoModeJob>(j => j.RunAsync(CancellationToken.None)); // 13.1/13.2
+        if (stopDemo)
+            jobs.Enqueue<Tempo.Jobs.DemoModeJob>(j => j.CleanupAsync(CancellationToken.None)); // demo artifacts go with the toggle
         await Send.OkAsync(new { saved = true }, ct);
     }
 }

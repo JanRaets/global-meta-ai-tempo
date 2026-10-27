@@ -32,6 +32,7 @@ public sealed class PlannerTickService(
     TempoDbContext db,
     AgentRunner runner,
     PlanService plans,
+    PlanPhaseService phases,
     Tempo.Core.Nudging.NudgeService nudges,
     TickStateStore state,
     CurrentLocationProvider location,
@@ -40,6 +41,8 @@ public sealed class PlannerTickService(
 {
     public async Task TickAsync(CancellationToken ct = default)
     {
+        await phases.EvaluateAllAsync(ct); // deterministic phase transitions first (D6)
+
         var now = clock.GetUtcNow();
         var appointments = (await db.Appointments.AsNoTracking()
                 .Include(a => a.Place)
@@ -54,15 +57,24 @@ public sealed class PlannerTickService(
             var plan = await plans.CurrentAsync(appointment.Id, ct);
             var settings = await db.UserSettings.AsNoTracking().FirstAsync(ct);
 
-            var windowOpen = plan is not null
+            // 13.e bug 1: while Late or EnRoute, keep the committed option's times honest —
+            // a deterministic in-place refresh, no model call, no version bump, no nudge.
+            var betterAlternative = false;
+            if (plan is { Phase: PlanPhase.Late or PlanPhase.EnRoute })
+            {
+                var refreshed = await plans.RefreshCommittedAsync(appointment.Id, ct);
+                if (refreshed is { } r)
+                    (plan, betterAlternative) = (r.Plan, r.BetterAlternative);
+            }
+
+            var windowOpen = plan is { Phase: PlanPhase.Upcoming }
                 && now >= plan.LeaveAt.AddMinutes(-settings.NudgeLeadMin)
                 && !await NudgeExistsAsync(plan, NudgeKind.Leave, ct);
-            var lateOpen = plan is not null
-                && now > plan.LeaveAt
-                && !await AtDestinationAsync(appointment, ct)
+            var lateOpen = plan is { Phase: PlanPhase.Late }
                 && !await NudgeExistsAsync(plan, NudgeKind.Late, ct);
 
             var reason = hash != state.Get(appointment.Id) ? "tick:inputs-changed"
+                : betterAlternative ? "tick:late-replan"
                 : lateOpen ? "tick:late"
                 : windowOpen ? "tick:nudge-window"
                 : null;
@@ -86,15 +98,16 @@ public sealed class PlannerTickService(
 
     private async Task SendTemplateIfOwedAsync(Appointment appointment, Guid? traceId, CancellationToken ct)
     {
+        await phases.EvaluateAllAsync(ct); // a plan committed this run may already be late
         var plan = await plans.CurrentAsync(appointment.Id, ct);
-        if (plan is null)
-            return;
+        if (plan is null || plan.Phase is PlanPhase.EnRoute or PlanPhase.Arrived)
+            return; // no nudges once moving (D8, 13.e)
         var settings = await db.UserSettings.AsNoTracking().FirstAsync(ct);
         var now = clock.GetUtcNow();
         NudgeKind? owed =
-            now > plan.LeaveAt && !await AtDestinationAsync(appointment, ct)
+            plan.Phase == PlanPhase.Late
                 && !await NudgeExistsAsync(plan, NudgeKind.Late, ct) ? NudgeKind.Late
-            : now >= plan.LeaveAt.AddMinutes(-settings.NudgeLeadMin)
+            : plan.Phase == PlanPhase.Upcoming && now >= plan.LeaveAt.AddMinutes(-settings.NudgeLeadMin)
                 && !await NudgeExistsAsync(plan, NudgeKind.Leave, ct) ? NudgeKind.Leave
             : null;
         if (owed is null)
@@ -109,14 +122,6 @@ public sealed class PlannerTickService(
     private Task<bool> NudgeExistsAsync(DeparturePlan plan, NudgeKind kind, CancellationToken ct) =>
         db.Nudges.AnyAsync(n => n.PlanId == plan.Id && n.PlanVersion == plan.Version
             && n.Kind == kind && n.Status != NudgeStatus.Cancelled, ct);
-
-    private async Task<bool> AtDestinationAsync(Appointment appointment, CancellationToken ct)
-    {
-        var current = await location.GetAsync(ct);
-        return current is { IsStale: false }
-            && appointment.Place is not null
-            && GeoMath.DistanceMeters(current.Point.Lat, current.Point.Lng, appointment.Place.Lat, appointment.Place.Lng) <= 150;
-    }
 
     /// <summary>Everything that should wake the agent when it changes: the appointment itself,
     /// rounded location, the confirmed habit set, per-plan inputs and nudge-relevant settings.</summary>

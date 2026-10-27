@@ -61,3 +61,13 @@ public enum PlanCommitter
     Agent,
     Fallback,
 }
+
+/// <summary>Where the user is relative to the plan (design D6 phase model). Evaluated
+/// deterministically on every tick and location post, never by the model.</summary>
+public enum PlanPhase
+{
+    Upcoming,
+    Late,
+    EnRoute,
+    Arrived,
+}

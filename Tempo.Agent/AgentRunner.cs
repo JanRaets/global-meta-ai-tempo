@@ -44,7 +44,9 @@ public sealed class AgentRunner(
         // (SQLite in tests can't compare DateTimeOffset); the traces table stays small.
         var dayStart = new DateTimeOffset(TimeZoneInfo.ConvertTime(now, tz).Date, TimeZoneInfo.ConvertTime(now, tz).Offset)
             .ToUniversalTime();
-        var runsToday = (await db.AgentTraces.AsNoTracking().Select(t => t.StartedAt).ToListAsync(ct))
+        var runsToday = (await db.AgentTraces.AsNoTracking()
+                .Where(t => t.Trigger != "phase") // phase transitions are bookkeeping, not model runs
+                .Select(t => t.StartedAt).ToListAsync(ct))
             .Count(t => t >= dayStart);
         if (runsToday >= limits.MaxRunsPerDay)
         {

@@ -73,3 +73,40 @@ The system SHALL run the planner every 2 minutes and on `AppointmentChanged` and
 #### Scenario: Constructor visibility
 - **WHEN** reflection inspects `ConfirmedHabit`
 - **THEN** it has no public constructor
+
+### Requirement: Plan phases
+Each `DeparturePlan` SHALL carry a phase — `Upcoming`, `Late`, `EnRoute`, `Arrived` — evaluated deterministically on every planner tick and on every accepted location post, never by the model. The leave reference (the fix at `leaveAt`, else home) SHALL be snapshotted when `leaveAt` passes. Thresholds come from `Phase:*` configuration. *(Added 27 Oct 2026 from real use; design D6.)*
+
+#### Scenario: Late
+- **WHEN** the current time passes `leaveAt` and the user has not moved
+- **THEN** the phase becomes `Late` and the current position (or home) is stored as the leave reference
+
+#### Scenario: En route
+- **WHEN** a location post places the user more than 150 m from the leave reference, whether the phase was `Upcoming` or `Late`
+- **THEN** the phase becomes `EnRoute`, recorded as a plain-language trace step
+
+#### Scenario: Arrived by proximity
+- **WHEN** a location post places the user within 100 m of the destination place
+- **THEN** the phase becomes `Arrived` and the plan no longer appears on the Now screen
+
+#### Scenario: Arrived by fallback
+- **WHEN** no location fix proves arrival but the appointment started 15 minutes ago
+- **THEN** the phase becomes `Arrived`
+
+### Requirement: Late re-estimate in place
+While a plan is `Late` or `EnRoute`, the tick SHALL re-run the planner deterministically (no model call) and refresh the committed option's `leaveAt` and `arriveAt` in place for the same mode and stops — same plan version, no new nudge. When a different option would arrive more than 5 minutes earlier than the refreshed committed option, that SHALL count as an input change and the agent runs again. *(Added 27 Oct 2026: the recovery's arrival time froze at nudge time while "N min late" kept ticking.)*
+
+#### Scenario: Arrival time stays honest
+- **WHEN** the user is 12 minutes late and the tick re-estimates
+- **THEN** the committed option's `arriveAt` moves with reality, the version is unchanged and no nudge is sent
+
+#### Scenario: A better option appears
+- **WHEN** the refreshed committed option arrives more than 5 minutes after an alternative
+- **THEN** the agent is invoked to re-decide
+
+### Requirement: No nudges en route
+`notify.send` SHALL refuse `Leave` and `Late` nudges when the plan phase is `EnRoute` or `Arrived`, and the tick SHALL NOT invoke the agent for them. *(Added 27 Oct 2026; design D8.)*
+
+#### Scenario: Moving means no late nudge
+- **WHEN** the user left late but is moving (phase `EnRoute`) and no `Late` nudge was sent
+- **THEN** none is sent at all

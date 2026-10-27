@@ -151,8 +151,20 @@ namespace Tempo.Api.Migrations
                     b.Property<DateTimeOffset>("LeaveAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<double?>("LeaveFixLat")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("LeaveFixLng")
+                        .HasColumnType("double precision");
+
                     b.Property<int>("Mode")
                         .HasColumnType("integer");
+
+                    b.Property<int>("Phase")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("PhaseChangedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Reason")
                         .IsRequired()

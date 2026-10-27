@@ -45,6 +45,12 @@ public sealed partial class NudgeService(
         if (duplicate)
             return NudgeSendResult.Refused("Refused: duplicate — this nudge was already sent for this plan version");
 
+        // D8 (amended 27 Oct, 13.e): once the user is moving — or has arrived — no Leave or
+        // Late nudge makes sense; nagging someone who already left is the one thing TEMPO
+        // never does. Enforced here so no caller can.
+        if (plan.Phase is PlanPhase.EnRoute or PlanPhase.Arrived)
+            return NudgeSendResult.Refused($"Refused: the user is already {(plan.Phase == PlanPhase.EnRoute ? "on the way" : "there")} — no nudge");
+
         var now = clock.GetUtcNow();
         // D8 (amended 27 Oct): the Leave window is enforced here, not only in the tick, so no
         // caller can nudge early. Late nudges are by definition past the window.

@@ -94,3 +94,14 @@ Every action outside the Settings screen SHALL complete with a single tap and no
 #### Scenario: Recovery action
 - **WHEN** the user taps the late-state recovery button
 - **THEN** the chosen alternative is applied to the plan (stop skipped or mode switched) and the screen returns to the normal state with the updated countdown
+
+### Requirement: En-route and arrived states
+When the plan phase is `EnRoute`, the Now screen SHALL show "On your way" with minutes remaining as the dominant number and the arrival time beneath it, in normal colours even when the user left late; the number refreshes from the deterministic re-estimate. When the phase becomes `Arrived`, the screen SHALL show a brief "Made it" state for ~30 seconds, after which the next appointment takes over. *(Added 27 Oct 2026; design D6 phase model.)*
+
+#### Scenario: Walking it off
+- **WHEN** the user left 6 minutes late and starts cycling
+- **THEN** the red late screen gives way to "On your way — arrive 10:07" in normal colours
+
+#### Scenario: Made it
+- **WHEN** the user comes within 100 m of the destination
+- **THEN** "Made it" shows briefly and the Now screen moves on to the next appointment

@@ -108,6 +108,41 @@ public sealed class PlanService(
             .OrderByDescending(p => p.Version)
             .FirstOrDefaultAsync(ct);
 
+    /// <summary>13.e, bug 1: while Late/EnRoute the committed option's times must track
+    /// reality. Re-runs the planner deterministically (no model call) and refreshes the
+    /// committed option in place — same mode, same stops, same version, no nudge. Returns
+    /// whether a different option now arrives more than 5 minutes earlier (that is an input
+    /// change: the caller wakes the agent to re-decide).</summary>
+    public async Task<(DeparturePlan Plan, bool BetterAlternative)?> RefreshCommittedAsync(
+        Guid appointmentId, CancellationToken ct = default)
+    {
+        var plan = await CurrentAsync(appointmentId, ct);
+        if (plan is null)
+            return null;
+        var result = await OptionsAsync(appointmentId, ct);
+        if (result.Options.Count == 0)
+            return (plan, false);
+
+        var match = result.Options.FirstOrDefault(o => o.Mode == plan.Mode && SameStops(plan.Stops, o.Stops));
+        if (match is null)
+            return (plan, true); // the chosen combination no longer exists — let the agent re-decide
+
+        if ((plan.ArriveAt - match.ArriveAt).Duration() >= TimeSpan.FromMinutes(1))
+        {
+            plan.LeaveAt = match.LeaveAt;
+            plan.ArriveAt = match.ArriveAt;
+            plan.IsFeasible = match.IsFeasible;
+            plan.SlackMin = match.SlackMin;
+            await db.SaveChangesAsync(ct);
+            logger.LogInformation("Plan v{Version} refreshed in place for {AppointmentId}: arrive {ArriveAt:HH:mm}",
+                plan.Version, appointmentId, plan.ArriveAt);
+        }
+
+        var best = result.Options.MinBy(o => o.ArriveAt)!;
+        var betterAlternative = plan.ArriveAt - best.ArriveAt > TimeSpan.FromMinutes(5);
+        return (plan, betterAlternative);
+    }
+
     /// <summary>Deterministic fallback (departure-planning spec): when no agent run commits,
     /// commit the feasible option with the latest leaveAt — or the least-late one — ourselves.</summary>
     public async Task<DeparturePlan?> FallbackCommitAsync(Guid appointmentId, CancellationToken ct = default)
