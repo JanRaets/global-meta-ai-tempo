@@ -9,8 +9,13 @@ namespace Tempo.Core.Planning;
 /// from IRoutingClient, dwell times from confirmed habits; no model output enters here.
 /// Accepts only IReadOnlyList&lt;ConfirmedHabit&gt; (design D3).
 /// </summary>
-public sealed class DeparturePlanner(IRoutingClient routing, ILogger<DeparturePlanner> logger)
+public sealed class DeparturePlanner(
+    IRoutingClient routing,
+    ILogger<DeparturePlanner> logger,
+    Tempo.Core.Configuration.RoutingOptions? routingOptions = null)
 {
+    private readonly Tempo.Core.Configuration.RoutingOptions options = routingOptions ?? new();
+
     public async Task<PlanOptionsResult> Plan(
         Appointment appointment,
         GeoPoint origin,
@@ -21,6 +26,36 @@ public sealed class DeparturePlanner(IRoutingClient routing, ILogger<DeparturePl
         DateTimeOffset effectiveNow,
         CancellationToken ct = default)
     {
+        var (real, skippedModes) = await BuildOptionsAsync(
+            routing, estimated: false, appointment, origin, destination, habits, extraStops, modes, effectiveNow, ct);
+
+        // D18: only when NO mode could be routed does the straight-line estimate step in —
+        // partial availability keeps real options only. Estimated options are flagged and
+        // the note lands in the trace ("routing unavailable, used estimate").
+        if (real.Count == 0 && skippedModes.Count > 0 && options.FallbackEnabled)
+        {
+            logger.LogWarning("Routing unavailable for every mode — falling back to the straight-line estimate (D18)");
+            var (estimatedOptions, _) = await BuildOptionsAsync(
+                new StraightLineRouting(), estimated: true, appointment, origin, destination, habits, extraStops, modes, effectiveNow, ct);
+            return new PlanOptionsResult(estimatedOptions, "routing unavailable, used estimate");
+        }
+
+        return new PlanOptionsResult(real,
+            skippedModes.Count == 0 ? null : $"routing unavailable for: {string.Join(", ", skippedModes)}");
+    }
+
+    private async Task<(List<PlanOption> Options, List<string> SkippedModes)> BuildOptionsAsync(
+        IRoutingClient router,
+        bool estimated,
+        Appointment appointment,
+        GeoPoint origin,
+        GeoPoint destination,
+        IReadOnlyList<ConfirmedHabit> habits,
+        IReadOnlyList<PlannerStop> extraStops,
+        IReadOnlyList<TravelMode> modes,
+        DateTimeOffset effectiveNow,
+        CancellationToken ct)
+    {
         var options = new List<PlanOption>();
         var skippedModes = new List<string>();
 
@@ -29,7 +64,7 @@ public sealed class DeparturePlanner(IRoutingClient routing, ILogger<DeparturePl
             TimeSpan baseTravel;
             try
             {
-                baseTravel = await routing.EstimateAsync(origin, destination, mode, effectiveNow, ct);
+                baseTravel = await router.EstimateAsync(origin, destination, mode, effectiveNow, ct);
             }
             catch (RoutingUnavailableException ex)
             {
@@ -53,7 +88,7 @@ public sealed class DeparturePlanner(IRoutingClient routing, ILogger<DeparturePl
                 {
                     try
                     {
-                        var detourTotal = await routing.DetourAsync(origin, stops.Select(s => s.Point).ToList(), destination, mode, ct);
+                        var detourTotal = await router.DetourAsync(origin, stops.Select(s => s.Point).ToList(), destination, mode, ct);
                         travelWithStops = detourTotal > baseTravel ? detourTotal : baseTravel;
                     }
                     catch (RoutingUnavailableException ex)
@@ -75,12 +110,12 @@ public sealed class DeparturePlanner(IRoutingClient routing, ILogger<DeparturePl
                     LeaveAt: leaveAt,
                     ArriveAt: departAt + total,
                     IsFeasible: leaveAt >= effectiveNow,
-                    SlackMin: slackMin));
+                    SlackMin: slackMin,
+                    IsEstimated: estimated));
             }
         }
 
-        return new PlanOptionsResult(options,
-            skippedModes.Count == 0 ? null : $"routing unavailable for: {string.Join(", ", skippedModes)}");
+        return (options, skippedModes);
     }
 
     /// <summary>All matching habits, each one skipped, none (departure-planning spec) — not the full powerset.</summary>

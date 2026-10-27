@@ -15,10 +15,11 @@ public static class NudgeTemplates
         string Local(DateTimeOffset t) => TimeZoneInfo.ConvertTime(t, tz).ToString("HH:mm");
         var mode = plan.Mode.ToString().ToLowerInvariant();
         var stops = plan.Stops.Count == 0 ? "" : $", with a stop at {string.Join(" and ", plan.Stops.Select(s => s.Name))}";
+        var roughly = plan.IsEstimated ? "roughly " : ""; // D18: estimates say so
         return kind switch
         {
-            NudgeKind.Late => $"Leave now by {mode} for {appointment.Title} — you'll arrive at {Local(plan.ArriveAt)}.",
-            _ => $"Time to leave at {Local(plan.LeaveAt)} by {mode} for {appointment.Title}{stops}.",
+            NudgeKind.Late => $"Leave now by {mode} for {appointment.Title} — you'll arrive at {roughly}{Local(plan.ArriveAt)}.",
+            _ => $"Time to leave at {roughly}{Local(plan.LeaveAt)} by {mode} for {appointment.Title}{stops}.",
         };
     }
 }

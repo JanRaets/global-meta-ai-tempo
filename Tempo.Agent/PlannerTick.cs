@@ -57,14 +57,16 @@ public sealed class PlannerTickService(
             var plan = await plans.CurrentAsync(appointment.Id, ct);
             var settings = await db.UserSettings.AsNoTracking().FirstAsync(ct);
 
-            // 13.e bug 1: while Late or EnRoute, keep the committed option's times honest —
-            // a deterministic in-place refresh, no model call, no version bump, no nudge.
+            // 13.e bug 1 + D18 recovery: while Late/EnRoute — or while the plan is only an
+            // estimate — keep the committed option's times honest via a deterministic
+            // in-place refresh: no model call, no version bump, no nudge.
             var betterAlternative = false;
-            if (plan is { Phase: PlanPhase.Late or PlanPhase.EnRoute })
+            var routingRecovered = false;
+            if (plan is { Phase: PlanPhase.Late or PlanPhase.EnRoute } or { IsEstimated: true })
             {
                 var refreshed = await plans.RefreshCommittedAsync(appointment.Id, ct);
                 if (refreshed is { } r)
-                    (plan, betterAlternative) = (r.Plan, r.BetterAlternative);
+                    (plan, betterAlternative, routingRecovered) = (r.Plan, r.BetterAlternative, r.RecoveredWithShift);
             }
 
             var windowOpen = plan is { Phase: PlanPhase.Upcoming }
@@ -74,6 +76,7 @@ public sealed class PlannerTickService(
                 && !await NudgeExistsAsync(plan, NudgeKind.Late, ct);
 
             var reason = hash != state.Get(appointment.Id) ? "tick:inputs-changed"
+                : routingRecovered ? "tick:routing-recovered"
                 : betterAlternative ? "tick:late-replan"
                 : lateOpen ? "tick:late"
                 : windowOpen ? "tick:nudge-window"

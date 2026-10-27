@@ -76,6 +76,7 @@ public sealed class PlanService(
         if (current is not null
             && current.Mode == option.Mode
             && SameStops(current.Stops, option.Stops)
+            && current.IsEstimated == option.IsEstimated // estimate → real is a real change (D18)
             && (current.LeaveAt - option.LeaveAt).Duration() <= JitterTolerance)
         {
             return CommitResult.Unchanged(current); // ±3 min routing jitter: version unchanged
@@ -94,6 +95,7 @@ public sealed class PlanService(
             Stops = option.Stops.ToList(),
             Reason = reason,
             CommittedBy = committer,
+            IsEstimated = option.IsEstimated,
         };
         db.DeparturePlans.Add(plan);
         await db.SaveChangesAsync(ct);
@@ -108,12 +110,14 @@ public sealed class PlanService(
             .OrderByDescending(p => p.Version)
             .FirstOrDefaultAsync(ct);
 
-    /// <summary>13.e, bug 1: while Late/EnRoute the committed option's times must track
-    /// reality. Re-runs the planner deterministically (no model call) and refreshes the
-    /// committed option in place — same mode, same stops, same version, no nudge. Returns
-    /// whether a different option now arrives more than 5 minutes earlier (that is an input
-    /// change: the caller wakes the agent to re-decide).</summary>
-    public async Task<(DeparturePlan Plan, bool BetterAlternative)?> RefreshCommittedAsync(
+    /// <summary>13.e bug 1 + D18 recovery: while Late/EnRoute — or while the plan is an
+    /// estimate — the committed option's times must track reality. Re-runs the planner
+    /// deterministically (no model call) and refreshes the committed option in place —
+    /// same mode, same stops, same version, no nudge. `BetterAlternative` means another
+    /// option now arrives more than 5 minutes earlier; `RecoveredWithShift` means routing
+    /// answered again and real times moved leaveAt by more than 5 minutes. Either one is
+    /// an input change: the caller wakes the agent.</summary>
+    public async Task<(DeparturePlan Plan, bool BetterAlternative, bool RecoveredWithShift)?> RefreshCommittedAsync(
         Guid appointmentId, CancellationToken ct = default)
     {
         var plan = await CurrentAsync(appointmentId, ct);
@@ -121,26 +125,30 @@ public sealed class PlanService(
             return null;
         var result = await OptionsAsync(appointmentId, ct);
         if (result.Options.Count == 0)
-            return (plan, false);
+            return (plan, false, false);
 
         var match = result.Options.FirstOrDefault(o => o.Mode == plan.Mode && SameStops(plan.Stops, o.Stops));
         if (match is null)
-            return (plan, true); // the chosen combination no longer exists — let the agent re-decide
+            return (plan, true, false); // the chosen combination no longer exists — let the agent re-decide
 
-        if ((plan.ArriveAt - match.ArriveAt).Duration() >= TimeSpan.FromMinutes(1))
+        var recoveredWithShift = plan.IsEstimated && !match.IsEstimated
+            && (plan.LeaveAt - match.LeaveAt).Duration() > TimeSpan.FromMinutes(5);
+        if (!recoveredWithShift
+            && ((plan.ArriveAt - match.ArriveAt).Duration() >= TimeSpan.FromMinutes(1) || plan.IsEstimated != match.IsEstimated))
         {
             plan.LeaveAt = match.LeaveAt;
             plan.ArriveAt = match.ArriveAt;
             plan.IsFeasible = match.IsFeasible;
             plan.SlackMin = match.SlackMin;
+            plan.IsEstimated = match.IsEstimated;
             await db.SaveChangesAsync(ct);
-            logger.LogInformation("Plan v{Version} refreshed in place for {AppointmentId}: arrive {ArriveAt:HH:mm}",
-                plan.Version, appointmentId, plan.ArriveAt);
+            logger.LogInformation("Plan v{Version} refreshed in place for {AppointmentId}: arrive {ArriveAt:HH:mm}{Estimated}",
+                plan.Version, appointmentId, plan.ArriveAt, plan.IsEstimated ? " (estimated)" : "");
         }
 
         var best = result.Options.MinBy(o => o.ArriveAt)!;
         var betterAlternative = plan.ArriveAt - best.ArriveAt > TimeSpan.FromMinutes(5);
-        return (plan, betterAlternative);
+        return (plan, betterAlternative, recoveredWithShift);
     }
 
     /// <summary>Deterministic fallback (departure-planning spec): when no agent run commits,

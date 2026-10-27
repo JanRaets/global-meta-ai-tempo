@@ -124,6 +124,10 @@ public sealed partial class NudgeService(
         if (!ModeWords(plan.Mode).Any(w => text.Contains(w, StringComparison.OrdinalIgnoreCase)))
             return $"Refused: missing mode — the text must name the mode ({plan.Mode})";
 
+        // D18: an estimated plan must say so — "roughly" is enforced here, not in the prompt.
+        if (plan.IsEstimated && !text.Contains("roughly", StringComparison.OrdinalIgnoreCase))
+            return "Refused: this plan is a routing estimate — the text must include the word 'roughly'";
+
         if (SentenceCount(text) > 2)
             return "Refused: more than two sentences";
 

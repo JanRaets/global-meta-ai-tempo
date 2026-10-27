@@ -69,6 +69,10 @@ public sealed class RoutingOptions
     public int CacheMinutes { get; init; } = 5;
     /// <summary>Pelias boundary.country for geocoding; empty disables the filter.</summary>
     public string GeocodeCountry { get; init; } = "NL";
+
+    /// <summary>D18: when the provider is down for every mode, plan from a straight-line
+    /// estimate (marked and worded "roughly") instead of producing no options.</summary>
+    public bool FallbackEnabled { get; init; } = true;
 }
 
 /// <summary>Web Push (design D16). VAPID keys live in user-secrets, never in the repo.</summary>

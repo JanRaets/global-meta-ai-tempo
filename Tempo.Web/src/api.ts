@@ -11,6 +11,7 @@ export type NowPayload = {
     arriveAt: string
     stops: { name: string; durationMin: number }[]
     isFeasible: boolean
+    isEstimated: boolean
     reason: string
     travelMin: number
   } | null

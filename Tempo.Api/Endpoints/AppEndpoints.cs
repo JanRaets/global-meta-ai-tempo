@@ -86,6 +86,7 @@ public sealed class NowEndpoint(TempoDbContext db, PlanService plans, PhaseOptio
                 arriveAt = Fmt(plan.ArriveAt),
                 stops = plan.Stops.Select(s => new { s.Name, s.DurationMin }),
                 isFeasible = plan.IsFeasible,
+                isEstimated = plan.IsEstimated,
                 reason = plan.Reason,
                 travelMin = (int)Math.Max(0, (plan.ArriveAt - plan.LeaveAt).TotalMinutes - plan.Stops.Sum(s => s.DurationMin)),
             },

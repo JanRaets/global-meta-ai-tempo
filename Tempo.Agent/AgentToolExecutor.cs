@@ -101,9 +101,12 @@ public sealed class AgentToolExecutor(
             arriveAt = Fmt(o.ArriveAt),
             isFeasible = o.IsFeasible,
             slackMin = o.SlackMin,
+            isEstimated = o.IsEstimated,
         }).ToList();
         return (ToJson(new { note = result.Note, options }),
-            options.Count == 0 ? $"no options ({result.Note})" : $"computed {options.Count} option(s)");
+            options.Count == 0 ? $"no options ({result.Note})"
+            : result.Note is { } note ? $"computed {options.Count} option(s) — {note}"
+            : $"computed {options.Count} option(s)");
     }
 
     private async Task<(string, string)> PlanCommitAsync(ToolCall call, CancellationToken ct)
@@ -124,6 +127,7 @@ public sealed class AgentToolExecutor(
             mode = plan.Mode.ToString().ToLowerInvariant(),
             leaveAt = Fmt(plan.LeaveAt),
             arriveAt = Fmt(plan.ArriveAt),
+            isEstimated = plan.IsEstimated,
             nudgeWindowOpen = NudgeWindowOpen(plan), // computed here — the model never does clock arithmetic
         }),
             $"committed v{plan.Version}: {plan.Mode}, leave {Fmt(plan.LeaveAt)}, {stops}");
@@ -141,6 +145,7 @@ public sealed class AgentToolExecutor(
             arriveAt = Fmt(plan.ArriveAt),
             stops = plan.Stops.Select(s => s.Name).ToList(),
             isFeasible = plan.IsFeasible,
+            isEstimated = plan.IsEstimated,
             nudgeWindowOpen = NudgeWindowOpen(plan),
         }), $"current plan: {plan.Mode}, leave {Fmt(plan.LeaveAt)}");
     }

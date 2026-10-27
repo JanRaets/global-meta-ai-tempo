@@ -110,3 +110,22 @@ While a plan is `Late` or `EnRoute`, the tick SHALL re-run the planner determini
 #### Scenario: Moving means no late nudge
 - **WHEN** the user left late but is moving (phase `EnRoute`) and no `Late` nudge was sent
 - **THEN** none is sent at all
+
+### Requirement: Routing fallback
+When routing is unavailable for every enabled mode, `plan.options` SHALL return options from a deterministic straight-line estimate (haversine × 1.3 road factor at per-mode speeds), marked `isEstimated`; nudge text for an estimated plan SHALL contain "roughly" (enforced in `notify.send`), and the trace SHALL note "routing unavailable, used estimate". When routing answers again, the next tick SHALL replace the estimate in place, or treat it as an input change when the real `leaveAt` differs by more than 5 minutes. `Routing:FallbackEnabled` disables the fallback. *(Added 27 Oct 2026; design D18.)*
+
+#### Scenario: Total outage
+- **WHEN** every enabled mode throws `RoutingUnavailableException`
+- **THEN** options are produced from the straight-line estimate with `isEstimated: true`
+
+#### Scenario: Partial outage
+- **WHEN** one mode routes and another does not
+- **THEN** only real options are returned and nothing is estimated
+
+#### Scenario: Recovery
+- **WHEN** a plan is estimated and routing answers again with a leaveAt within 5 minutes
+- **THEN** the committed plan's times are replaced in place and the estimate flag clears
+
+#### Scenario: Recovery with a shift
+- **WHEN** the real leaveAt differs from the estimate by more than 5 minutes
+- **THEN** the agent runs again (input change)

@@ -145,6 +145,9 @@ namespace Tempo.Api.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<bool>("IsEstimated")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("IsFeasible")
                         .HasColumnType("boolean");
 

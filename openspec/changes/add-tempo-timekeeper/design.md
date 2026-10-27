@@ -124,6 +124,9 @@ Nudges and habit proposals are Web Push notifications to the installed PWA. VAPI
 What TEMPO does: plan departures, time nudges to the moment of action, and keep every interaction one number / one tap, designed with time blindness and executive-function load in mind. It says "built for people who find time hard" and nothing stronger.
 What TEMPO will not do: ask about, store, or infer anything diagnosis-related; use symptom or condition language anywhere in UI, prompts, or notifications; or claim to treat, manage, or improve any condition. A string scan test enforces the banned terms in UI copy, prompt files and the README.
 
+### D18 — Straight-line routing fallback (decided 27 Oct 2026)
+OpenRouteService went down twice in two days. When `IRoutingClient` throws `RoutingUnavailableException` for every enabled mode, the planner falls back to a deterministic straight-line estimate: haversine distance × 1.3 road factor at 15 km/h (bike), 4.8 km/h (walk), 35 km/h (car); stops via the same method. These options carry `isEstimated: true`: the agent's context and the nudge text must say "roughly" (enforced in `notify.send`, not the prompt), the trace notes "routing unavailable, used estimate", and the Now screen shows an "estimated" label. Partial availability never estimates — real options only. The next tick after routing recovers replaces the estimate in place, or wakes the agent when the real leaveAt moves more than 5 minutes. `Routing:FallbackEnabled` (default true) switches the fallback off.
+
 ## Risks / Trade-offs
 - iOS push requires the home-screen install and a stable origin; a quick-tunnel restart changes the hostname and kills the subscription — a named tunnel is mandatory before installing the PWA.
 - Meta API credits may arrive late. Mitigation: Baseten path first, API path second; `IMetaModels` makes the swap a config change.

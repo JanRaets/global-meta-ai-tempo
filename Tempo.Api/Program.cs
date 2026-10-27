@@ -32,6 +32,7 @@ builder.Services.AddDbContext<TempoDbContext>(o => o.UseNpgsql(postgres, b => b.
 builder.Services.AddSingleton<IDomainEvents, Tempo.Api.HangfireDomainEvents>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<ConfirmHabitHandler>();
+builder.Services.AddSingleton(sp => sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<RoutingOptions>>().Value);
 builder.Services.AddScoped<Tempo.Core.Planning.DeparturePlanner>();
 builder.Services.AddScoped<Tempo.Core.Planning.PlanOptionStore>();
 builder.Services.AddScoped<Tempo.Core.Planning.PlanService>();

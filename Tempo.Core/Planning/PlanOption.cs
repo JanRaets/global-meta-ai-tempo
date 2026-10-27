@@ -12,7 +12,9 @@ public sealed record PlanOption(
     DateTimeOffset LeaveAt,
     DateTimeOffset ArriveAt,
     bool IsFeasible,
-    int SlackMin);
+    int SlackMin,
+    /// <summary>Built from the straight-line fallback, not real routing (design D18).</summary>
+    bool IsEstimated = false);
 
 /// <summary>A stop as the planner routes it: place, dwell time and coordinates.</summary>
 public sealed record PlannerStop(Guid PlaceId, string Name, int DurationMin, GeoPoint Point);

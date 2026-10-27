@@ -101,6 +101,7 @@ public sealed class AgentRunner(
                 mode = currentPlan.Mode.ToString(),
                 leaveAt = Fmt(currentPlan.LeaveAt),
                 stops = currentPlan.Stops.Select(s => s.Name),
+                isEstimated = currentPlan.IsEstimated,
             },
             state = currentPlan is not null && now > currentPlan.LeaveAt ? "late" : "normal",
         };
