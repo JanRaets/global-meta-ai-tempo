@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { WavRecorder } from './audio/wavRecorder'
+import { MicIcon } from './Icons'
 
 type VoiceResult = {
   intentId: string | null
@@ -98,11 +99,13 @@ export function HoldToTalk({ onApplied }: { onApplied?: () => void } = {}) {
   const chips = ['Skip a stop', 'Add a stop', 'Running late']
 
   return (
-    <div className="mt-10 flex w-full max-w-sm flex-col items-center gap-4">
+    <div className="contents">
       {phase !== 'micDenied' ? (
         <button
-          className={`select-none rounded-full px-8 py-5 font-medium text-white transition-colors ${
-            phase === 'recording' ? 'bg-red-500' : 'bg-[#1F5EFF]'
+          aria-label="Hold to talk"
+          title="Hold to talk"
+          className={`order-1 flex h-[52px] w-[52px] select-none items-center justify-center rounded-full text-white transition-colors ${
+            phase === 'recording' ? 'animate-pulse bg-red-500' : 'bg-[#1F5EFF]'
           }`}
           style={{ touchAction: 'none' }}
           onPointerDown={press}
@@ -110,10 +113,10 @@ export function HoldToTalk({ onApplied }: { onApplied?: () => void } = {}) {
           onPointerCancel={release}
           onContextMenu={(e) => e.preventDefault()}
         >
-          {phase === 'recording' ? 'Listening — release to send' : phase === 'listening' ? '…' : 'Hold to talk'}
+          {phase === 'listening' ? '…' : <MicIcon size={24} />}
         </button>
       ) : (
-        <div className="flex w-full flex-col gap-2">
+        <div className="order-2 flex w-full flex-col gap-2">
           <input
             className="w-full rounded-xl border border-[#D1D5DB] px-4 py-3"
             placeholder="Mic is off — type what you need instead"
@@ -134,9 +137,8 @@ export function HoldToTalk({ onApplied }: { onApplied?: () => void } = {}) {
           </div>
         </div>
       )}
-      {phase === 'listening' && <p className="text-sm text-[#4B5563]">listening…</p>}
       {result && (
-        <div className="w-full rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-4 text-left">
+        <div className="order-2 w-full rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-4 text-left">
           <p className="text-sm italic text-[#4B5563]">“{result.transcript}”</p>
           <p className="mt-2 font-medium text-[#111318]">{undone ? 'Undone.' : result.change}</p>
           {result.kind === 'Unknown' && result.suggestions.length > 0 && (

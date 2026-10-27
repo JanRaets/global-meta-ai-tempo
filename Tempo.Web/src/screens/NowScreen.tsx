@@ -97,7 +97,7 @@ export function NowScreen({ locationLive }: { locationLive: boolean }) {
       )}
 
       {!late && (
-        <div className="px-6">
+        <div className="mt-7 flex flex-wrap items-center justify-end gap-3 px-6">
           <HoldToTalk onApplied={refresh} />
           <CapturePhoto onApplied={refresh} />
         </div>

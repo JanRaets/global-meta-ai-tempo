@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { api, type NowPayload } from './api'
+import { api, type LocationStats, type NowPayload } from './api'
 import { TabBar, type Tab } from './TabBar'
 import { HabitsScreen } from './screens/HabitsScreen'
 import { NowScreen } from './screens/NowScreen'
@@ -18,6 +18,10 @@ const pathToTab = (path: string): Tab =>
 export function App() {
   const [tab, setTab] = useState<Tab>(() => pathToTab(window.location.pathname))
   const locationStatus = useLocationPosting(true)
+  // The dot means "TEMPO knows where you are", whichever pipe delivered the fix:
+  // this app's own geolocation watch, or Owntracks posting to the server.
+  const { data: locationStats } = usePoll<LocationStats>(api.locationStats, 30_000)
+  const locationLive = locationStatus === 'live' || locationStats?.isStale === false
   // The shell polls /api/now too (cheap, single row reads) so the late repaint covers every tab.
   const { data: now } = usePoll<NowPayload>(api.now)
   const late = now?.state === 'late'
@@ -35,7 +39,7 @@ export function App() {
 
   return (
     <div className={`flex flex-col h-full ${late ? 'bg-[#B42318] text-white' : 'bg-white'}`}>
-      {tab === 'now' && <NowScreen locationLive={locationStatus === 'live'} />}
+      {tab === 'now' && <NowScreen locationLive={locationLive} />}
       {tab === 'today' && <TodayScreen />}
       {tab === 'habits' && <HabitsScreen />}
       {tab === 'settings' && <SettingsScreen />}

@@ -66,6 +66,14 @@ export type Settings = {
 
 export type Trace = { steps: string[]; provider: string | null; trigger: string; outcome: string }
 
+export type LocationStats = {
+  pointsLastHour: number
+  lastPointAt: string | null
+  lastPointAgeSeconds: number | null
+  isStale: boolean | null
+  visitCount: number
+}
+
 async function get<T>(url: string): Promise<T> {
   const response = await fetch(url)
   if (!response.ok) throw new Error(`${url}: ${response.status}`)
@@ -78,6 +86,7 @@ export const api = {
   habits: () => get<Habit[]>('/api/habits'),
   settings: () => get<Settings>('/api/settings'),
   trace: (nudgeId: string) => get<Trace>(`/api/traces/${nudgeId}`),
+  locationStats: () => get<LocationStats>('/admin/location-stats'),
   confirmHabit: (id: string) => fetch(`/api/habits/${id}/confirm`, { method: 'POST' }),
   rejectHabit: (id: string) => fetch(`/api/habits/${id}/reject`, { method: 'POST' }),
   pauseHabit: (id: string) => fetch(`/api/habits/${id}/pause`, { method: 'POST' }),

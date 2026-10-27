@@ -80,7 +80,7 @@ export function CapturePhoto({ onApplied }: { onApplied?: () => void } = {}) {
   }
 
   return (
-    <div className="mt-4 flex w-full max-w-sm flex-col items-center gap-4">
+    <div className="contents">
       <input
         ref={fileInput}
         type="file"
@@ -91,28 +91,32 @@ export function CapturePhoto({ onApplied }: { onApplied?: () => void } = {}) {
       />
       {phase === 'idle' && (
         <button
-          className="flex items-center gap-2 rounded-full border-2 border-[#1F5EFF] px-6 py-3 font-semibold text-[#1F5EFF]"
+          aria-label="Capture invite"
+          title="Capture invite"
+          className="order-1 flex h-[52px] w-[52px] items-center justify-center rounded-full border-2 border-[#1F5EFF] text-[#1F5EFF]"
           onClick={() => fileInput.current?.click()}
         >
-          <CameraIcon size={20} />
-          Capture invite
+          <CameraIcon size={24} />
         </button>
       )}
-      {phase === 'uploading' && <p className="text-sm text-[#4B5563]">reading…</p>}
+      {phase === 'uploading' && (
+        <div className="order-1 flex h-[52px] w-[52px] items-center justify-center rounded-full border-2 border-[#D1D5DB] text-[#4B5563]">
+          …
+        </div>
+      )}
       {phase === 'error' && (
-        <div className="flex flex-col items-center gap-3">
+        <div className="order-2 w-full rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-4 text-left">
           <p className="text-sm text-[#4B5563]">{message}</p>
           <button
-            className="flex items-center gap-2 rounded-full border-2 border-[#1F5EFF] px-6 py-3 font-semibold text-[#1F5EFF]"
+            className="mt-2 text-sm font-medium text-[#1F5EFF]"
             onClick={() => fileInput.current?.click()}
           >
-            <CameraIcon size={20} />
             Retake
           </button>
         </div>
       )}
       {phase === 'card' && capture && (
-        <div className="w-full rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-4 text-left">
+        <div className="order-2 w-full rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-4 text-left">
           {thumbnail && (
             <img src={thumbnail} alt="Captured invite" className="mb-3 max-h-40 w-full rounded-xl object-cover" />
           )}
@@ -168,7 +172,7 @@ export function CapturePhoto({ onApplied }: { onApplied?: () => void } = {}) {
         </div>
       )}
       {phase === 'added' && (
-        <div className="flex flex-col items-center gap-3">
+        <div className="order-2 flex w-full flex-col items-center gap-3 rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-4">
           <p className="font-medium text-[#111318]">Added — TEMPO will plan for it.</p>
           <button
             className="rounded-full border border-[#D1D5DB] px-6 py-2 font-medium text-[#111318]"
