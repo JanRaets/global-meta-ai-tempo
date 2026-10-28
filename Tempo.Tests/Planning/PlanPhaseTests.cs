@@ -92,15 +92,33 @@ public sealed class PlanPhaseTests : IDisposable
     }
 
     [Fact]
-    public async Task Leaving_early_becomes_en_route_straight_from_upcoming()
+    public async Task Before_leaveAt_movement_never_reads_as_en_route()
     {
-        // Before leaveAt there is no snapshot; home is the reference (D6).
-        FixAt(home.Lat, home.Lng + 0.004);
+        // D6 amendment (28 Oct, live): before leaveAt the only reference would be home,
+        // and ordinary morning drift — or an imprecise home — must not count as departing.
+        FixAt(home.Lat, home.Lng + 0.004); // ~270 m from home, 25 min before leaveAt
 
         var transitions = await Service().EvaluateAllAsync();
 
-        var t = Assert.Single(transitions);
-        Assert.Equal((PlanPhase.Upcoming, PlanPhase.EnRoute), (t.From, t.To));
+        Assert.Empty(transitions);
+        Assert.Equal(PlanPhase.Upcoming, plan.Phase);
+    }
+
+    [Fact]
+    public async Task Leaving_early_becomes_en_route_once_leaveAt_passes()
+    {
+        FixAt(home.Lat, home.Lng + 0.004); // out the door 25 min early
+        await Service().EvaluateAllAsync(); // still Upcoming (no reference yet)
+
+        clock.SetUtcNow(plan.LeaveAt.AddSeconds(30));
+        FixAt(home.Lat, home.Lng + 0.004); // reference snapshots here, at the early position
+        await Service().EvaluateAllAsync();
+
+        clock.SetUtcNow(plan.LeaveAt.AddMinutes(3));
+        FixAt(home.Lat, home.Lng + 0.008); // another ~270 m along
+        var transitions = await Service().EvaluateAllAsync();
+
+        Assert.Equal(PlanPhase.EnRoute, Assert.Single(transitions).To);
     }
 
     [Fact]
@@ -129,13 +147,14 @@ public sealed class PlanPhaseTests : IDisposable
     [Fact]
     public async Task Transitions_are_recorded_as_phase_trace_rows()
     {
-        FixAt(home.Lat, home.Lng + 0.004);
+        clock.SetUtcNow(plan.LeaveAt.AddMinutes(3));
+        FixAt(home.Lat, home.Lng);
 
         await Service().EvaluateAllAsync();
 
         var trace = Assert.Single(db.Context.AgentTraces.ToList());
         Assert.Equal("phase", trace.Trigger);
-        Assert.Contains("EnRoute", trace.FinalMessage);
+        Assert.Contains("Late", trace.FinalMessage);
     }
 
     [Fact]

@@ -14,7 +14,9 @@ public sealed record PhaseTransition(Guid AppointmentId, string AppointmentTitle
 /// Deterministic plan-phase transitions (design D6 phase model, 13.e). Runs on every
 /// planner tick and on every accepted location post — never involves the model:
 ///   Upcoming → Late     when now passes leaveAt (snapshots the leave reference: fix or home)
-///   any      → EnRoute  when the user moved > Phase:EnRouteMeters from the leave reference
+///   any      → EnRoute  when, past leaveAt, the user moved > Phase:EnRouteMeters from the
+///                       leave reference (never earlier: before leaveAt the reference would be
+///                       home, and ordinary morning drift must not read as a departure)
 ///   any      → Arrived  within Phase:ArrivedMeters of the destination, or start + fallback
 /// Each transition is recorded as a plain-language trace row (trigger "phase"), which the
 /// daily run cap ignores.
@@ -115,10 +117,11 @@ public sealed class PlanPhaseService(
         }
 
         // En route: moved away from where they were when it was time to leave (or from home).
+        // Only meaningful once leaveAt has passed — before that there is no leave reference.
         var reference = plan.LeaveFixLat is { } lat && plan.LeaveFixLng is { } lng
             ? new GeoPoint(lat, lng)
             : home is null ? null : new GeoPoint(home.Lat, home.Lng);
-        if (plan.Phase != PlanPhase.EnRoute && fresh is not null && reference is not null)
+        if (now >= plan.LeaveAt && plan.Phase != PlanPhase.EnRoute && fresh is not null && reference is not null)
         {
             var moved = GeoMath.DistanceMeters(fresh.Lat, fresh.Lng, reference.Lat, reference.Lng);
             if (moved > options.EnRouteMeters)
