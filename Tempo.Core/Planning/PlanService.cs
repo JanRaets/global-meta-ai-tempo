@@ -46,6 +46,7 @@ public sealed class PlanService(
                 Mode: TravelMode.Walking,
                 Stops: [],
                 LeaveAt: ctx.Appointment.Start,
+                LeaveBy: ctx.Appointment.Start,
                 ArriveAt: ctx.Appointment.Start,
                 IsFeasible: true,
                 SlackMin: 0,
@@ -114,6 +115,7 @@ public sealed class PlanService(
             Version = (current?.Version ?? 0) + 1,
             Mode = option.Mode,
             LeaveAt = option.LeaveAt,
+            LeaveBy = option.LeaveBy,
             ArriveAt = option.ArriveAt,
             IsFeasible = option.IsFeasible,
             SlackMin = option.SlackMin,
@@ -171,6 +173,7 @@ public sealed class PlanService(
             && ((plan.ArriveAt - match.ArriveAt).Duration() >= TimeSpan.FromMinutes(1) || plan.IsEstimated != match.IsEstimated))
         {
             plan.LeaveAt = match.LeaveAt;
+            plan.LeaveBy = match.LeaveBy;
             plan.ArriveAt = match.ArriveAt;
             plan.IsFeasible = match.IsFeasible;
             plan.SlackMin = match.SlackMin;

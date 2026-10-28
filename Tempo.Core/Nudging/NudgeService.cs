@@ -59,6 +59,10 @@ public sealed partial class NudgeService(
             var opensAt = TimeZoneInfo.ConvertTime(plan.LeaveAt.AddMinutes(-settings.NudgeLeadMin), tz);
             return NudgeSendResult.Refused($"Refused: nudge window not open yet (opens {opensAt:HH:mm})");
         }
+        // D6 (28 Oct): the gentle leave-now nudge exists only between leaveAt and leaveBy —
+        // guard here so no caller can send it early or once the plan is genuinely late.
+        if (kind == NudgeKind.LeaveNow && plan.Phase != PlanPhase.LeaveNow)
+            return NudgeSendResult.Refused("Refused: a leave-now nudge is only valid between the target leave time and the last leave moment");
         if (QuietHours.IsIn(TimeOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, tz).DateTime), settings)
             && !(kind == NudgeKind.Late && appointment.Start - now <= TimeSpan.FromMinutes(60)))
             return NudgeSendResult.Refused("Refused: quiet hours");
@@ -120,6 +124,8 @@ public sealed partial class NudgeService(
             return "Refused: missing leave time — the text must contain the plan's leave time " + Local(plan.LeaveAt);
         if (kind == NudgeKind.Late && !TimesIn(text).Contains(Local(plan.ArriveAt)))
             return "Refused: missing arrival time — a late nudge must contain the recovery's arrival time " + Local(plan.ArriveAt);
+        if (kind == NudgeKind.LeaveNow && !TimesIn(text).Contains(Local(plan.ArriveAt)))
+            return "Refused: missing arrival time — a leave-now nudge must contain the arrival time " + Local(plan.ArriveAt);
 
         if (!ModeWords(plan.Mode).Any(w => text.Contains(w, StringComparison.OrdinalIgnoreCase)))
             return $"Refused: missing mode — the text must name the mode ({plan.Mode})";
@@ -131,10 +137,11 @@ public sealed partial class NudgeService(
         if (SentenceCount(text) > 2)
             return "Refused: more than two sentences";
 
-        var allowed = new HashSet<string> { Local(plan.LeaveAt), Local(plan.ArriveAt) };
+        var allowed = new HashSet<string> { Local(plan.LeaveAt), Local(plan.LeaveBy), Local(plan.ArriveAt) };
         foreach (var (_, option) in optionStore.All())
         {
             allowed.Add(Local(option.LeaveAt));
+            allowed.Add(Local(option.LeaveBy));
             allowed.Add(Local(option.ArriveAt));
         }
         var unknown = TimesIn(text).FirstOrDefault(t => !allowed.Contains(t));

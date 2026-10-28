@@ -31,9 +31,13 @@ The Now screen SHALL show the next appointment with a dominant countdown to `lea
 - **WHEN** no appointment with a place exists in the next 6 hours
 - **THEN** the screen shows the next appointment's time and "nothing to plan yet", never an empty state without context
 
+#### Scenario: Leave-now state (added 28 Oct 2026 — the buffer is a margin)
+- **WHEN** the current time is between `leaveAt` and `leaveBy`
+- **THEN** the screen stays in normal colours with "Leave now" as the dominant line (an amber accent is fine, never red) and "you'll still arrive on time · by HH:mm" beneath it
+
 #### Scenario: Late state
-- **WHEN** the plan has `isLate = true` or `leaveAt` is in the past and the user is not at the destination
-- **THEN** the screen background changes to the late colour, the headline states how late the user is, and one large button presents the recovery action from the latest `Late` nudge
+- **WHEN** the current time passes `leaveBy` and the user is not at the destination or en route
+- **THEN** the screen background changes to the late colour, the headline counts the minutes past `leaveBy` (the minutes the arrival actually slips past the start), and one large button presents the recovery action from the latest `Late` nudge
 
 ### Requirement: Today screen
 The Today screen SHALL show today's appointments as a vertical timeline with leave time, mode and stops per appointment; appointments without a resolvable place SHALL be shown greyed with "no location".

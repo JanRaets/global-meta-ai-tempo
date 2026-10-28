@@ -2,7 +2,7 @@
 // the server computes every time value — the client only displays (design D1 habit).
 
 export type NowPayload = {
-  state: 'none' | 'normal' | 'late' | 'enroute' | 'arrived' | 'here'
+  state: 'none' | 'normal' | 'late' | 'enroute' | 'arrived' | 'here' | 'leavenow'
   appointment?: { id: string; title: string; start: string; place: string }
   plan?: {
     version: number

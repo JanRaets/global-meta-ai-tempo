@@ -67,6 +67,7 @@ public sealed class NowEndpoint(TempoDbContext db, PlanService plans, PhaseOptio
                 PlanPhase.Late => "late",
                 PlanPhase.EnRoute => "enroute",
                 PlanPhase.AtDestination => "here", // D6 amendment: already at the destination
+                PlanPhase.LeaveNow => "leavenow",  // D6 amendment: buffer is a margin
                 _ => "normal",
             };
         await Send.OkAsync(new
@@ -93,7 +94,9 @@ public sealed class NowEndpoint(TempoDbContext db, PlanService plans, PhaseOptio
             },
             // Server computes the minutes (D1 habit: clients display, they don't do time math).
             leaveInMin = plan is null ? (int?)null : (int)Math.Floor((plan.LeaveAt - now).TotalMinutes),
-            lateByMin = state == "late" ? (int)Math.Ceiling((now - plan!.LeaveAt).TotalMinutes) : 0,
+            // Late counts from leaveBy — the minutes the arrival actually slips past the
+            // start — not from the buffered target (D6, 28 Oct).
+            lateByMin = state == "late" ? (int)Math.Ceiling((now - plan!.LeaveBy).TotalMinutes) : 0,
             // En route: the dominant number; arriveAt refreshes in place every tick (13.e).
             minutesRemaining = state == "enroute" ? Math.Max(0, (int)Math.Ceiling((plan!.ArriveAt - now).TotalMinutes)) : 0,
             nudges = await RecentNudgesAsync(db, tz, 3, ct),

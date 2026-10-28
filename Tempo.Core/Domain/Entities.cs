@@ -72,7 +72,11 @@ public sealed class DeparturePlan
     public Guid AppointmentId { get; set; }
     public int Version { get; set; }
     public TravelMode Mode { get; set; }
+    /// <summary>The target: start − travel − stops − buffer. Drives nudges and countdown.</summary>
     public DateTimeOffset LeaveAt { get; set; }
+    /// <summary>The last moment that still arrives at start: start − travel − stops.
+    /// The buffer is a margin, not a deadline (D6 amendment, 28 Oct 2026).</summary>
+    public DateTimeOffset LeaveBy { get; set; }
     public DateTimeOffset ArriveAt { get; set; }
     public bool IsFeasible { get; set; }
     public int SlackMin { get; set; }

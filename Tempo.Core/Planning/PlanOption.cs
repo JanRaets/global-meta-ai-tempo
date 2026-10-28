@@ -18,7 +18,10 @@ public sealed record PlanOption(
     /// <summary>Chained origins (D6 amendment): where this departure is measured from.</summary>
     OriginKind OriginKind = OriginKind.Current,
     /// <summary>The previous appointment's title when OriginKind is PreviousAppointment.</summary>
-    string? OriginName = null)
+    string? OriginName = null,
+    /// <summary>The last moment that still arrives at start (start − travel − stops); LeaveAt
+    /// is the buffered target. The buffer is a margin, not a deadline (D6, 28 Oct 2026).</summary>
+    DateTimeOffset LeaveBy = default)
 {
     /// <summary>Same-place plan: zero travel, no stops, leaveAt = start (D6 amendment).</summary>
     public bool IsNoTravel => LeaveAt == ArriveAt && Stops.Count == 0;

@@ -103,7 +103,12 @@ public sealed class AgentRunner(
                 stops = currentPlan.Stops.Select(s => s.Name),
                 isEstimated = currentPlan.IsEstimated,
             },
-            state = currentPlan is not null && now > currentPlan.LeaveAt ? "late" : "normal",
+            // The buffer is a margin (D6, 28 Oct): past leaveBy is late; past leaveAt is
+            // only "leaveNow" — leaving immediately still arrives on time.
+            state = currentPlan is null ? "normal"
+                : now > currentPlan.LeaveBy ? "late"
+                : now > currentPlan.LeaveAt ? "leaveNow"
+                : "normal",
         };
 
         var messages = new List<ChatMessage>

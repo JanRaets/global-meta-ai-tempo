@@ -232,8 +232,9 @@ public sealed class AgentRunnerTests : IDisposable
     [Fact]
     public async Task Late_state_commits_the_skip_stop_recovery_and_sends_one_late_nudge()
     {
-        // Confirmed coffee habit; with-stop leaves 09:25 local, without 09:37. At 09:30 local
-        // only skipping the coffee is feasible.
+        // Confirmed coffee habit; with-stop leaves 09:25 local, without 09:37. At 09:35 local
+        // only skipping the coffee still arrives by the start (buffer is a margin, D6 28 Oct:
+        // at 09:30 the with-stop option would arrive exactly at start and still be feasible).
         db.Context.Add(new Habit
         {
             Id = Guid.NewGuid(),
@@ -255,7 +256,7 @@ public sealed class AgentRunnerTests : IDisposable
             Reason = "earlier plan",
         });
         db.Context.SaveChanges();
-        clock.SetUtcNow(DateTimeOffset.Parse("2026-10-27T08:30:00Z")); // past 08:25 → late
+        clock.SetUtcNow(DateTimeOffset.Parse("2026-10-27T08:35:00Z")); // keeping the stop now arrives 09:05 → late
         FreshLocation();
 
         model

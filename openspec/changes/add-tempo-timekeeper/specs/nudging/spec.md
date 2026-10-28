@@ -17,8 +17,19 @@ The system SHALL send one push notification per plan version at `leaveAt − nud
 - **WHEN** the plan moves to version 4 with `leaveAt` more than 5 minutes different
 - **THEN** a new nudge is sent that states it replaces the previous one
 
+### Requirement: Gentle leave-now nudge at the target
+*(Added 28 Oct 2026: the buffer is a margin, not a deadline — design D6.)* At `leaveAt` itself, while the plan is in the `LeaveNow` phase (between `leaveAt` and `leaveBy`), the system SHALL send one gentle `LeaveNow` nudge per plan version ("Time to go — leave now … and you're there at HH:mm"): calm, naming the arrival time, no recovery talk. `notify.send` SHALL refuse a `LeaveNow` nudge outside the `LeaveNow` phase.
+
+#### Scenario: Time to go
+- **WHEN** the current time passes `leaveAt` but not `leaveBy` and no `LeaveNow` nudge exists for the plan version
+- **THEN** one gentle nudge is sent naming the arrival time; the screen stays in normal colours
+
+#### Scenario: Not late yet
+- **WHEN** the current time is between `leaveAt` and `leaveBy`
+- **THEN** no `Late` nudge fires and the plan is not presented as late
+
 ### Requirement: Nudge text validation
-`notify.send` SHALL validate the agent's text against the committed plan: a `Leave` nudge must contain the plan's leave time, a `Late` nudge must contain the recovery's arrival time (its leave time is already in the past and is not required); every nudge must name the mode, be at most two sentences, and contain no time value that does not appear in the committed plan or its options. `notify.send` SHALL also refuse a `Leave` nudge before the nudge window opens (`now < leaveAt − nudgeLeadMin`), so no caller can nudge early. *(Amended 27 Oct 2026: Late-nudge time requirement switched from leave time to arrival time; window check moved into the tool per D1 "guards in code".)*
+`notify.send` SHALL validate the agent's text against the committed plan: a `Leave` nudge must contain the plan's leave time, a `Late` or `LeaveNow` nudge must contain the recovery's/plan's arrival time (the leave time is already in the past and is not required); every nudge must name the mode, be at most two sentences, and contain no time value that does not appear in the committed plan or its options (leaveAt, leaveBy and arriveAt all count). `notify.send` SHALL also refuse a `Leave` nudge before the nudge window opens (`now < leaveAt − nudgeLeadMin`), so no caller can nudge early. *(Amended 27 Oct 2026: Late-nudge time requirement switched from leave time to arrival time; window check moved into the tool per D1 "guards in code". Amended 28 Oct 2026: LeaveNow added.)*
 
 #### Scenario: Wording missing required facts
 - **WHEN** the text lacks the leave time
@@ -29,7 +40,7 @@ The system SHALL send one push notification per plan version at `leaveAt − nud
 - **THEN** the tool refuses with `Refused: unknown time 09:15`
 
 ### Requirement: Late recovery nudge
-The system SHALL send one `Late` nudge when the current time passes `leaveAt`, the user is not at the destination, and no `Late` nudge exists for the plan version; the message SHALL propose exactly one recovery option, which the agent chose and committed from `plan.options`.
+The system SHALL send one `Late` nudge only on entering the `Late` phase — when the current time passes `leaveBy` (the last moment that still arrives at start), the user is not moving or at the destination, and no `Late` nudge exists for the plan version; the message SHALL propose exactly one recovery option, which the agent chose and committed from `plan.options`. The late minutes count from `leaveBy`, i.e. the minutes the arrival actually slips past the start. *(Amended 28 Oct 2026: previously the Late machinery started at `leaveAt`, treating the buffer as a deadline.)*
 
 ### Requirement: Why link
 Every nudge SHALL carry a reference to the `AgentTrace` of the run that produced it. The push notification deep-links to the nudge in the app, where "Why?" opens the trace rendered as plain-language steps (no inline button in the notification).

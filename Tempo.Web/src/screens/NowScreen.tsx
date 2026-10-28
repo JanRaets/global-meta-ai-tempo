@@ -47,7 +47,27 @@ export function NowScreen({ locationLive }: { locationLive: boolean }) {
         </div>
       )}
 
-      {data.state !== 'none' && data.state !== 'arrived' && data.state !== 'here' && data.appointment && (
+      {data.state === 'leavenow' && data.appointment && (
+        <div className="px-6 pt-11 flex flex-col gap-2">
+          <div className="text-[44px] font-extrabold tracking-[-0.03em] leading-none text-[#B45309]">Leave now</div>
+          <p className="text-[15px] text-[#4B5563]">
+            you&rsquo;ll still arrive on time{data.plan ? ` · by ${data.plan.arriveAt}` : ''}
+          </p>
+          <p className="text-[15px] text-[#111318] font-medium pt-1">
+            {data.appointment.title} · {data.appointment.start}
+          </p>
+          {data.plan && (
+            <div className="mt-4 flex items-center gap-3.5 px-4.5 py-4 bg-[#F3F4F6] rounded-2xl">
+              <ModeIcon mode={data.plan.mode} size={28} />
+              <div className="text-base font-semibold">
+                By {data.plan.mode} · arrive {data.plan.arriveAt}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {data.state !== 'none' && data.state !== 'arrived' && data.state !== 'here' && data.state !== 'leavenow' && data.appointment && (
         <>
           <div className="px-6 pt-11 flex flex-col gap-1.5">
             <div className={`text-[15px] font-medium ${late ? 'text-[#FFE4D6]' : 'text-[#4B5563]'}`}>

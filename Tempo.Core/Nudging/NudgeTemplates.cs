@@ -19,6 +19,8 @@ public static class NudgeTemplates
         return kind switch
         {
             NudgeKind.Late => $"Leave now by {mode} for {appointment.Title} — you'll arrive at {roughly}{Local(plan.ArriveAt)}.",
+            // D6 (28 Oct): the gentle one at leaveAt — on time, no alarm, just go.
+            NudgeKind.LeaveNow => $"Time to go — leave now by {mode} for {appointment.Title} and you're there at {roughly}{Local(plan.ArriveAt)}.",
             _ => $"Time to leave at {roughly}{Local(plan.LeaveAt)} by {mode} for {appointment.Title}{stops}.",
         };
     }

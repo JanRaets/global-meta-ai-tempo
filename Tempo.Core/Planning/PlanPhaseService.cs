@@ -154,10 +154,18 @@ public sealed class PlanPhaseService(
             return PlanPhase.EnRoute;
         }
 
+        // The buffer is a margin, not a deadline (D6 amendment, 28 Oct 2026): past the
+        // target leaveAt the plan is LeaveNow while leaving immediately still arrives at
+        // start; Late begins only past leaveBy (and the late minutes count from leaveBy).
+        if (now > plan.LeaveBy)
+        {
+            detail = $"Past the last leave moment ({plan.LeaveBy:HH:mm} UTC) without moving — arrival slips past the start.";
+            return PlanPhase.Late;
+        }
         if (now > plan.LeaveAt)
         {
-            detail = $"Past the planned leave time ({plan.LeaveAt:HH:mm} UTC) without moving.";
-            return PlanPhase.Late;
+            detail = $"Past the target leave time ({plan.LeaveAt:HH:mm} UTC) — leaving now still arrives on time.";
+            return PlanPhase.LeaveNow;
         }
         detail = "";
         return PlanPhase.Upcoming;

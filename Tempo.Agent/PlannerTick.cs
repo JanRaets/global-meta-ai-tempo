@@ -87,6 +87,10 @@ public sealed class PlannerTickService(
                 && !await NudgeExistsAsync(plan, NudgeKind.Leave, ct);
             var lateOpen = plan is { Phase: PlanPhase.Late }
                 && !await NudgeExistsAsync(plan, NudgeKind.Late, ct);
+            // D6 (28 Oct): at leaveAt one gentle leave-now nudge, while the buffer still
+            // covers an on-time arrival; the late machinery starts only past leaveBy.
+            var leaveNowOpen = plan is { Phase: PlanPhase.LeaveNow }
+                && !await NudgeExistsAsync(plan, NudgeKind.LeaveNow, ct);
 
             // While EnRoute/Arrived the deterministic refresh above is the whole job: the
             // user's own movement changes the inputs every tick, and waking the model for
@@ -99,6 +103,7 @@ public sealed class PlannerTickService(
                 : moving ? null
                 : inputsChanged ? "tick:inputs-changed"
                 : lateOpen ? "tick:late"
+                : leaveNowOpen ? "tick:leave-now"
                 : windowOpen ? "tick:nudge-window"
                 : null;
             state.Set(appointment.Id, hash);
@@ -130,6 +135,8 @@ public sealed class PlannerTickService(
         NudgeKind? owed =
             plan.Phase == PlanPhase.Late
                 && !await NudgeExistsAsync(plan, NudgeKind.Late, ct) ? NudgeKind.Late
+            : plan.Phase == PlanPhase.LeaveNow
+                && !await NudgeExistsAsync(plan, NudgeKind.LeaveNow, ct) ? NudgeKind.LeaveNow
             : plan.Phase == PlanPhase.Upcoming && now >= plan.LeaveAt.AddMinutes(-settings.NudgeLeadMin)
                 && !await NudgeExistsAsync(plan, NudgeKind.Leave, ct) ? NudgeKind.Leave
             : null;

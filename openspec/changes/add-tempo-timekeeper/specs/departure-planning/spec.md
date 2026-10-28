@@ -74,12 +74,23 @@ The system SHALL run the planner every 2 minutes and on `AppointmentChanged` and
 - **WHEN** reflection inspects `ConfirmedHabit`
 - **THEN** it has no public constructor
 
+### Requirement: Two leave times — the buffer is a margin
+*(Added 28 Oct 2026 from real use: two minutes past leaveAt the screen went red and a Late nudge fired although leaving then still arrived early.)* Every `PlanOption` and committed `DeparturePlan` SHALL carry `leaveAt = start − travel − stops − buffer` (the target: drives nudge timing and the countdown) and `leaveBy = start − travel − stops` (the last moment that still arrives at start). `isFeasible` SHALL mean `arriveAt ≤ start`, and `slackMin` SHALL be the minutes until `leaveBy`. Recovery options are ranked on `arriveAt` against `start`; the buffer plays no part in feasibility.
+
+#### Scenario: Inside the margin is still feasible
+- **WHEN** the current time is past `leaveAt` but leaving immediately still arrives by `start`
+- **THEN** the option is feasible and the plan is not late
+
 ### Requirement: Plan phases
-Each `DeparturePlan` SHALL carry a phase — `Upcoming`, `Late`, `EnRoute`, `Arrived`, `AtDestination` — evaluated deterministically on every planner tick and on every accepted location post, never by the model. The leave reference (the fix at `leaveAt`, else home) SHALL be snapshotted when `leaveAt` passes. Thresholds come from `Phase:*` configuration. *(Added 27 Oct 2026 from real use; design D6. `AtDestination` added 28 Oct 2026.)*
+Each `DeparturePlan` SHALL carry a phase — `Upcoming`, `Late`, `EnRoute`, `Arrived`, `AtDestination`, `LeaveNow` — evaluated deterministically on every planner tick and on every accepted location post, never by the model. The leave reference (the fix at `leaveAt`, else home) SHALL be snapshotted when `leaveAt` passes. Thresholds come from `Phase:*` configuration. *(Added 27 Oct 2026 from real use; design D6. `AtDestination` and `LeaveNow` added 28 Oct 2026.)*
+
+#### Scenario: Leave now, not late
+- **WHEN** the current time is between `leaveAt` and `leaveBy` and the user has not moved
+- **THEN** the phase is `LeaveNow`: the Now screen says "Leave now · you'll still arrive on time" in normal colours (an amber accent, never red)
 
 #### Scenario: Late
-- **WHEN** the current time passes `leaveAt` and the user has not moved
-- **THEN** the phase becomes `Late` and the current position (or home) is stored as the leave reference
+- **WHEN** the current time passes `leaveBy` and the user is not `EnRoute`
+- **THEN** the phase becomes `Late`, the late headline counts the minutes past `leaveBy`, and the current position (or home) remains the leave reference snapshotted at `leaveAt`
 
 #### Scenario: En route
 - **WHEN** a location post places the user more than 150 m from the leave reference, whether the phase was `Upcoming` or `Late`

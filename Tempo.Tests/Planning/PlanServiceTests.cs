@@ -82,8 +82,9 @@ public sealed class PlanServiceTests : IDisposable
         Assert.Equal(TravelMode.Bicycle, option.Mode);
         Assert.Empty(option.Stops);
         Assert.Equal(DateTimeOffset.Parse("2026-10-27T08:37:00Z"), option.LeaveAt); // 09:37 local
+        Assert.Equal(DateTimeOffset.Parse("2026-10-27T08:42:00Z"), option.LeaveBy); // buffer is a margin (D6, 28 Oct)
         Assert.True(option.IsFeasible);
-        Assert.Equal(37, option.SlackMin);
+        Assert.Equal(42, option.SlackMin); // minutes until leaveBy, not the buffered target
     }
 
     [Fact]
@@ -316,9 +317,10 @@ public sealed class PlanServiceTests : IDisposable
         var option = Assert.Single(result.Options); // habit skipped → one subset, extra stop in it
         Assert.DoesNotContain(option.Stops, s => s.PlaceId == cafe.Id);
         Assert.Contains(option.Stops, s => s.PlaceId == bakery.Id);
-        // total = 18 base + 4 detour + 5 dwell = 27 → leave 08:28Z; effectiveNow 08:10Z → slack 18.
+        // total = 18 base + 4 detour + 5 dwell = 27 → leave 08:28Z, leaveBy 08:33Z;
+        // effectiveNow 08:10Z → slack 23 (to leaveBy — the buffer is a margin, D6 28 Oct).
         Assert.Equal(DateTimeOffset.Parse("2026-10-27T08:28:00Z"), option.LeaveAt);
-        Assert.Equal(18, option.SlackMin);
+        Assert.Equal(23, option.SlackMin);
     }
 
     public void Dispose() => db.Dispose();

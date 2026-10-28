@@ -47,6 +47,7 @@ public sealed class PlanPhaseTests : IDisposable
             Version = 1,
             Mode = TravelMode.Bicycle,
             LeaveAt = DateTimeOffset.Parse("2026-10-27T08:37:00Z"),
+            LeaveBy = DateTimeOffset.Parse("2026-10-27T08:42:00Z"), // buffer 5 min is a margin
             ArriveAt = DateTimeOffset.Parse("2026-10-27T08:55:00Z"),
             Reason = "test",
         };
@@ -62,27 +63,40 @@ public sealed class PlanPhaseTests : IDisposable
         buffer.Points.Add(new LocationPoint(lat, lng, clock.GetUtcNow().AddMinutes(-1)));
 
     [Fact]
-    public async Task Past_leaveAt_without_moving_becomes_late_and_snapshots_the_reference()
+    public async Task Past_leaveAt_without_moving_becomes_leave_now_and_snapshots_the_reference()
     {
-        clock.SetUtcNow(plan.LeaveAt.AddMinutes(3));
+        // D6 (28 Oct): the buffer is a margin — between leaveAt and leaveBy the phase is
+        // LeaveNow, not Late; leaving immediately still arrives on time.
+        clock.SetUtcNow(plan.LeaveAt.AddMinutes(3)); // 08:40, leaveBy 08:42
         FixAt(home.Lat, home.Lng);
 
         var transitions = await Service().EvaluateAllAsync();
 
         var t = Assert.Single(transitions);
-        Assert.Equal((PlanPhase.Upcoming, PlanPhase.Late), (t.From, t.To));
-        Assert.Equal(PlanPhase.Late, plan.Phase);
+        Assert.Equal((PlanPhase.Upcoming, PlanPhase.LeaveNow), (t.From, t.To));
+        Assert.Equal(PlanPhase.LeaveNow, plan.Phase);
         Assert.Equal(home.Lat, plan.LeaveFixLat);
+    }
+
+    [Fact]
+    public async Task Past_leaveBy_without_moving_becomes_late()
+    {
+        clock.SetUtcNow(plan.LeaveBy.AddMinutes(2));
+        FixAt(home.Lat, home.Lng);
+
+        var transitions = await Service().EvaluateAllAsync();
+
+        Assert.Equal(PlanPhase.Late, Assert.Single(transitions).To);
     }
 
     [Fact]
     public async Task Moving_from_the_reference_becomes_en_route_from_late()
     {
-        clock.SetUtcNow(plan.LeaveAt.AddMinutes(3));
+        clock.SetUtcNow(plan.LeaveBy.AddMinutes(1));
         FixAt(home.Lat, home.Lng);
         await Service().EvaluateAllAsync(); // → Late, reference snapshotted
 
-        clock.SetUtcNow(plan.LeaveAt.AddMinutes(6));
+        clock.SetUtcNow(plan.LeaveBy.AddMinutes(4));
         FixAt(home.Lat, home.Lng + 0.004); // ~270 m east
 
         var transitions = await Service().EvaluateAllAsync();
@@ -172,7 +186,7 @@ public sealed class PlanPhaseTests : IDisposable
     [Fact]
     public async Task Transitions_are_recorded_as_phase_trace_rows()
     {
-        clock.SetUtcNow(plan.LeaveAt.AddMinutes(3));
+        clock.SetUtcNow(plan.LeaveBy.AddMinutes(3));
         FixAt(home.Lat, home.Lng);
 
         await Service().EvaluateAllAsync();

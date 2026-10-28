@@ -100,17 +100,22 @@ public sealed class DeparturePlanner(
 
                 var stopTime = TimeSpan.FromMinutes(stops.Sum(s => s.DurationMin));
                 var total = travelWithStops + stopTime;
+                // The buffer is a margin, not a deadline (D6, 28 Oct 2026): leaveAt is the
+                // buffered target, leaveBy the last moment that still arrives at start.
+                // Feasibility and slack are measured against leaveBy; the buffer plays no part.
                 var leaveAt = appointment.Start - TimeSpan.FromMinutes(appointment.BufferMin) - total;
-                var slackMin = (int)Math.Round((leaveAt - effectiveNow).TotalMinutes);
+                var leaveBy = appointment.Start - total;
                 var departAt = leaveAt >= effectiveNow ? leaveAt : effectiveNow;
+                var arriveAt = departAt + total;
                 options.Add(new PlanOption(
                     OptionId: Guid.NewGuid().ToString("N")[..8],
                     Mode: mode,
                     Stops: stops.Select(s => new PlanStop(s.PlaceId, s.Name, s.DurationMin)).ToList(),
                     LeaveAt: leaveAt,
-                    ArriveAt: departAt + total,
-                    IsFeasible: leaveAt >= effectiveNow,
-                    SlackMin: slackMin,
+                    LeaveBy: leaveBy,
+                    ArriveAt: arriveAt,
+                    IsFeasible: arriveAt <= appointment.Start,
+                    SlackMin: (int)Math.Round((leaveBy - effectiveNow).TotalMinutes),
                     IsEstimated: estimated));
             }
         }

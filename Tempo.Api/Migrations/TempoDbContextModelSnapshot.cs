@@ -154,6 +154,9 @@ namespace Tempo.Api.Migrations
                     b.Property<DateTimeOffset>("LeaveAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateTimeOffset>("LeaveBy")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<double?>("LeaveFixLat")
                         .HasColumnType("double precision");
 

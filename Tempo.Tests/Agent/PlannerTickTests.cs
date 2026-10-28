@@ -145,6 +145,39 @@ public sealed class PlannerTickTests : IDisposable
     }
 
     [Fact]
+    public async Task Leave_now_phase_sends_the_gentle_template_once()
+    {
+        model.EnqueueFinal("Nothing to do.");
+        await tick.TickAsync(); // stores the inputs hash
+        var options = await plans.OptionsAsync(appointment.Id);
+        await plans.CommitAsync(options.Options[0].OptionId, "test", PlanCommitter.Agent); // leaveAt 08:37Z, leaveBy 08:42Z
+        var plan = (await plans.CurrentAsync(appointment.Id))!;
+        db.Context.Nudges.Add(new Nudge // the ordinary Leave nudge already went out
+        {
+            Id = Guid.NewGuid(),
+            AppointmentId = appointment.Id,
+            PlanId = plan.Id,
+            PlanVersion = plan.Version,
+            Kind = NudgeKind.Leave,
+            Text = "Leave at 09:37 by bike.",
+            Status = NudgeStatus.Sent,
+        });
+        db.Context.SaveChanges();
+
+        clock.SetUtcNow(plan.LeaveAt.AddMinutes(2)); // inside the margin: LeaveNow, not Late
+        buffer.Points.Add(new LocationPoint(52.0906, 5.2332, clock.GetUtcNow().AddMinutes(-1)));
+        model.EnqueueFinal("Noted, nothing sent."); // the model declines → template takes over
+        await tick.TickAsync();
+
+        var leaveNow = Assert.Single(transport.Delivered, n => n.Kind == NudgeKind.LeaveNow);
+        Assert.StartsWith("Time to go — leave now by", leaveNow.Text);
+
+        model.EnqueueFinal("Noted."); // next tick: nothing further owed
+        await tick.TickAsync();
+        Assert.Single(transport.Delivered, n => n.Kind == NudgeKind.LeaveNow);
+    }
+
+    [Fact]
     public async Task At_destination_commits_the_zero_travel_plan_without_the_model()
     {
         var options = await plans.OptionsAsync(appointment.Id);
