@@ -17,6 +17,8 @@ public sealed class TempoDbContext(DbContextOptions<TempoDbContext> options) : D
     public DbSet<UserSettings> UserSettings => Set<UserSettings>();
     public DbSet<OAuthToken> OAuthTokens => Set<OAuthToken>();
     public DbSet<PushSubscription> PushSubscriptions => Set<PushSubscription>();
+    public DbSet<PlaceOverride> PlaceOverrides => Set<PlaceOverride>();
+    public DbSet<PlaceResolutionLog> PlaceResolutionLogs => Set<PlaceResolutionLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

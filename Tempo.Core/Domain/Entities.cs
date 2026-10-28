@@ -181,6 +181,29 @@ public sealed class UserSettings
     public string TimeZone { get; set; } = "Europe/Amsterdam";
 }
 
+/// <summary>A user's place correction (geocoding amendment, 28 Oct 2026): every future
+/// event whose location text matches RawText resolves to this place without geocoding.</summary>
+public sealed class PlaceOverride
+{
+    public Guid Id { get; set; }
+    public required string RawText { get; set; }
+    public Guid PlaceId { get; set; }
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+/// <summary>The latest ranked geocode resolution per location text: the candidate list and
+/// why one was chosen — the correction sheet's top-3 come from here.</summary>
+public sealed class PlaceResolutionLog
+{
+    public Guid Id { get; set; }
+    public required string RawText { get; set; }
+    /// <summary>JSON array of {name,label,locality,lat,lng}, ranked order.</summary>
+    public required string CandidatesJson { get; set; }
+    public required string Reason { get; set; }
+    public Guid? ChosenPlaceId { get; set; }
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
 /// <summary>One browser push endpoint of the installed PWA (design D16). The endpoint plus
 /// the client keys is everything the push service needs; 410/404 from it deletes the row.</summary>
 public sealed class PushSubscription

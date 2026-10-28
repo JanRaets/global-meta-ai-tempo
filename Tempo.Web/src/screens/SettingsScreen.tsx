@@ -1,6 +1,6 @@
 import { BrandHeader } from '../Brand'
 import { useState } from 'react'
-import { api, type Settings } from '../api'
+import { api, type PlaceOverrideRow, type Settings } from '../api'
 import { enablePush } from '../push'
 import { usePoll } from '../usePoll'
 
@@ -11,6 +11,7 @@ const modeLabel: Record<string, string> = { walking: 'Walk', bicycle: 'Bike', ca
  * push notifications per D16). Every change saves immediately via PUT /api/settings. */
 export function SettingsScreen() {
   const { data, refresh, setData } = usePoll<Settings>(api.settings)
+  const { data: overrides, refresh: refreshOverrides } = usePoll<PlaceOverrideRow[]>(api.placeOverrides, 60_000)
   const [pushState, setPushState] = useState<'idle' | 'busy' | 'subscribed' | 'denied' | 'unsupported' | 'tested'>('idle')
   if (!data) return <div className="flex-grow bg-white" />
 
@@ -203,6 +204,25 @@ export function SettingsScreen() {
             />
           </button>
         </div>
+
+        {overrides && overrides.length > 0 && (
+          <div className="flex flex-col gap-2 py-3.5 border-t border-[#E5E7EB]">
+            <span className="text-[13px] font-semibold text-[#4B5563]">Place corrections</span>
+            {overrides.map((o) => (
+              <div key={o.id} className="flex justify-between items-center gap-3">
+                <span className="text-[14px] text-[#111318] leading-snug">
+                  “{o.rawText}” → <span className="font-semibold">{o.placeName}</span>
+                </span>
+                <button
+                  className="flex-shrink-0 border-0 bg-transparent p-0 text-[13px] font-semibold text-[#B42318]"
+                  onClick={() => void api.removePlaceOverride(o.id).then(() => refreshOverrides())}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

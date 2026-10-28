@@ -73,6 +73,7 @@ builder.Services.AddScoped<HabitProposalBatchService>();
 builder.Services.AddScoped<HabitProposalBatchJob>();
 builder.Services.AddScoped<DemoModeService>();
 builder.Services.AddScoped<DemoModeJob>();
+builder.Services.AddScoped<ReResolvePlacesJob>();
 
 builder.Services.AddDataProtection();
 builder.Services.AddMemoryCache();
@@ -137,6 +138,10 @@ app.Services.GetRequiredService<IRecurringJobManager>()
     .AddOrUpdate<HabitInferenceJob>("habit-inference", j => j.RunAsync(CancellationToken.None), "0 2 * * *");   // 03:00 local
 app.Services.GetRequiredService<IRecurringJobManager>()
     .AddOrUpdate<HabitProposalBatchJob>("habit-proposal-batch", j => j.RunAsync(CancellationToken.None), "0 7 * * *"); // 08:00 local, after quiet hours
+// One-off per deploy (idempotent — skips texts already resolved under the new ranking):
+// merges earlier mis-geocoded places (geocoding amendment, 28 Oct 2026).
+app.Services.GetRequiredService<Hangfire.IBackgroundJobClient>()
+    .Enqueue<ReResolvePlacesJob>(j => j.RunAsync(CancellationToken.None));
 
 app.UseDefaultFiles();   // Tempo.Web builds into wwwroot
 app.UseStaticFiles();

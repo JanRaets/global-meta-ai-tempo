@@ -66,6 +66,14 @@ export type Settings = {
 
 export type Trace = { steps: string[]; provider: string | null; trigger: string; outcome: string }
 
+export type PlaceCandidate = { name: string | null; label: string | null; locality: string | null; lat: number; lng: number }
+export type PlaceCandidates = {
+  rawText: string | null
+  current: { id: string; name: string } | null
+  candidates: PlaceCandidate[]
+}
+export type PlaceOverrideRow = { id: string; rawText: string; placeName: string }
+
 export type LocationStats = {
   pointsLastHour: number
   lastPointAt: string | null
@@ -87,6 +95,16 @@ export const api = {
   settings: () => get<Settings>('/api/settings'),
   trace: (nudgeId: string) => get<Trace>(`/api/traces/${nudgeId}`),
   locationStats: () => get<LocationStats>('/admin/location-stats'),
+  placeCandidates: (appointmentId: string) => get<PlaceCandidates>(`/api/appointments/${appointmentId}/place-candidates`),
+  placeSearch: (q: string) => get<PlaceCandidate[]>(`/api/places/search?q=${encodeURIComponent(q)}`),
+  setPlace: (appointmentId: string, c: PlaceCandidate) =>
+    fetch(`/api/appointments/${appointmentId}/place`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lat: c.lat, lng: c.lng, name: c.label ?? c.name }),
+    }),
+  placeOverrides: () => get<PlaceOverrideRow[]>('/api/place-overrides'),
+  removePlaceOverride: (id: string) => fetch(`/api/place-overrides/${id}`, { method: 'DELETE' }),
   confirmHabit: (id: string) => fetch(`/api/habits/${id}/confirm`, { method: 'POST' }),
   rejectHabit: (id: string) => fetch(`/api/habits/${id}/reject`, { method: 'POST' }),
   pauseHabit: (id: string) => fetch(`/api/habits/${id}/pause`, { method: 'POST' }),

@@ -53,6 +53,10 @@ public sealed class CaptureLiveTests(ITestOutputHelper output) : IDisposable
             Task.FromResult(string.IsNullOrWhiteSpace(text)
                 ? null : new GeocodeResult(52.0907, 5.1214, text));
 
+        public Task<IReadOnlyList<GeoCandidate>> SearchAsync(string text, GeoPoint? focus = null, CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyList<GeoCandidate>>(string.IsNullOrWhiteSpace(text)
+                ? [] : [new GeoCandidate(52.0907, 5.1214, text, text, null)]);
+
         public Task<string?> ReverseAsync(double lat, double lng, CancellationToken ct = default) =>
             Task.FromResult<string?>("Utrecht");
     }

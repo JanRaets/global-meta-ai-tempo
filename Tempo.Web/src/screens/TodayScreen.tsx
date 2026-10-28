@@ -1,12 +1,16 @@
+import { useState } from 'react'
 import { BrandHeader } from '../Brand'
 import { api, type TimelinePayload } from '../api'
 import { ModeIcon } from '../Icons'
+import { PlaceSheet } from '../PlaceSheet'
 import { usePoll } from '../usePoll'
 
 /** Today's timeline (task 12.4, design canvas Today artboard). Captured appointments show a
- * small tag; virtual/no-place ones are greyed with no travel line. */
+ * small tag; virtual/no-place ones are greyed with no travel line. The place line opens the
+ * correction sheet (geocoding amendment, 28 Oct 2026). */
 export function TodayScreen() {
-  const { data } = usePoll<TimelinePayload>(api.timeline)
+  const { data, refresh } = usePoll<TimelinePayload>(api.timeline)
+  const [placeFor, setPlaceFor] = useState<string | null>(null)
   if (!data) return <div className="flex-grow bg-white" />
   const nextIndex = data.items.findIndex((item) => !item.isPast)
 
@@ -55,7 +59,16 @@ export function TodayScreen() {
                     {item.start}
                   </div>
                 </div>
-                <div className="text-sm text-[#4B5563]">{greyed ? 'Video call · no travel' : item.place}</div>
+                {greyed ? (
+                  <div className="text-sm text-[#4B5563]">Video call · no travel</div>
+                ) : (
+                  <button
+                    className="self-start border-0 bg-transparent p-0 text-left text-sm text-[#4B5563] underline decoration-[#D1D5DB] underline-offset-2"
+                    onClick={() => setPlaceFor(item.id)}
+                  >
+                    {item.place}
+                  </button>
+                )}
                 {!greyed && item.plan && (
                   <div className={`flex items-center gap-2 mt-1 text-sm font-semibold ${isNext ? '' : 'text-[#4B5563]'}`}>
                     {item.plan.noTravel ? (
@@ -75,6 +88,8 @@ export function TodayScreen() {
           )
         })}
       </div>
+
+      {placeFor && <PlaceSheet appointmentId={placeFor} onClose={() => setPlaceFor(null)} onChanged={refresh} />}
     </div>
   )
 }

@@ -35,6 +35,33 @@ public sealed class OrsGeocoder(HttpClient http, IOptions<RoutingOptions> option
         return new GeocodeResult(lat, lng, feature.Properties?.Label);
     }
 
+    public async Task<IReadOnlyList<GeoCandidate>> SearchAsync(string text, GeoPoint? focus = null, CancellationToken ct = default)
+    {
+        if (options.Value.ApiKey is "")
+            throw new InvalidOperationException("Missing configuration value Routing:ApiKey (OpenRouteService)");
+        var inv = System.Globalization.CultureInfo.InvariantCulture;
+        var url = $"geocode/search?text={Uri.EscapeDataString(text)}&size=10";
+        if (options.Value.GeocodeCountry is { Length: > 0 } country)
+            url += $"&boundary.country={country}";
+        if (focus is { } f)
+            url += $"&focus.point.lat={f.Lat.ToString(inv)}&focus.point.lon={f.Lng.ToString(inv)}";
+        var response = await http.GetAsync(url, ct);
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync(ct);
+            logger.LogWarning("ORS geocode search for '{Text}' failed ({Status}): {Body}", text, (int)response.StatusCode,
+                body[..Math.Min(body.Length, 200)]);
+            return [];
+        }
+        var parsed = await response.Content.ReadFromJsonAsync<WireGeocodeResponse>(cancellationToken: ct);
+        return (parsed?.Features ?? [])
+            .Where(f => f.Geometry?.Coordinates is [_, _, ..])
+            .Select(f => new GeoCandidate(
+                f.Geometry!.Coordinates![1], f.Geometry.Coordinates[0],
+                f.Properties?.Name, f.Properties?.Label, f.Properties?.Locality))
+            .ToList();
+    }
+
     public async Task<string?> ReverseAsync(double lat, double lng, CancellationToken ct = default)
     {
         if (options.Value.ApiKey is "")
@@ -59,5 +86,8 @@ public sealed class OrsGeocoder(HttpClient http, IOptions<RoutingOptions> option
 
     private sealed record WireGeometry([property: JsonPropertyName("coordinates")] double[]? Coordinates);
 
-    private sealed record WireProperties([property: JsonPropertyName("label")] string? Label);
+    private sealed record WireProperties(
+        [property: JsonPropertyName("label")] string? Label,
+        [property: JsonPropertyName("name")] string? Name,
+        [property: JsonPropertyName("locality")] string? Locality);
 }
