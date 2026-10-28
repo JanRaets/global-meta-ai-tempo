@@ -70,4 +70,15 @@ public enum PlanPhase
     Late,
     EnRoute,
     Arrived,
+    /// <summary>Already within the arrive radius of the destination before the appointment
+    /// starts — zero travel, no stops, no nudges (D6 amendment, 28 Oct 2026).</summary>
+    AtDestination,
+}
+
+/// <summary>Where a plan's departure is measured from (chained origins, D6 amendment).</summary>
+public enum OriginKind
+{
+    Current,
+    PreviousAppointment,
+    Home,
 }

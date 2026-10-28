@@ -12,6 +12,12 @@ public sealed class FakeLocationBuffer : ILocationBuffer
         return Task.CompletedTask;
     }
 
+    public Task ClearAsync(CancellationToken ct = default)
+    {
+        Points.Clear();
+        return Task.CompletedTask;
+    }
+
     public Task<IReadOnlyList<LocationPoint>> GetSinceAsync(DateTimeOffset since, CancellationToken ct = default) =>
         Task.FromResult<IReadOnlyList<LocationPoint>>(
             Points.Where(p => p.Timestamp >= since).OrderBy(p => p.Timestamp).ToList());

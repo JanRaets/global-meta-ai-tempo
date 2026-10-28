@@ -66,6 +66,7 @@ public sealed class NowEndpoint(TempoDbContext db, PlanService plans, PhaseOptio
             {
                 PlanPhase.Late => "late",
                 PlanPhase.EnRoute => "enroute",
+                PlanPhase.AtDestination => "here", // D6 amendment: already at the destination
                 _ => "normal",
             };
         await Send.OkAsync(new
@@ -158,6 +159,14 @@ public sealed class TimelineTodayEndpoint(TempoDbContext db, TimeProvider clock)
                         leaveAt = Fmt(p.LeaveAt),
                         mode = p.Mode.ToString().ToLowerInvariant(),
                         stops = p.Stops.Select(s => s.Name),
+                        // Chained origins (D6 amendment): where this departure starts from.
+                        noTravel = p.LeaveAt == p.ArriveAt && p.Stops.Count == 0,
+                        originLabel = p.OriginKind switch
+                        {
+                            OriginKind.Current => "from here",
+                            OriginKind.PreviousAppointment when p.OriginName is not null => $"from {p.OriginName}",
+                            _ => (string?)null,
+                        },
                     }
                     : null,
             }),

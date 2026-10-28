@@ -75,7 +75,7 @@ The system SHALL run the planner every 2 minutes and on `AppointmentChanged` and
 - **THEN** it has no public constructor
 
 ### Requirement: Plan phases
-Each `DeparturePlan` SHALL carry a phase — `Upcoming`, `Late`, `EnRoute`, `Arrived` — evaluated deterministically on every planner tick and on every accepted location post, never by the model. The leave reference (the fix at `leaveAt`, else home) SHALL be snapshotted when `leaveAt` passes. Thresholds come from `Phase:*` configuration. *(Added 27 Oct 2026 from real use; design D6.)*
+Each `DeparturePlan` SHALL carry a phase — `Upcoming`, `Late`, `EnRoute`, `Arrived`, `AtDestination` — evaluated deterministically on every planner tick and on every accepted location post, never by the model. The leave reference (the fix at `leaveAt`, else home) SHALL be snapshotted when `leaveAt` passes. Thresholds come from `Phase:*` configuration. *(Added 27 Oct 2026 from real use; design D6. `AtDestination` added 28 Oct 2026.)*
 
 #### Scenario: Late
 - **WHEN** the current time passes `leaveAt` and the user has not moved
@@ -92,6 +92,28 @@ Each `DeparturePlan` SHALL carry a phase — `Upcoming`, `Late`, `EnRoute`, `Arr
 #### Scenario: Arrived by fallback
 - **WHEN** no location fix proves arrival but the appointment started 15 minutes ago
 - **THEN** the phase becomes `Arrived`
+
+### Requirement: Already at the destination
+*(Added 28 Oct 2026 from real use: two back-to-back meetings at the same office produced a travel plan, a coffee stop and a leave nudge for the second one.)* When the current fix (not stale) is within `Phase:ArrivedMeters` of an upcoming appointment's place before it starts, the plan SHALL be `AtDestination`: a single zero-travel option (no stops, habits not matched, `leaveAt = start`) committed deterministically with reason "already at destination" — no agent run, and `notify.send` refuses every nudge for it. A previous appointment's `Arrived` state SHALL NOT block the next appointment's `AtDestination`. The Now screen shows "You're here" in normal colours.
+
+#### Scenario: Already there
+- **WHEN** the user's fresh fix is within the arrive radius of the next appointment's place before it starts
+- **THEN** the plan is `AtDestination` with zero travel, no stops and no nudges
+
+#### Scenario: Moved away before the start
+- **WHEN** a later fresh fix is beyond the arrive radius before the appointment starts
+- **THEN** the plan reverts to `Upcoming` and normal planning resumes (an input change wakes the agent)
+
+### Requirement: Chained origins
+*(Added 28 Oct 2026; design D6.)* `plan.options` SHALL take its origin from the current fix only for the NEXT placed appointment; a look-ahead appointment departs from the previous placed appointment's place when that appointment ends at most `Phase:ChainGapHours` (default 3) before it starts, else from home. Options and committed plans carry `originKind` (`Current | PreviousAppointment | Home`) and the previous appointment's title. Two appointments at the same `Place`, or within `Phase:ArrivedMeters` of each other, count as the same location and yield the zero-travel option. Habit matching uses the chained origin, not the current fix, for look-ahead plans. The Today screen shows "from here" / "from <previous title>" in the plan line, and "no travel" instead of a leave time for same-place pairs.
+
+#### Scenario: Office, office, dentist
+- **WHEN** three placed appointments run office → office → dentist within the chain gap
+- **THEN** there is one departure home→office, the middle appointment shows no travel, and one departure office→dentist
+
+#### Scenario: Gap beyond the chain window
+- **WHEN** the previous placed appointment ends more than `Phase:ChainGapHours` before the next one starts
+- **THEN** the look-ahead origin is home
 
 ### Requirement: Late re-estimate in place
 While a plan is `Late` or `EnRoute`, the tick SHALL re-run the planner deterministically (no model call) and refresh the committed option's `leaveAt` and `arriveAt` in place for the same mode and stops — same plan version, no new nudge. When a different option would arrive more than 5 minutes earlier than the refreshed committed option, that SHALL count as an input change and the agent runs again. *(Added 27 Oct 2026: the recovery's arrival time froze at nudge time while "N min late" kept ticking.)*

@@ -37,8 +37,13 @@ public sealed class PhaseOptions
     /// <summary>Moved this far from the leave reference → EnRoute.</summary>
     public int EnRouteMeters { get; init; } = 150;
 
-    /// <summary>Within this of the destination → Arrived.</summary>
+    /// <summary>Within this of the destination → Arrived, or AtDestination before start
+    /// (the spec's "ArriveRadiusM"). Also the same-place threshold for chained origins.</summary>
     public int ArrivedMeters { get; init; } = 100;
+
+    /// <summary>Chained origins: a look-ahead plan departs from the previous placed
+    /// appointment when it ends no more than this many hours before this one starts.</summary>
+    public int ChainGapHours { get; init; } = 3;
 
     /// <summary>No fix proof needed: this long after the appointment start → Arrived.</summary>
     public int ArrivedFallbackMin { get; init; } = 15;

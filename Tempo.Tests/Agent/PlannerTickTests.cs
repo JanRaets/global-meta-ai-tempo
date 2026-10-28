@@ -145,6 +145,25 @@ public sealed class PlannerTickTests : IDisposable
     }
 
     [Fact]
+    public async Task At_destination_commits_the_zero_travel_plan_without_the_model()
+    {
+        var options = await plans.OptionsAsync(appointment.Id);
+        await plans.CommitAsync(options.Options[0].OptionId, "test", PlanCommitter.Agent); // real bike plan
+        buffer.Points.Add(new LocationPoint(52.0894, 5.1100, clock.GetUtcNow().AddMinutes(-1))); // now at the dentist
+
+        await tick.TickAsync();
+
+        var plan = (await plans.CurrentAsync(appointment.Id))!;
+        Assert.Equal(PlanPhase.AtDestination, plan.Phase);
+        Assert.Equal(appointment.Start, plan.LeaveAt); // zero travel
+        Assert.Equal(appointment.Start, plan.ArriveAt);
+        Assert.Empty(plan.Stops);
+        Assert.Equal("already at destination", plan.Reason);
+        Assert.Empty(model.ChatInvocations); // deterministic — the model never woke
+        Assert.Empty(transport.Delivered);   // and nothing was nudged
+    }
+
+    [Fact]
     public async Task En_route_movement_does_not_wake_the_model()
     {
         model.EnqueueFinal("Nothing to do.");

@@ -163,6 +163,12 @@ namespace Tempo.Api.Migrations
                     b.Property<int>("Mode")
                         .HasColumnType("integer");
 
+                    b.Property<int>("OriginKind")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("OriginName")
+                        .HasColumnType("text");
+
                     b.Property<int>("Phase")
                         .HasColumnType("integer");
 

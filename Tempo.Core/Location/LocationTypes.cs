@@ -10,6 +10,9 @@ public interface ILocationBuffer
     Task AppendAsync(LocationPoint point, CancellationToken ct = default);
     Task<IReadOnlyList<LocationPoint>> GetSinceAsync(DateTimeOffset since, CancellationToken ct = default);
     Task<LocationPoint?> GetLatestAsync(CancellationToken ct = default);
+    /// <summary>Drops every buffered point. Demo-mode cleanup uses this: the replayed trail
+    /// ends far from the phone, and the next real fix must re-anchor, not read as a teleport.</summary>
+    Task ClearAsync(CancellationToken ct = default);
 }
 
 public sealed record IngestResult(bool Accepted, string? Reason = null)

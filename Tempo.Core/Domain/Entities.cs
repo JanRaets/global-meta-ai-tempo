@@ -89,6 +89,10 @@ public sealed class DeparturePlan
     /// <summary>The fix (or home) at the moment leaveAt passed — the en-route reference point.</summary>
     public double? LeaveFixLat { get; set; }
     public double? LeaveFixLng { get; set; }
+    /// <summary>Chained origins (D6 amendment, 28 Oct 2026): where this departure starts from.</summary>
+    public OriginKind OriginKind { get; set; }
+    /// <summary>The previous appointment's title when OriginKind is PreviousAppointment.</summary>
+    public string? OriginName { get; set; }
 }
 
 /// <summary>An outbound message tied to a plan version. PlanId/AppointmentId are plain ids

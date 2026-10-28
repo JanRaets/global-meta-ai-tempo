@@ -19,18 +19,41 @@ public sealed class PlanService(
     PlanOptionStore store,
     CurrentLocationProvider location,
     TimeProvider clock,
-    ILogger<PlanService> logger)
+    ILogger<PlanService> logger,
+    Tempo.Core.Configuration.PhaseOptions? phaseOptions = null)
 {
     private static readonly TimeSpan JitterTolerance = TimeSpan.FromMinutes(3);
+    private readonly Tempo.Core.Configuration.PhaseOptions phase = phaseOptions ?? new();
 
     private sealed record PlanContext(
-        Appointment Appointment, UserSettings Settings, Place? Home, GeoPoint Origin, PlanInputs? Inputs, ContextKey Key);
+        Appointment Appointment, UserSettings Settings, Place? Home, GeoPoint Origin, PlanInputs? Inputs, ContextKey Key,
+        OriginKind OriginKind, string? OriginName);
 
     public async Task<PlanOptionsResult> OptionsAsync(Guid appointmentId, CancellationToken ct = default)
     {
         var (ctx, note) = await BuildContextAsync(appointmentId, ct);
         if (ctx is null)
             return PlanOptionsResult.Empty(note!);
+
+        // Already at (or chained to) the destination: zero travel, no stops, no habit
+        // matching, leaveAt = start (D6 amendment, 28 Oct 2026 — two meetings at the same
+        // office must not produce a travel plan and a coffee stop).
+        var destination = new GeoPoint(ctx.Appointment.Place!.Lat, ctx.Appointment.Place.Lng);
+        if (GeoMath.DistanceMeters(ctx.Origin.Lat, ctx.Origin.Lng, destination.Lat, destination.Lng) <= phase.ArrivedMeters)
+        {
+            var zero = new PlanOption(
+                OptionId: Guid.NewGuid().ToString("N")[..8],
+                Mode: TravelMode.Walking,
+                Stops: [],
+                LeaveAt: ctx.Appointment.Start,
+                ArriveAt: ctx.Appointment.Start,
+                IsFeasible: true,
+                SlackMin: 0,
+                OriginKind: ctx.OriginKind,
+                OriginName: ctx.OriginName);
+            store.ReplaceFor(appointmentId, [zero]);
+            return new PlanOptionsResult([zero], "no travel — already at the destination");
+        }
 
         var effectiveNow = clock.GetUtcNow().AddMinutes(ctx.Inputs?.LateOffsetMin ?? 0);
         var habits = await MatchingHabitsAsync(ctx, ct);
@@ -46,11 +69,13 @@ public sealed class PlanService(
         var pinned = ctx.Inputs?.PinnedMode ?? ctx.Settings.PinnedMode;
         var modes = pinned is { } pin ? [pin] : ctx.Settings.EnabledModes;
 
-        var result = await planner.Plan(ctx.Appointment, ctx.Origin,
-            new GeoPoint(ctx.Appointment.Place!.Lat, ctx.Appointment.Place.Lng),
+        var result = await planner.Plan(ctx.Appointment, ctx.Origin, destination,
             habits, extraStops, modes, effectiveNow, ct);
-        store.ReplaceFor(appointmentId, result.Options);
-        return result;
+        var stamped = result.Options
+            .Select(o => o with { OriginKind = ctx.OriginKind, OriginName = ctx.OriginName })
+            .ToList();
+        store.ReplaceFor(appointmentId, stamped);
+        return new PlanOptionsResult(stamped, result.Note);
     }
 
     /// <summary>Confirmed habits matching this appointment's planning context (habits.confirmed tool),
@@ -103,6 +128,8 @@ public sealed class PlanService(
             PhaseChangedAt = current?.PhaseChangedAt,
             LeaveFixLat = current?.LeaveFixLat,
             LeaveFixLng = current?.LeaveFixLng,
+            OriginKind = option.OriginKind,
+            OriginName = option.OriginName,
         };
         db.DeparturePlans.Add(plan);
         await db.SaveChangesAsync(ct);
@@ -187,20 +214,55 @@ public sealed class PlanService(
             ? await db.Places.AsNoTracking().SingleOrDefaultAsync(p => p.Id == homeId, ct)
             : null;
 
+        // Chained origins (D6 amendment, 28 Oct 2026): only the NEXT placed appointment
+        // departs from the current fix. A look-ahead appointment departs from the previous
+        // placed appointment's place when the gap is at most Phase:ChainGapHours, else home.
+        var now = clock.GetUtcNow();
+        // Client-side date filtering: SQLite (tests) cannot compare DateTimeOffset in SQL.
+        var placedOthers = (await db.Appointments.AsNoTracking().Include(a => a.Place)
+                .Where(a => a.Id != appointment.Id && a.PlaceId != null && !a.IsVirtual)
+                .ToListAsync(ct))
+            .Where(a => a.Place is not null)
+            .ToList();
+        var isNext = appointment.Start <= now
+            || !placedOthers.Any(a => a.Start > now && a.Start < appointment.Start);
+
         var current = await location.GetAsync(ct);
         GeoPoint origin;
-        if (current is { IsStale: false })
+        OriginKind originKind;
+        string? originName = null;
+        var chained = placedOthers
+            .Where(a => a.End <= appointment.Start && appointment.Start - a.End <= TimeSpan.FromHours(phase.ChainGapHours))
+            .MaxBy(a => a.End);
+        if (!isNext && chained is { } previous)
+        {
+            origin = new GeoPoint(previous.Place!.Lat, previous.Place.Lng);
+            originKind = OriginKind.PreviousAppointment;
+            originName = previous.Title;
+        }
+        else if (isNext && current is { IsStale: false })
+        {
             origin = new GeoPoint(current.Point.Lat, current.Point.Lng);
+            originKind = OriginKind.Current;
+        }
         else if (homePlace is not null)
+        {
             origin = new GeoPoint(homePlace.Lat, homePlace.Lng); // stale/no location → home (location-ingest spec)
+            originKind = OriginKind.Home;
+        }
         else if (current is not null)
+        {
             origin = new GeoPoint(current.Point.Lat, current.Point.Lng); // stale but better than nothing
+            originKind = OriginKind.Current;
+        }
         else
+        {
             return (null, "no current location and no home place configured");
+        }
 
         var inputs = await db.PlanInputs.AsNoTracking().SingleOrDefaultAsync(p => p.AppointmentId == appointmentId, ct);
         var key = BuildPlanningContext(appointment, settings, homePlace, origin);
-        return (new PlanContext(appointment, settings, homePlace, origin, inputs, key), null);
+        return (new PlanContext(appointment, settings, homePlace, origin, inputs, key, originKind, originName), null);
     }
 
     private async Task<IReadOnlyList<ConfirmedHabit>> MatchingHabitsAsync(PlanContext ctx, CancellationToken ct)

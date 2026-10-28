@@ -58,9 +58,16 @@ export function TodayScreen() {
                 <div className="text-sm text-[#4B5563]">{greyed ? 'Video call · no travel' : item.place}</div>
                 {!greyed && item.plan && (
                   <div className={`flex items-center gap-2 mt-1 text-sm font-semibold ${isNext ? '' : 'text-[#4B5563]'}`}>
-                    <ModeIcon mode={item.plan.mode} size={18} />
-                    Leave {item.plan.leaveAt} · {item.plan.mode}
-                    {item.plan.stops.length > 0 && ` · ${item.plan.stops.join(', ')}`}
+                    {item.plan.noTravel ? (
+                      'No travel — same place'
+                    ) : (
+                      <>
+                        <ModeIcon mode={item.plan.mode} size={18} />
+                        Leave {item.plan.leaveAt} · {item.plan.mode}
+                        {item.plan.stops.length > 0 && ` · ${item.plan.stops.join(', ')}`}
+                        {item.plan.originLabel && ` · ${item.plan.originLabel}`}
+                      </>
+                    )}
                   </div>
                 )}
               </div>

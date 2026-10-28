@@ -21,6 +21,7 @@ public sealed class DemoModeService(
     TempoDbContext db,
     PlaceResolver places,
     LocationIngestService ingest,
+    ILocationBuffer buffer,
     Tempo.Core.Planning.PlanPhaseService phases,
     IDomainEvents events,
     TimeProvider clock,
@@ -31,6 +32,9 @@ public sealed class DemoModeService(
     /// stays too — it only ever ran on an empty install.</summary>
     public async Task CleanupAsync(CancellationToken ct = default)
     {
+        // The replayed trail left the buffer far from the phone; without a clear, the next
+        // real fix reads as an implausible jump and gets rejected (ingest teleport guard).
+        await buffer.ClearAsync(ct);
         var demoAppointments = await db.Appointments.Where(a => a.Title.StartsWith("Demo: ")).ToListAsync(ct);
         if (demoAppointments.Count == 0)
             return;
@@ -134,6 +138,9 @@ public sealed class DemoModeService(
     /// radius of the destination (Arrived → "Made it").</summary>
     private async Task ReplayTrailAsync(Place home, Place destination, CancellationToken ct)
     {
+        // The trail starts at home while the phone may be anywhere: clear the buffer first,
+        // or the ingest teleport guard rejects the whole replay (and vice versa on cleanup).
+        await buffer.ClearAsync(ct);
         var source = new GpxReplaySource(BuildTrailGpx(home, destination, clock.GetUtcNow()), speedFactor: 1, clock);
         var posted = 0;
         logger.LogWarning("Demo mode: replaying the GPX trail {Home} → {Destination} (~10 min)", home.Name, destination.Name);

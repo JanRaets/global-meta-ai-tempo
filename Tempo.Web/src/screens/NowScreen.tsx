@@ -38,7 +38,16 @@ export function NowScreen({ locationLive }: { locationLive: boolean }) {
         </div>
       )}
 
-      {data.state !== 'none' && data.state !== 'arrived' && data.appointment && (
+      {data.state === 'here' && data.appointment && (
+        <div className="px-6 pt-11 flex flex-col gap-2">
+          <div className="text-[34px] font-extrabold tracking-[-0.03em] leading-none">You&rsquo;re here</div>
+          <p className="text-[15px] text-[#4B5563]">
+            {data.appointment.title} · {data.appointment.start}
+          </p>
+        </div>
+      )}
+
+      {data.state !== 'none' && data.state !== 'arrived' && data.state !== 'here' && data.appointment && (
         <>
           <div className="px-6 pt-11 flex flex-col gap-1.5">
             <div className={`text-[15px] font-medium ${late ? 'text-[#FFE4D6]' : 'text-[#4B5563]'}`}>

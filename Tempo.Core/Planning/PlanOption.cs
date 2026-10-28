@@ -14,8 +14,15 @@ public sealed record PlanOption(
     bool IsFeasible,
     int SlackMin,
     /// <summary>Built from the straight-line fallback, not real routing (design D18).</summary>
-    bool IsEstimated = false);
-
+    bool IsEstimated = false,
+    /// <summary>Chained origins (D6 amendment): where this departure is measured from.</summary>
+    OriginKind OriginKind = OriginKind.Current,
+    /// <summary>The previous appointment's title when OriginKind is PreviousAppointment.</summary>
+    string? OriginName = null)
+{
+    /// <summary>Same-place plan: zero travel, no stops, leaveAt = start (D6 amendment).</summary>
+    public bool IsNoTravel => LeaveAt == ArriveAt && Stops.Count == 0;
+}
 /// <summary>A stop as the planner routes it: place, dwell time and coordinates.</summary>
 public sealed record PlannerStop(Guid PlaceId, string Name, int DurationMin, GeoPoint Point);
 

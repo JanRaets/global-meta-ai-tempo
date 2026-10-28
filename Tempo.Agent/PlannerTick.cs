@@ -69,6 +69,19 @@ public sealed class PlannerTickService(
                     (plan, betterAlternative, routingRecovered) = (r.Plan, r.BetterAlternative, r.RecoveredWithShift);
             }
 
+            // AtDestination (D6 amendment): the zero-travel plan commits deterministically —
+            // no model run, no nudge. "already at destination" is the whole decision.
+            if (plan is { Phase: PlanPhase.AtDestination } && (plan.LeaveAt != appointment.Start || plan.Stops.Count > 0))
+            {
+                var zeroOptions = await plans.OptionsAsync(appointment.Id, ct);
+                var zero = zeroOptions.Options.FirstOrDefault(o => o.IsNoTravel);
+                if (zero is not null)
+                {
+                    await plans.CommitAsync(zero.OptionId, "already at destination", PlanCommitter.Fallback, ct);
+                    plan = await plans.CurrentAsync(appointment.Id, ct);
+                }
+            }
+
             var windowOpen = plan is { Phase: PlanPhase.Upcoming }
                 && now >= plan.LeaveAt.AddMinutes(-settings.NudgeLeadMin)
                 && !await NudgeExistsAsync(plan, NudgeKind.Leave, ct);
@@ -80,7 +93,7 @@ public sealed class PlannerTickService(
             // that burns runs and risks a mid-drive renudge (live, 28 Oct). The agent only
             // runs again for a genuinely better alternative or a routing recovery (D6).
             var inputsChanged = hash != state.Get(appointment.Id);
-            var moving = plan is { Phase: PlanPhase.EnRoute or PlanPhase.Arrived };
+            var moving = plan is { Phase: PlanPhase.EnRoute or PlanPhase.Arrived or PlanPhase.AtDestination };
             var reason = routingRecovered ? "tick:routing-recovered"
                 : betterAlternative ? "tick:late-replan"
                 : moving ? null
@@ -110,8 +123,8 @@ public sealed class PlannerTickService(
     {
         await phases.EvaluateAllAsync(ct); // a plan committed this run may already be late
         var plan = await plans.CurrentAsync(appointment.Id, ct);
-        if (plan is null || plan.Phase is PlanPhase.EnRoute or PlanPhase.Arrived)
-            return; // no nudges once moving (D8, 13.e)
+        if (plan is null || plan.Phase is PlanPhase.EnRoute or PlanPhase.Arrived or PlanPhase.AtDestination)
+            return; // no nudges once moving or already there (D8, 13.e, D6 amendment)
         var settings = await db.UserSettings.AsNoTracking().FirstAsync(ct);
         var now = clock.GetUtcNow();
         NudgeKind? owed =

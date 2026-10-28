@@ -103,17 +103,35 @@ public sealed class PlanPhaseService(
     private PlanPhase NextPhase(DeparturePlan plan, Appointment appointment, GeoPoint? fresh, Place? home,
         DateTimeOffset now, out string detail)
     {
-        // Arrived wins over everything.
-        if (fresh is not null && appointment.Place is not null
-            && GeoMath.DistanceMeters(fresh.Lat, fresh.Lng, appointment.Place.Lat, appointment.Place.Lng) <= options.ArrivedMeters)
+        var withinDestination = fresh is not null && appointment.Place is not null
+            && GeoMath.DistanceMeters(fresh.Lat, fresh.Lng, appointment.Place.Lat, appointment.Place.Lng) <= options.ArrivedMeters;
+
+        // Arrived wins over everything — except that being there BEFORE the start, without
+        // a journey, is AtDestination (D6 amendment, 28 Oct 2026): zero travel, no nudges.
+        if (withinDestination && (plan.Phase == PlanPhase.EnRoute || now >= appointment.Start))
         {
-            detail = $"Within {options.ArrivedMeters} m of {appointment.Place.Name} — made it.";
+            detail = $"Within {options.ArrivedMeters} m of {appointment.Place!.Name} — made it.";
             return PlanPhase.Arrived;
         }
         if (now >= appointment.Start.AddMinutes(options.ArrivedFallbackMin))
         {
             detail = $"The appointment started {options.ArrivedFallbackMin} min ago — assuming arrival.";
             return PlanPhase.Arrived;
+        }
+        if (withinDestination)
+        {
+            detail = $"Already within {options.ArrivedMeters} m of {appointment.Place!.Name} — no travel needed.";
+            return PlanPhase.AtDestination;
+        }
+        if (plan.Phase == PlanPhase.AtDestination)
+        {
+            if (fresh is not null)
+            {
+                detail = "Moved away from the destination before the start — planning resumes.";
+                return PlanPhase.Upcoming;
+            }
+            detail = ""; // no fresh evidence → stay put
+            return PlanPhase.AtDestination;
         }
 
         // En route: moved away from where they were when it was time to leave (or from home).

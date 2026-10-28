@@ -41,5 +41,12 @@ public sealed class RedisLocationBuffer(IConnectionMultiplexer redis, TimeProvid
     public async Task<LocationPoint?> GetLatestAsync(CancellationToken ct = default) =>
         (await GetSinceAsync(clock.GetUtcNow().AddHours(-24), ct)).LastOrDefault();
 
+    public async Task ClearAsync(CancellationToken ct = default)
+    {
+        var db = redis.GetDatabase();
+        var now = clock.GetUtcNow();
+        await db.KeyDeleteAsync([(RedisKey)DayKey(now.AddDays(-1)), DayKey(now)]);
+    }
+
     private static string DayKey(DateTimeOffset at) => $"tempo:points:{at:yyyyMMdd}";
 }
