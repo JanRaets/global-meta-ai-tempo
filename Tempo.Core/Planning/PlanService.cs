@@ -35,6 +35,11 @@ public sealed class PlanService(
         if (ctx is null)
             return PlanOptionsResult.Empty(note!);
 
+        // Outcome amendment (28 Oct 2026): a past appointment shows what happened, never a
+        // plan — no options, no routing calls, the last committed version stays frozen.
+        if (ctx.Appointment.End <= clock.GetUtcNow())
+            return PlanOptionsResult.Empty("the appointment is already over — its plan is frozen");
+
         // Already at (or chained to) the destination: zero travel, no stops, no habit
         // matching, leaveAt = start (D6 amendment, 28 Oct 2026 — two meetings at the same
         // office must not produce a travel plan and a coffee stop).

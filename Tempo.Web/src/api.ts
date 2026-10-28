@@ -23,8 +23,16 @@ export type NowPayload = {
 
 export type RecentNudge = { id: string; kind: string; text: string; time: string; hasTrace: boolean }
 
+export type TripOutcome = {
+  kind: 'onTime' | 'late' | 'noData'
+  leftAt: string | null
+  arrivedAt: string | null
+  lateByMin: number | null
+}
+
 export type TimelinePayload = {
   date: string
+  summary: string | null
   items: {
     id: string
     title: string
@@ -34,7 +42,19 @@ export type TimelinePayload = {
     source: string
     isPast: boolean
     plan: { leaveAt: string; mode: string; stops: string[]; noTravel: boolean; originLabel: string | null } | null
+    outcome: TripOutcome | null
   }[]
+}
+
+/** "Left 08:11 · arrived 08:18 · on time" — past rows show what happened, never a plan. */
+export function outcomeLabel(outcome: TripOutcome): string {
+  if (outcome.kind === 'noData') return 'No trip recorded'
+  const parts: string[] = []
+  if (outcome.leftAt) parts.push(`Left ${outcome.leftAt}`)
+  if (outcome.arrivedAt) parts.push(`arrived ${outcome.arrivedAt}`)
+  parts.push(outcome.kind === 'late' ? `${outcome.lateByMin} min late` : 'on time')
+  const label = parts.join(' · ')
+  return label.charAt(0).toUpperCase() + label.slice(1)
 }
 
 export type Habit = {

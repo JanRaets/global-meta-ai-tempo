@@ -43,6 +43,7 @@ builder.Services.AddSingleton(sp => sp.GetRequiredService<Microsoft.Extensions.O
 builder.Services.AddOptions<PhaseOptions>().Bind(builder.Configuration.GetSection(PhaseOptions.Section));
 builder.Services.AddSingleton(sp => sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<PhaseOptions>>().Value);
 builder.Services.AddScoped<Tempo.Core.Planning.PlanPhaseService>();
+builder.Services.AddScoped<Tempo.Core.Planning.PlanOutcomeService>();
 builder.Services.AddSingleton<Tempo.Agent.AgentRunner>();
 builder.Services.AddSingleton<Tempo.Agent.TickStateStore>();
 builder.Services.AddScoped<Tempo.Agent.VoiceIntentService>();

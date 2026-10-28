@@ -133,6 +133,9 @@ namespace Tempo.Api.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("ActualArriveAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<Guid>("AppointmentId")
                         .HasColumnType("uuid");
 
@@ -163,6 +166,9 @@ namespace Tempo.Api.Migrations
                     b.Property<double?>("LeaveFixLng")
                         .HasColumnType("double precision");
 
+                    b.Property<DateTimeOffset?>("LeftAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<int>("Mode")
                         .HasColumnType("integer");
 
@@ -171,6 +177,12 @@ namespace Tempo.Api.Migrations
 
                     b.Property<string>("OriginName")
                         .HasColumnType("text");
+
+                    b.Property<int>("OutcomeKind")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("OutcomeLateMin")
+                        .HasColumnType("integer");
 
                     b.Property<int>("Phase")
                         .HasColumnType("integer");

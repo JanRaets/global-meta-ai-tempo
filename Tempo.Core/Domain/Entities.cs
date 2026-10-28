@@ -97,6 +97,12 @@ public sealed class DeparturePlan
     public OriginKind OriginKind { get; set; }
     /// <summary>The previous appointment's title when OriginKind is PreviousAppointment.</summary>
     public string? OriginName { get; set; }
+    /// <summary>Outcome amendment (28 Oct 2026): what actually happened, derived once for a
+    /// past appointment — past rows show the outcome, never a plan.</summary>
+    public PlanOutcomeKind OutcomeKind { get; set; }
+    public int? OutcomeLateMin { get; set; }
+    public DateTimeOffset? LeftAt { get; set; }
+    public DateTimeOffset? ActualArriveAt { get; set; }
 }
 
 /// <summary>An outbound message tied to a plan version. PlanId/AppointmentId are plain ids

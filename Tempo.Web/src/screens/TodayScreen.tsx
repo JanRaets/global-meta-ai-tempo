@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { BrandHeader } from '../Brand'
-import { api, type TimelinePayload } from '../api'
+import { api, outcomeLabel, type TimelinePayload } from '../api'
 import { ModeIcon } from '../Icons'
 import { PlaceSheet } from '../PlaceSheet'
 import { usePoll } from '../usePoll'
@@ -28,6 +28,7 @@ export function TodayScreen() {
             ? "Nothing here yet — synced and captured appointments become today's timeline."
             : `${data.items.filter((i) => !i.isVirtual && i.place).length} place(s) to be.`}
         </div>
+        {data.summary && <div className="text-[15px] font-semibold text-[#111318] mt-2">{data.summary}</div>}
       </div>
 
       <div className="px-6 pt-7 pb-6 flex flex-col flex-grow">
@@ -69,7 +70,10 @@ export function TodayScreen() {
                     {item.place}
                   </button>
                 )}
-                {!greyed && item.plan && (
+                {!greyed && item.isPast && item.outcome && (
+                  <div className="mt-1 text-sm font-semibold text-[#6B7280]">{outcomeLabel(item.outcome)}</div>
+                )}
+                {!greyed && !item.isPast && item.plan && (
                   <div className={`flex items-center gap-2 mt-1 text-sm font-semibold ${isNext ? '' : 'text-[#4B5563]'}`}>
                     {item.plan.noTravel ? (
                       'No travel — same place'

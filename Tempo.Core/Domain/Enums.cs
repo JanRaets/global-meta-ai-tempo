@@ -82,6 +82,16 @@ public enum PlanPhase
     LeaveNow,
 }
 
+/// <summary>What actually happened on a past appointment's trip (outcome amendment,
+/// 28 Oct 2026): derived once, stored on the plan, never recomputed.</summary>
+public enum PlanOutcomeKind
+{
+    None,
+    OnTime,
+    Late,
+    NoData,
+}
+
 /// <summary>Where a plan's departure is measured from (chained origins, D6 amendment).</summary>
 public enum OriginKind
 {

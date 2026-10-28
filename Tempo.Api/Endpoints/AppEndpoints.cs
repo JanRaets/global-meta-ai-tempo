@@ -118,8 +118,10 @@ public sealed class NowEndpoint(TempoDbContext db, PlanService plans, PhaseOptio
             .ToList();
 }
 
-/// <summary>GET /api/timeline/today — today's appointments, captured ones included (D12 Today).</summary>
-public sealed class TimelineTodayEndpoint(TempoDbContext db, TimeProvider clock) : EndpointWithoutRequest
+/// <summary>GET /api/timeline/today — today's appointments, captured ones included (D12
+/// Today). Past rows carry the derived outcome, never a plan (outcome amendment, 28 Oct).</summary>
+public sealed class TimelineTodayEndpoint(TempoDbContext db, Tempo.Core.Planning.PlanOutcomeService outcomes, TimeProvider clock)
+    : EndpointWithoutRequest
 {
     public override void Configure()
     {
@@ -144,10 +146,58 @@ public sealed class TimelineTodayEndpoint(TempoDbContext db, TimeProvider clock)
                 plansByAppointment[plan.AppointmentId] = plan;
 
         var now = clock.GetUtcNow();
-        await Send.OkAsync(new
+        var items = new List<object>();
+        var pastOutcomes = new List<(PlanOutcomeKind Kind, int? LateMin)>();
+        var placedCount = 0;
+        var placedPastCount = 0;
+        foreach (var a in appointments)
         {
-            date = TimeZoneInfo.ConvertTime(now, tz).ToString("ddd d MMM"),
-            items = appointments.Select(a => new
+            var isPast = a.End < now;
+            if (a.PlaceId != null && !a.IsVirtual)
+            {
+                placedCount++;
+                if (isPast)
+                    placedPastCount++;
+            }
+
+            object? plan = null;
+            object? outcome = null;
+            if (a.PlaceId != null && isPast)
+            {
+                var derived = await outcomes.EnsureAsync(a, ct);
+                var kind = derived?.OutcomeKind ?? PlanOutcomeKind.NoData;
+                pastOutcomes.Add((kind, derived?.OutcomeLateMin));
+                outcome = new
+                {
+                    kind = kind switch
+                    {
+                        PlanOutcomeKind.OnTime => "onTime",
+                        PlanOutcomeKind.Late => "late",
+                        _ => "noData",
+                    },
+                    leftAt = derived?.LeftAt is { } left ? Fmt(left) : null,
+                    arrivedAt = derived?.ActualArriveAt is { } arrived ? Fmt(arrived) : null,
+                    lateByMin = derived?.OutcomeLateMin,
+                };
+            }
+            else if (a.PlaceId != null && plansByAppointment.TryGetValue(a.Id, out var p))
+            {
+                plan = new
+                {
+                    leaveAt = Fmt(p.LeaveAt),
+                    mode = p.Mode.ToString().ToLowerInvariant(),
+                    stops = p.Stops.Select(s => s.Name),
+                    // Chained origins (D6 amendment): where this departure starts from.
+                    noTravel = p.LeaveAt == p.ArriveAt && p.Stops.Count == 0,
+                    originLabel = p.OriginKind switch
+                    {
+                        OriginKind.Current => "from here",
+                        OriginKind.PreviousAppointment when p.OriginName is not null => $"from {p.OriginName}",
+                        _ => (string?)null,
+                    },
+                };
+            }
+            items.Add(new
             {
                 id = a.Id,
                 title = a.Title,
@@ -155,24 +205,35 @@ public sealed class TimelineTodayEndpoint(TempoDbContext db, TimeProvider clock)
                 place = a.Place?.Name,
                 isVirtual = a.IsVirtual,
                 source = a.Source.ToString(),
-                isPast = a.End < now,
-                plan = a.PlaceId != null && plansByAppointment.TryGetValue(a.Id, out var p)
-                    ? new
-                    {
-                        leaveAt = Fmt(p.LeaveAt),
-                        mode = p.Mode.ToString().ToLowerInvariant(),
-                        stops = p.Stops.Select(s => s.Name),
-                        // Chained origins (D6 amendment): where this departure starts from.
-                        noTravel = p.LeaveAt == p.ArriveAt && p.Stops.Count == 0,
-                        originLabel = p.OriginKind switch
-                        {
-                            OriginKind.Current => "from here",
-                            OriginKind.PreviousAppointment when p.OriginName is not null => $"from {p.OriginName}",
-                            _ => (string?)null,
-                        },
-                    }
-                    : null,
-            }),
+                isPast,
+                plan,
+                outcome,
+            });
+        }
+
+        // The day's summary appears only once the last placed appointment is over:
+        // "3 trips · 2 on time · 1 late by 6 min" — nothing else, no streaks, no scores.
+        string? summary = null;
+        var trips = pastOutcomes.Where(o => o.Kind is PlanOutcomeKind.OnTime or PlanOutcomeKind.Late).ToList();
+        if (placedCount > 0 && placedPastCount == placedCount && trips.Count > 0)
+        {
+            var onTime = trips.Count(o => o.Kind == PlanOutcomeKind.OnTime);
+            var late = trips.Where(o => o.Kind == PlanOutcomeKind.Late).ToList();
+            var parts = new List<string> { $"{trips.Count} trip{(trips.Count == 1 ? "" : "s")}" };
+            if (onTime > 0)
+                parts.Add($"{onTime} on time");
+            if (late.Count == 1)
+                parts.Add($"1 late by {late[0].LateMin} min");
+            else if (late.Count > 1)
+                parts.Add($"{late.Count} late");
+            summary = string.Join(" · ", parts);
+        }
+
+        await Send.OkAsync(new
+        {
+            date = TimeZoneInfo.ConvertTime(now, tz).ToString("ddd d MMM"),
+            summary,
+            items,
         }, ct);
     }
 }

@@ -81,6 +81,21 @@ The system SHALL run the planner every 2 minutes and on `AppointmentChanged` and
 - **WHEN** the current time is past `leaveAt` but leaving immediately still arrives by `start`
 - **THEN** the option is feasible and the plan is not late
 
+### Requirement: Past appointments show the outcome
+*(Added 28 Oct 2026 from real use: a finished school run showed "Leave 08:09 · from here".)* An appointment whose end is in the past SHALL never be planned again: `plan.options` returns nothing ("plan is frozen"), the tick skips it, and no routing calls are made. For a past appointment with a place, the system SHALL derive once — on arrival or lazily when first viewed — `leftAt` (the EnRoute transition, else the first fix beyond the en-route radius after `leaveAt − 15 min`), `arrivedAt` (the by-proximity Arrived transition, else the Visit at the destination overlapping the appointment; the start+15 fallback is an assumption, not evidence), and an outcome of `OnTime`, `Late(n min past start)` or `NoData`, stored on the plan and never recomputed. Deriving an outcome SHALL NOT create Visits.
+
+#### Scenario: Frozen past plan
+- **WHEN** `plan.options` is called for an appointment that has ended
+- **THEN** no options and no routing calls are made and the last committed version stays as is
+
+#### Scenario: Outcome line instead of a plan
+- **WHEN** the Today screen renders a past placed appointment
+- **THEN** the row is greyed and shows "Left 08:11 · arrived 08:18 · on time" (or "… 6 min late", or "No trip recorded") — no mode icon, no origin label — while a future row may still chain from this appointment's place
+
+#### Scenario: Daily summary
+- **WHEN** every placed appointment of the day is over and at least one trip has data
+- **THEN** Today shows one line — "3 trips · 2 on time · 1 late by 6 min" — and nothing else: no streaks, no scores
+
 ### Requirement: Plan phases
 Each `DeparturePlan` SHALL carry a phase — `Upcoming`, `Late`, `EnRoute`, `Arrived`, `AtDestination`, `LeaveNow` — evaluated deterministically on every planner tick and on every accepted location post, never by the model. The leave reference (the fix at `leaveAt`, else home) SHALL be snapshotted when `leaveAt` passes. Thresholds come from `Phase:*` configuration. *(Added 27 Oct 2026 from real use; design D6. `AtDestination` and `LeaveNow` added 28 Oct 2026.)*
 
