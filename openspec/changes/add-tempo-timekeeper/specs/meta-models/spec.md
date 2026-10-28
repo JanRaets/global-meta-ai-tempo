@@ -45,6 +45,11 @@ The system SHALL retry a failed chat or vision call once on the fallback impleme
 - **WHEN** the model responds with a tool call
 - **THEN** the result exposes the tool name and arguments as a typed `ToolCall` and no assistant text is treated as final
 
+#### Scenario: Provider tool-name shape
+*(Amended 28 Oct 2026, from the live Baseten run: 400 on dotted function names — only `[a-zA-Z0-9_-]` is accepted.)*
+- **WHEN** a provider restricts function-name characters
+- **THEN** that provider's client maps the canonical dotted names to a legal wire shape and back on returned tool calls, so the registry, agent loop and traces always see the canonical names
+
 ### Requirement: Transcription
 `TranscribeAsync` SHALL accept audio up to 15 seconds as WAV (mono integer PCM, 16 or 24 kHz — the only encoding the ASR API accepts) and return the transcript text. The API returns no detected-language field, so `Language` is `"unknown"`; intent classification downstream is language-agnostic. *(Amended 26 Oct 2026 from webm/opus+detected-language after verifying the real API; see design.md D2 API facts.)*
 

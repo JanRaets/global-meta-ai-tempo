@@ -42,17 +42,12 @@ installing against a quick tunnel binds everything to a hostname that will die (
 Verify: test notification on the lock screen; `GET /api/settings` shows `pushSubscriptions: 1`;
 leave/late nudges from then on arrive as push. Unblocks item 6.
 
-## 4. Baseten key → task 13.b — REQUIRED for the open-weight bonus; independent of 1–3
+## 4. Baseten key → task 13.b — ✅ DONE 28 Oct
 
-Why you: the key only exists in your Baseten account. Nothing in the repo has it (checked:
-user-secrets, appsettings.local.json, env — task 13.b is blocked exactly here).
-
-1. `cd Tempo.Api && dotnet user-secrets set "Models:Baseten:ApiKey" "<key>"`
-2. Tell Claude "run 13.b": Baseten smoke un-skips, then the five agent scenarios run with
-   `Models__Primary=Baseten` and the traces land in the section log.
-
-Verify: `dotnet test --filter Baseten_tool_call_round_trip` reports **Passed** (not Skipped);
-`/admin/model-usage` `byProvider` gains a `Baseten` row.
+Key in user-secrets; smoke test **Passed**; 5/5 scenarios ran live on Muse Spark Open
+(`Models__Primary=Baseten`) — traces in tasks.md 13.b. One provider difference found and
+fixed in wire shape only (Baseten rejects dotted function names; `BasetenModels` maps `.`↔`_`).
+Re-verify any time: `dotnet test --filter Baseten_tool_call_round_trip`.
 
 ## 5. Google OAuth + real calendar — OPTIONAL for the demo (captured/seeded appointments work
 without it); REQUIRED for the "real calendar" story. Independent of items 1–3.

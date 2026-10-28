@@ -16,6 +16,12 @@ public abstract class ChatCompletionsClient(HttpClient http, IModelCallLog log, 
     protected abstract ModelProvider Provider { get; }
     protected abstract string ChatModel { get; }
 
+    /// <summary>Provider-specific tool-name shape (13.b): Baseten validates function names
+    /// against [a-zA-Z0-9_-] and rejects our canonical dotted names (calendar.upcoming).
+    /// The registry, prompts and traces keep the dots; only the wire shape changes.</summary>
+    protected virtual string ToolNameToWire(string name) => name;
+    protected virtual string ToolNameFromWire(string name) => name;
+
     private protected async Task<(WireMessageOut Message, WireUsage? Usage)> SendChatAsync(
         IReadOnlyList<WireMessage> messages,
         IReadOnlyList<WireTool>? tools,
@@ -72,10 +78,10 @@ public abstract class ChatCompletionsClient(HttpClient http, IModelCallLog log, 
         var wireTools = tools.Count == 0
             ? null
             : tools.Select(t => new WireTool("function",
-                new WireFunction(t.Name, t.Description, JsonDocument.Parse(t.ParametersJsonSchema).RootElement))).ToList();
+                new WireFunction(ToolNameToWire(t.Name), t.Description, JsonDocument.Parse(t.ParametersJsonSchema).RootElement))).ToList();
         var (message, _) = await SendChatAsync(ToWire(messages), wireTools, null, options ?? new ChatCallOptions(), ct);
         var toolCalls = (message.ToolCalls ?? [])
-            .Select(c => new ToolCall(c.Id, c.Function.Name, c.Function.Arguments ?? "{}"))
+            .Select(c => new ToolCall(c.Id, ToolNameFromWire(c.Function.Name), c.Function.Arguments ?? "{}"))
             .ToList();
         return new ChatResult(message.Content, toolCalls, Provider);
     }
@@ -143,7 +149,7 @@ public abstract class ChatCompletionsClient(HttpClient http, IModelCallLog log, 
         throw new ModelOutputException($"Model output could not be parsed as {typeof(T).Name} after one retry", firstFailure);
     }
 
-    private static IReadOnlyList<WireMessage> ToWire(IReadOnlyList<ChatMessage> messages) =>
+    private IReadOnlyList<WireMessage> ToWire(IReadOnlyList<ChatMessage> messages) =>
         messages.Select(m => new WireMessage(
             m.Role switch
             {
@@ -154,7 +160,7 @@ public abstract class ChatCompletionsClient(HttpClient http, IModelCallLog log, 
                 _ => throw new ArgumentOutOfRangeException(nameof(messages), m.Role, "unknown role"),
             },
             m.Content,
-            m.ToolCalls?.Select(c => new WireToolCall(c.Id, "function", new WireFunction(c.Name, Arguments: c.ArgumentsJson))).ToList(),
+            m.ToolCalls?.Select(c => new WireToolCall(c.Id, "function", new WireFunction(ToolNameToWire(c.Name), Arguments: c.ArgumentsJson))).ToList(),
             m.ToolCallId)).ToList();
 
     private static string Truncate(string s) => s.Length <= 300 ? s : s[..300];

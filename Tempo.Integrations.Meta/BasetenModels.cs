@@ -23,6 +23,12 @@ public sealed class BasetenModels : ChatCompletionsClient, IMetaModels
     protected override ModelProvider Provider => ModelProvider.Baseten;
     protected override string ChatModel => options.Model;
 
+    // Baseten validates function names against [a-zA-Z0-9_-] (observed live, 28 Oct 2026:
+    // 400 'Function at index 0 has an invalid name: "calendar.upcoming"'). Our tool names
+    // contain dots and no underscores, so the swap is bijective both ways.
+    protected override string ToolNameToWire(string name) => name.Replace('.', '_');
+    protected override string ToolNameFromWire(string name) => name.Replace('_', '.');
+
     public Task<TranscriptionResult> TranscribeAsync(ReadOnlyMemory<byte> audio, string contentType, CancellationToken ct = default)
         => metaApi.TranscribeAsync(audio, contentType, ct);
 }
