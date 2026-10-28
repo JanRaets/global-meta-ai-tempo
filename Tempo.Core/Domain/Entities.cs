@@ -87,6 +87,9 @@ public sealed class DeparturePlan
     /// <summary>Built from the straight-line fallback while routing was down (design D18);
     /// worded "roughly" everywhere and replaced by the next tick once routing answers.</summary>
     public bool IsEstimated { get; set; }
+    /// <summary>Live-traffic share of the travel time (TomTom car routing, 28 Oct 2026);
+    /// shown as "+N traffic" from 5 min up.</summary>
+    public int TrafficDelayMin { get; set; }
     /// <summary>Design D6 phase model; transitions are deterministic (PlanPhaseService).</summary>
     public PlanPhase Phase { get; set; } = PlanPhase.Upcoming;
     public DateTimeOffset? PhaseChangedAt { get; set; }

@@ -107,7 +107,7 @@ export function NowScreen({ locationLive }: { locationLive: boolean }) {
                 <div className="text-base font-semibold">
                   {data.state === 'enroute'
                     ? `By ${data.plan.mode} · arrive ${data.plan.arriveAt}`
-                    : `${data.plan.travelMin} min by ${data.plan.mode} · leave ${data.plan.leaveAt}`}
+                    : `${data.plan.travelMin} min by ${data.plan.mode}${(data.plan.trafficDelayMin ?? 0) >= 5 ? ` · +${data.plan.trafficDelayMin} traffic` : ''} · leave ${data.plan.leaveAt}`}
                   {data.plan.isEstimated && (
                     <span className="ml-2 align-middle text-[11px] font-semibold text-[#6B7280] bg-[#E5E7EB] rounded-full px-2 py-0.5">
                       estimated

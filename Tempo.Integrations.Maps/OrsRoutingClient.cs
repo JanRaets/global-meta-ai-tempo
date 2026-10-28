@@ -22,8 +22,8 @@ public sealed class OrsRoutingClient(
     IRoutingCache cache,
     ILogger<OrsRoutingClient> logger) : IRoutingClient
 {
-    public Task<TimeSpan> EstimateAsync(GeoPoint from, GeoPoint to, TravelMode mode, DateTimeOffset departAt, CancellationToken ct = default) =>
-        RouteAsync([from, to], mode, DepartBucket(departAt), ct);
+    public async Task<RouteEstimate> EstimateAsync(GeoPoint from, GeoPoint to, TravelMode mode, DateTimeOffset departAt, CancellationToken ct = default) =>
+        RouteEstimate.NoTraffic(await RouteAsync([from, to], mode, DepartBucket(departAt), ct)); // ORS has no live traffic
 
     public Task<TimeSpan> DetourAsync(GeoPoint from, IReadOnlyList<GeoPoint> via, GeoPoint to, TravelMode mode, CancellationToken ct = default) =>
         RouteAsync([from, .. via, to], mode, departBucket: null, ct);

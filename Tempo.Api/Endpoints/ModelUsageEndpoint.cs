@@ -12,7 +12,9 @@ namespace Tempo.Api.Endpoints;
 public sealed class ModelUsageEndpoint(
     IModelCallLog log,
     RoutingCacheStats routingCache,
-    IOptions<ModelsOptions> models) : EndpointWithoutRequest
+    Tempo.Core.Geo.TomTomDailyCounter tomTom,
+    IOptions<ModelsOptions> models,
+    IOptions<RoutingOptions> routing) : EndpointWithoutRequest
 {
     public override void Configure()
     {
@@ -43,6 +45,8 @@ public sealed class ModelUsageEndpoint(
             byProvider,
             usage,
             routingCache = new { hits = routingCache.Hits, misses = routingCache.Misses },
+            // TomTom free tier is 2,500 routing calls/day; past the limit car falls back to ORS.
+            routing = new { tomTomCallsToday = tomTom.Today, tomTomDailyLimit = routing.Value.TomTom.DailyLimit },
         }, ct);
     }
 }

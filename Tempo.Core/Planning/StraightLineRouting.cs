@@ -19,8 +19,8 @@ public sealed class StraightLineRouting : IRoutingClient
         [TravelMode.Car] = 35,
     };
 
-    public Task<TimeSpan> EstimateAsync(GeoPoint from, GeoPoint to, TravelMode mode, DateTimeOffset departAt, CancellationToken ct = default) =>
-        Task.FromResult(Leg(from, to, mode));
+    public Task<RouteEstimate> EstimateAsync(GeoPoint from, GeoPoint to, TravelMode mode, DateTimeOffset departAt, CancellationToken ct = default) =>
+        Task.FromResult(RouteEstimate.NoTraffic(Leg(from, to, mode)));
 
     public Task<TimeSpan> DetourAsync(GeoPoint from, IReadOnlyList<GeoPoint> via, GeoPoint to, TravelMode mode, CancellationToken ct = default)
     {

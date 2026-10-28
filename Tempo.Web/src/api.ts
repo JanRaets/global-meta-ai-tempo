@@ -14,6 +14,7 @@ export type NowPayload = {
     isEstimated: boolean
     reason: string
     travelMin: number
+    trafficDelayMin?: number
   } | null
   leaveInMin?: number | null
   lateByMin?: number

@@ -91,6 +91,8 @@ public sealed class NowEndpoint(TempoDbContext db, PlanService plans, PhaseOptio
                 isEstimated = plan.IsEstimated,
                 reason = plan.Reason,
                 travelMin = (int)Math.Max(0, (plan.ArriveAt - plan.LeaveAt).TotalMinutes - plan.Stops.Sum(s => s.DurationMin)),
+                // Surfaced from 5 min up (traffic-aware routing, 28 Oct 2026): "· +7 traffic".
+                trafficDelayMin = plan.TrafficDelayMin,
             },
             // Server computes the minutes (D1 habit: clients display, they don't do time math).
             leaveInMin = plan is null ? (int?)null : (int)Math.Floor((plan.LeaveAt - now).TotalMinutes),

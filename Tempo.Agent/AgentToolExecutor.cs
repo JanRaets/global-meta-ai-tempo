@@ -102,6 +102,8 @@ public sealed class AgentToolExecutor(
             isFeasible = o.IsFeasible,
             slackMin = o.SlackMin,
             isEstimated = o.IsEstimated,
+            // Tool-computed traffic fact (TomTom, car): the model may mention it, never derive it.
+            trafficDelayMin = o.TrafficDelayMin,
         }).ToList();
         return (ToJson(new { note = result.Note, options }),
             options.Count == 0 ? $"no options ({result.Note})"

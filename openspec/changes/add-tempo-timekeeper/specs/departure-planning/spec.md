@@ -31,6 +31,21 @@ The system SHALL compute every `PlanOption` using only deterministic code; no mo
 - **WHEN** a habit in `Proposed` state matches the context
 - **THEN** the plan is identical to the no-habit plan
 
+### Requirement: Traffic-aware car routing
+*(Added 28 Oct 2026.)* Car estimates SHALL come from TomTom Routing with live traffic (`traffic=true`, `departAt`), reading `travelTimeInSeconds` (which includes the delay) and `trafficDelayInSeconds`; bicycle and walking stay on ORS (`Routing:Car:Provider` switches car back to `Ors`). TomTom failures, a missing key or the spent 2,500/day quota (counted, reported on `/admin/model-usage`) fall back to ORS in flight; the straight-line D18 fallback above is unchanged. The delay is a tool-computed fact carried as `trafficDelayMin` on options and the committed plan: from 5 minutes up the plan line reads "… · +N traffic" and the agent context includes it so a nudge may say traffic is bad — the model never computes or states the number.
+
+#### Scenario: Car through TomTom, bike through ORS
+- **WHEN** options are computed for car and bicycle
+- **THEN** the car estimate (with its `trafficDelayMin`) comes from TomTom and the bicycle estimate from ORS with `trafficDelayMin = 0`
+
+#### Scenario: TomTom down
+- **WHEN** TomTom answers 5xx or the daily quota is spent
+- **THEN** the car option is computed via ORS without traffic and planning proceeds
+
+#### Scenario: Delay surfaced
+- **WHEN** the committed car plan carries `trafficDelayMin = 7`
+- **THEN** the Now screen's plan line reads "… min by car · +7 traffic · leave HH:mm"
+
 ### Requirement: Mode handling
 `plan.options` SHALL include every enabled travel mode unless the user pinned a mode, and SHALL mark each option `isFeasible` by whether it arrives before the appointment buffer.
 

@@ -38,7 +38,7 @@ public sealed class OrsSmokeTests(ITestOutputHelper output)
         TimeSpan estimate, detour;
         try
         {
-            estimate = await client.EstimateAsync(Zeist, UtrechtCentraal, TravelMode.Bicycle, DateTimeOffset.UtcNow);
+            estimate = (await client.EstimateAsync(Zeist, UtrechtCentraal, TravelMode.Bicycle, DateTimeOffset.UtcNow)).Duration;
             detour = await client.DetourAsync(Zeist, [DeBilt], UtrechtCentraal, TravelMode.Bicycle);
         }
         catch (RoutingUnavailableException ex) when (ex.Message.Contains("unreachable"))

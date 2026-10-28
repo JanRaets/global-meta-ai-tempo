@@ -16,7 +16,7 @@ The spec is the contract: see [`openspec/`](openspec/) (proposal, design decisio
 | `Tempo.Jobs` | Hangfire jobs: calendar sync, visit collapsing, habit inference, planner tick |
 | `Tempo.Integrations.Meta` | `MetaApiModels` (Muse Spark + Muse Voice Transcribe), `BasetenModels` (Muse Spark Open), fallback wrapper |
 | `Tempo.Integrations.Google` | Google Calendar read-only sync (no write methods exist) |
-| `Tempo.Integrations.Maps` | OpenRouteService Directions + Pelias geocoding (design D15), 5-min Redis cache |
+| `Tempo.Integrations.Maps` | Routing: TomTom for car (live traffic) with ORS fallback, ORS for bike/walk + Pelias geocoding (design D15), 5-min Redis cache |
 | `Tempo.Integrations.Push` | Web Push nudge delivery (design D16): VAPID auth, 3× retry, expired-subscription cleanup |
 | `Tempo.Tests` | xUnit; scripted fake `IMetaModels`; Testcontainers integration tests |
 | `Tempo.Web` | Mobile-first PWA (Vite + React 18 + TS + Tailwind); builds into `Tempo.Api/wwwroot` |

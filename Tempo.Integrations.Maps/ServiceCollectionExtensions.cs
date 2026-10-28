@@ -30,7 +30,15 @@ public static class ServiceCollectionExtensions
                 http.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", o.ApiKey); // ORS: raw key, no Bearer
             http.Timeout = TimeSpan.FromSeconds(15);
         });
-        services.AddScoped<IRoutingClient>(sp => sp.GetRequiredService<OrsRoutingClient>());
+        services.AddHttpClient<TomTomRoutingClient>((sp, http) =>
+        {
+            var o = sp.GetRequiredService<IOptions<RoutingOptions>>().Value.TomTom;
+            http.BaseAddress = new Uri(o.BaseUrl.TrimEnd('/') + "/");
+            http.Timeout = TimeSpan.FromSeconds(15);
+        });
+        services.AddSingleton<TomTomDailyCounter>();
+        // Car → TomTom (traffic-aware; ORS on failure), bike/walk → ORS (added 28 Oct 2026).
+        services.AddScoped<IRoutingClient, CompositeRoutingClient>();
         return services;
     }
 }

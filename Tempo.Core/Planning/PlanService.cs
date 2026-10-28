@@ -141,6 +141,7 @@ public sealed class PlanService(
             LeaveFixLng = current?.LeaveFixLng,
             OriginKind = option.OriginKind,
             OriginName = option.OriginName,
+            TrafficDelayMin = option.TrafficDelayMin,
         };
         db.DeparturePlans.Add(plan);
         await db.SaveChangesAsync(ct);
@@ -187,6 +188,7 @@ public sealed class PlanService(
             plan.IsFeasible = match.IsFeasible;
             plan.SlackMin = match.SlackMin;
             plan.IsEstimated = match.IsEstimated;
+            plan.TrafficDelayMin = match.TrafficDelayMin;
             await db.SaveChangesAsync(ct);
             logger.LogInformation("Plan v{Version} refreshed in place for {AppointmentId}: arrive {ArriveAt:HH:mm}{Estimated}",
                 plan.Version, appointmentId, plan.ArriveAt, plan.IsEstimated ? " (estimated)" : "");

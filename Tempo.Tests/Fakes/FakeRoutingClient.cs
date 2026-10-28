@@ -15,15 +15,20 @@ public sealed class FakeRoutingClient : IRoutingClient
     /// <summary>Flat extra minutes any detour call adds on top of the base estimate.</summary>
     public double DetourExtraMin { get; set; } = 4;
 
+    /// <summary>Traffic share reported per mode (traffic-aware routing, 28 Oct 2026).</summary>
+    public Dictionary<TravelMode, double> TrafficDelayMinutes { get; } = [];
+
     public HashSet<TravelMode> Unavailable { get; } = [];
     public List<GeoPoint> Origins { get; } = [];
 
-    public Task<TimeSpan> EstimateAsync(GeoPoint from, GeoPoint to, TravelMode mode, DateTimeOffset departAt, CancellationToken ct = default)
+    public Task<RouteEstimate> EstimateAsync(GeoPoint from, GeoPoint to, TravelMode mode, DateTimeOffset departAt, CancellationToken ct = default)
     {
         if (Unavailable.Contains(mode))
             throw new RoutingUnavailableException($"fake: {mode} unavailable");
         Origins.Add(from);
-        return Task.FromResult(TimeSpan.FromMinutes(BaseMinutes[mode]));
+        return Task.FromResult(new RouteEstimate(
+            TimeSpan.FromMinutes(BaseMinutes[mode]),
+            TimeSpan.FromMinutes(TrafficDelayMinutes.GetValueOrDefault(mode))));
     }
 
     public Task<TimeSpan> DetourAsync(GeoPoint from, IReadOnlyList<GeoPoint> via, GeoPoint to, TravelMode mode, CancellationToken ct = default)

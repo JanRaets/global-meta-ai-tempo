@@ -89,6 +89,24 @@ public sealed class RoutingOptions
     /// <summary>D18: when the provider is down for every mode, plan from a straight-line
     /// estimate (marked and worded "roughly") instead of producing no options.</summary>
     public bool FallbackEnabled { get; init; } = true;
+
+    /// <summary>Traffic-aware car routing (added 28 Oct 2026): which provider routes cars.</summary>
+    public CarRoutingOptions Car { get; init; } = new();
+    public TomTomOptions TomTom { get; init; } = new();
+}
+
+public sealed class CarRoutingOptions
+{
+    /// <summary>"TomTom" (live traffic, ORS in-flight fallback) or "Ors".</summary>
+    public string Provider { get; init; } = "TomTom";
+}
+
+public sealed class TomTomOptions
+{
+    public string BaseUrl { get; init; } = "https://api.tomtom.com";
+    public string ApiKey { get; init; } = "";
+    /// <summary>Free-tier routing calls per day; past it the composite falls back to ORS.</summary>
+    public int DailyLimit { get; init; } = 2500;
 }
 
 /// <summary>Web Push (design D16). VAPID keys live in user-secrets, never in the repo.</summary>

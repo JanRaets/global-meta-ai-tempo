@@ -21,7 +21,10 @@ public sealed record PlanOption(
     string? OriginName = null,
     /// <summary>The last moment that still arrives at start (start − travel − stops); LeaveAt
     /// is the buffered target. The buffer is a margin, not a deadline (D6, 28 Oct 2026).</summary>
-    DateTimeOffset LeaveBy = default)
+    DateTimeOffset LeaveBy = default,
+    /// <summary>Live-traffic share of the travel time (TomTom, car; added 28 Oct 2026).
+    /// A tool-computed fact: shown from 5 min up, never derived by the model.</summary>
+    int TrafficDelayMin = 0)
 {
     /// <summary>Same-place plan: zero travel, no stops, leaveAt = start (D6 amendment).</summary>
     public bool IsNoTravel => LeaveAt == ArriveAt && Stops.Count == 0;

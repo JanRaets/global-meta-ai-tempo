@@ -41,9 +41,10 @@ public sealed class OrsRoutingClientTests
     public async Task Estimate_parses_the_route_duration()
     {
         var handler = new StubHttpHandler((HttpStatusCode.OK, RouteBody));
-        var duration = await Client(handler).EstimateAsync(Zeist, UtrechtCentraal, TravelMode.Bicycle, DateTimeOffset.UtcNow);
+        var estimate = await Client(handler).EstimateAsync(Zeist, UtrechtCentraal, TravelMode.Bicycle, DateTimeOffset.UtcNow);
 
-        Assert.Equal(TimeSpan.FromSeconds(1920), duration);
+        Assert.Equal(TimeSpan.FromSeconds(1920), estimate.Duration);
+        Assert.Equal(0, estimate.TrafficDelayMin); // ORS carries no live traffic
         Assert.Contains("/v2/directions/cycling-regular", handler.RequestBodies.Count == 1 ? "/v2/directions/cycling-regular" : "");
         // Coordinates are longitude-first.
         Assert.Contains("[5.2332,52.0906]", handler.RequestBodies[0]);

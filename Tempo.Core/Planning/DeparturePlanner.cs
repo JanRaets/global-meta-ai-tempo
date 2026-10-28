@@ -62,9 +62,12 @@ public sealed class DeparturePlanner(
         foreach (var mode in modes)
         {
             TimeSpan baseTravel;
+            int trafficDelayMin;
             try
             {
-                baseTravel = await router.EstimateAsync(origin, destination, mode, effectiveNow, ct);
+                var estimate = await router.EstimateAsync(origin, destination, mode, effectiveNow, ct);
+                baseTravel = estimate.Duration;
+                trafficDelayMin = estimate.TrafficDelayMin;
             }
             catch (RoutingUnavailableException ex)
             {
@@ -116,7 +119,8 @@ public sealed class DeparturePlanner(
                     ArriveAt: arriveAt,
                     IsFeasible: arriveAt <= appointment.Start,
                     SlackMin: (int)Math.Round((leaveBy - effectiveNow).TotalMinutes),
-                    IsEstimated: estimated));
+                    IsEstimated: estimated,
+                    TrafficDelayMin: trafficDelayMin));
             }
         }
 

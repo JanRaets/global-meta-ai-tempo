@@ -197,6 +197,9 @@ namespace Tempo.Api.Migrations
                     b.Property<int>("SlackMin")
                         .HasColumnType("integer");
 
+                    b.Property<int>("TrafficDelayMin")
+                        .HasColumnType("integer");
+
                     b.Property<int>("Version")
                         .HasColumnType("integer");
 
