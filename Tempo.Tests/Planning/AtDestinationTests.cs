@@ -159,6 +159,26 @@ public sealed class AtDestinationTests : IDisposable
     }
 
     [Fact]
+    public async Task An_overlapping_previous_appointment_is_the_chain_origin()
+    {
+        // Live 28 Oct: pickup 14:00–15:00, JO7 15:30–16:30 at Schaerweijde, JO9 16:00 at
+        // Kampong — JO9 must chain from JO7 (where the user is), not from the pickup.
+        var schaerweijde = new Place { Id = Guid.NewGuid(), Name = "Schaerweijde", Lat = 52.1042, Lng = 5.2658 };
+        db.Context.Add(schaerweijde);
+        db.Context.SaveChanges();
+        Appointment("Pickup kids", office, "2026-10-27T13:00:00Z", "2026-10-27T14:00:00Z");
+        var jo7 = Appointment("JO7-03", schaerweijde, "2026-10-27T14:30:00Z", "2026-10-27T15:30:00Z");
+        var jo9 = Appointment("JO9-03", dentist, "2026-10-27T15:00:00Z", "2026-10-27T16:00:00Z");
+        FixAt(home.Lat, home.Lng);
+
+        var options = await Plans().OptionsAsync(jo9.Id);
+
+        Assert.NotEmpty(options.Options);
+        Assert.All(options.Options, o => Assert.Equal(OriginKind.PreviousAppointment, o.OriginKind));
+        Assert.All(options.Options, o => Assert.Equal(jo7.Title, o.OriginName));
+    }
+
+    [Fact]
     public async Task A_chain_gap_beyond_three_hours_falls_back_to_home()
     {
         Appointment("Morning sync", office, "2026-10-27T07:30:00Z", "2026-10-27T08:00:00Z");

@@ -234,9 +234,12 @@ public sealed class PlanService(
         GeoPoint origin;
         OriginKind originKind;
         string? originName = null;
+        // The chain origin is the most recently STARTED placed appointment — overlapping
+        // events (JO7 still running when JO9 starts) chain from where the user actually is,
+        // not from the last one that happened to end (live, 28 Oct).
         var chained = placedOthers
-            .Where(a => a.End <= appointment.Start && appointment.Start - a.End <= TimeSpan.FromHours(phase.ChainGapHours))
-            .MaxBy(a => a.End);
+            .Where(a => a.Start < appointment.Start && appointment.Start - a.End <= TimeSpan.FromHours(phase.ChainGapHours))
+            .MaxBy(a => a.Start);
         if (!isNext && chained is { } previous)
         {
             origin = new GeoPoint(previous.Place!.Lat, previous.Place.Lng);
