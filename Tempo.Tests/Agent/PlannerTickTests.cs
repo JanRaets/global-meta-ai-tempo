@@ -145,6 +145,28 @@ public sealed class PlannerTickTests : IDisposable
     }
 
     [Fact]
+    public async Task En_route_movement_does_not_wake_the_model()
+    {
+        model.EnqueueFinal("Nothing to do.");
+        await tick.TickAsync(); // stores the inputs hash
+        var options = await plans.OptionsAsync(appointment.Id);
+        await plans.CommitAsync(options.Options[0].OptionId, "test", PlanCommitter.Agent); // leaveAt 08:37Z
+        var plan = (await plans.CurrentAsync(appointment.Id))!;
+        plan.Phase = PlanPhase.EnRoute;
+        plan.PhaseChangedAt = clock.GetUtcNow();
+        (plan.LeaveFixLat, plan.LeaveFixLng) = (52.0906, 5.2332);
+        db.Context.SaveChanges();
+
+        // Driving: every fix changes the inputs hash, tick after tick.
+        clock.SetUtcNow(DateTimeOffset.Parse("2026-10-27T08:45:00Z"));
+        buffer.Points.Add(new LocationPoint(52.0900, 5.1800, clock.GetUtcNow().AddMinutes(-1)));
+        await tick.TickAsync();
+
+        Assert.Single(model.ChatInvocations); // deterministic refresh only — no run, no renudge
+        Assert.Empty(transport.Delivered);
+    }
+
+    [Fact]
     public async Task A_failed_run_falls_back_to_a_deterministic_commit()
     {
         model.ThrowOnNextChat = new ModelUnavailableException("both providers down");

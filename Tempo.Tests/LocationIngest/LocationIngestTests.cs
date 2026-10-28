@@ -50,6 +50,60 @@ public sealed class LocationIngestTests
     }
 
     [Fact]
+    public async Task Coarse_accuracy_is_rejected()
+    {
+        // IP-geolocated browser fixes report km-scale accuracy; they must never enter the buffer.
+        var result = await Service().IngestAsync(new LocationPoint(52.09, 5.12, clock.GetUtcNow(), 5000));
+
+        Assert.False(result.Accepted);
+        Assert.Contains("coarse", result.Reason);
+    }
+
+    [Fact]
+    public async Task A_point_without_accuracy_is_still_accepted()
+    {
+        var result = await Service().IngestAsync(new LocationPoint(52.09, 5.12, clock.GetUtcNow(), null));
+
+        Assert.True(result.Accepted);
+    }
+
+    [Fact]
+    public async Task An_intercontinental_teleport_is_rejected()
+    {
+        // Live 28 Oct: a Mac browser tab posted a Santa Clara fix minutes after a phone fix at home.
+        await Service().IngestAsync(new LocationPoint(52.079, 5.2587, clock.GetUtcNow().AddMinutes(-10), 10));
+
+        var result = await Service().IngestAsync(new LocationPoint(37.354, -121.955, clock.GetUtcNow(), 65));
+
+        Assert.False(result.Accepted);
+        Assert.Contains("implausible jump", result.Reason);
+        Assert.Single(buffer.Points);
+    }
+
+    [Fact]
+    public async Task Ordinary_driving_speed_is_accepted()
+    {
+        await Service().IngestAsync(new LocationPoint(52.0790, 5.2587, clock.GetUtcNow().AddMinutes(-2), 10));
+
+        // ~2.7 km in 2 min ≈ 80 km/h — a normal stretch of N-road.
+        var result = await Service().IngestAsync(new LocationPoint(52.0790, 5.2197, clock.GetUtcNow(), 10));
+
+        Assert.True(result.Accepted);
+        Assert.Equal(2, buffer.Points.Count);
+    }
+
+    [Fact]
+    public async Task After_a_long_gap_a_far_away_fix_reanchors()
+    {
+        // Phone off on a flight: the first fix after 3+ hours is trusted wherever it lands.
+        await Service().IngestAsync(new LocationPoint(52.079, 5.2587, clock.GetUtcNow().AddHours(-4), 10));
+
+        var result = await Service().IngestAsync(new LocationPoint(37.354, -121.955, clock.GetUtcNow(), 65));
+
+        Assert.True(result.Accepted);
+    }
+
+    [Fact]
     public async Task Current_location_is_stale_after_30_minutes_and_fresh_before()
     {
         await buffer.AppendAsync(new LocationPoint(52.09, 5.12, clock.GetUtcNow()));

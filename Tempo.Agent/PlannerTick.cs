@@ -75,9 +75,16 @@ public sealed class PlannerTickService(
             var lateOpen = plan is { Phase: PlanPhase.Late }
                 && !await NudgeExistsAsync(plan, NudgeKind.Late, ct);
 
-            var reason = hash != state.Get(appointment.Id) ? "tick:inputs-changed"
-                : routingRecovered ? "tick:routing-recovered"
+            // While EnRoute/Arrived the deterministic refresh above is the whole job: the
+            // user's own movement changes the inputs every tick, and waking the model for
+            // that burns runs and risks a mid-drive renudge (live, 28 Oct). The agent only
+            // runs again for a genuinely better alternative or a routing recovery (D6).
+            var inputsChanged = hash != state.Get(appointment.Id);
+            var moving = plan is { Phase: PlanPhase.EnRoute or PlanPhase.Arrived };
+            var reason = routingRecovered ? "tick:routing-recovered"
                 : betterAlternative ? "tick:late-replan"
+                : moving ? null
+                : inputsChanged ? "tick:inputs-changed"
                 : lateOpen ? "tick:late"
                 : windowOpen ? "tick:nudge-window"
                 : null;

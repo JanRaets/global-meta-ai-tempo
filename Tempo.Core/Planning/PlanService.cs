@@ -96,6 +96,13 @@ public sealed class PlanService(
             Reason = reason,
             CommittedBy = committer,
             IsEstimated = option.IsEstimated,
+            // Phase is journey state, not plan-version state (D6, amended 28 Oct after a live
+            // mid-drive recommit reset it to Upcoming and let a "leave now" nudge through):
+            // a new version inherits where the user already is on the way.
+            Phase = current?.Phase ?? PlanPhase.Upcoming,
+            PhaseChangedAt = current?.PhaseChangedAt,
+            LeaveFixLat = current?.LeaveFixLat,
+            LeaveFixLng = current?.LeaveFixLng,
         };
         db.DeparturePlans.Add(plan);
         await db.SaveChangesAsync(ct);

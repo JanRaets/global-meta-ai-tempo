@@ -122,6 +122,31 @@ public sealed class PlanPhaseTests : IDisposable
     }
 
     [Fact]
+    public async Task A_recommit_carries_the_phase_and_leave_fix_forward()
+    {
+        // D6 amendment (28 Oct, live): a mid-drive recommit reset Phase to Upcoming, which
+        // let a fresh "leave now" nudge through while the user was already driving.
+        plan.Phase = PlanPhase.EnRoute;
+        plan.PhaseChangedAt = Now;
+        (plan.LeaveFixLat, plan.LeaveFixLng) = (home.Lat, home.Lng);
+        db.Context.SaveChanges();
+
+        var plans = new PlanService(db.Context,
+            new DeparturePlanner(routing, NullLogger<DeparturePlanner>.Instance),
+            store, new CurrentLocationProvider(buffer, clock), clock, NullLogger<PlanService>.Instance);
+        routing.BaseMinutes[TravelMode.Bicycle] = 40; // times shift well past jitter → new version
+        var options = await plans.OptionsAsync(appointment.Id);
+        var commit = await plans.CommitAsync(
+            options.Options.First(o => o.Stops.Count == 0).OptionId, "mid-drive recovery", PlanCommitter.Agent);
+
+        Assert.Equal(CommitStatus.Committed, commit.Status);
+        Assert.Equal(2, commit.Plan!.Version);
+        Assert.Equal(PlanPhase.EnRoute, commit.Plan.Phase);
+        Assert.Equal(home.Lat, commit.Plan.LeaveFixLat);
+        Assert.Equal(Now, commit.Plan.PhaseChangedAt);
+    }
+
+    [Fact]
     public async Task Within_the_arrived_radius_becomes_arrived()
     {
         plan.Phase = PlanPhase.EnRoute;
