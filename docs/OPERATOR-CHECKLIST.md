@@ -21,6 +21,11 @@ no longer works; location posting is dead until this is done.
 2. Owntracks → Settings: Mode **HTTP**; URL `https://tempo.personalbot.dev/location/owntracks?key=<key>`;
    Tracking: Significant changes (monitoring 1) or Move during demo walks.
 
+**On days that matter (demo day, judged runs): switch Owntracks to Move mode.** Live on
+28 Oct, Significant-changes delivered ~3 fixes/hour during a drive — too sparse for crisp
+en-route detection; movement-based detection softens this but Move mode removes it.
+(Opening the PWA also posts a fix immediately, including from a notification tap.)
+
 Verify: `curl http://localhost:5181/admin/location-stats` → `pointsLastHour` > 0 after moving.
 
 ## 3. PWA install + notifications + permissions — REQUIRED, needs item 1

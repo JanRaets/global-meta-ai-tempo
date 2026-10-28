@@ -64,7 +64,7 @@ public sealed class AtDestinationTests : IDisposable
         new PhaseOptions());
 
     private PlanPhaseService Phases() => new(db.Context,
-        new CurrentLocationProvider(buffer, clock), new PhaseOptions(), clock, NullLogger<PlanPhaseService>.Instance);
+        new CurrentLocationProvider(buffer, clock), buffer, new PhaseOptions(), clock, NullLogger<PlanPhaseService>.Instance);
 
     private void FixAt(double lat, double lng) =>
         buffer.Points.Add(new LocationPoint(lat, lng, clock.GetUtcNow().AddMinutes(-1)));

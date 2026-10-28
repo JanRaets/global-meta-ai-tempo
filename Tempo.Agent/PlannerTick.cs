@@ -149,9 +149,14 @@ public sealed class PlannerTickService(
             owed, result.Sent ? "sent" : result.RefusalReason);
     }
 
+    // A Late nudge is once per APPOINTMENT (28 Oct, live: a version bump re-sent it);
+    // Leave and LeaveNow stay per plan version (a >5 min shift legitimately re-nudges).
     private Task<bool> NudgeExistsAsync(DeparturePlan plan, NudgeKind kind, CancellationToken ct) =>
-        db.Nudges.AnyAsync(n => n.PlanId == plan.Id && n.PlanVersion == plan.Version
-            && n.Kind == kind && n.Status != NudgeStatus.Cancelled, ct);
+        kind == NudgeKind.Late
+            ? db.Nudges.AnyAsync(n => n.AppointmentId == plan.AppointmentId
+                && n.Kind == kind && n.Status != NudgeStatus.Cancelled, ct)
+            : db.Nudges.AnyAsync(n => n.PlanId == plan.Id && n.PlanVersion == plan.Version
+                && n.Kind == kind && n.Status != NudgeStatus.Cancelled, ct);
 
     /// <summary>Everything that should wake the agent when it changes: the appointment itself,
     /// rounded location, the confirmed habit set, per-plan inputs and nudge-relevant settings.</summary>

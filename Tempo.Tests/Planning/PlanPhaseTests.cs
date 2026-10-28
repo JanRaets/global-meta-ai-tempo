@@ -57,7 +57,7 @@ public sealed class PlanPhaseTests : IDisposable
     }
 
     private PlanPhaseService Service() => new(db.Context,
-        new CurrentLocationProvider(buffer, clock), new PhaseOptions(), clock, NullLogger<PlanPhaseService>.Instance);
+        new CurrentLocationProvider(buffer, clock), buffer, new PhaseOptions(), clock, NullLogger<PlanPhaseService>.Instance);
 
     private void FixAt(double lat, double lng) =>
         buffer.Points.Add(new LocationPoint(lat, lng, clock.GetUtcNow().AddMinutes(-1)));
@@ -158,6 +158,36 @@ public sealed class PlanPhaseTests : IDisposable
         Assert.Equal(PlanPhase.EnRoute, commit.Plan.Phase);
         Assert.Equal(home.Lat, commit.Plan.LeaveFixLat);
         Assert.Equal(Now, commit.Plan.PhaseChangedAt);
+    }
+
+    [Fact]
+    public async Task Two_far_apart_fixes_in_the_window_mean_moving()
+    {
+        // 28 Oct, live: sparse fixes left a drive undetected. Movement is EnRoute from
+        // leaveAt − 15 min, regardless of direction or the 150 m leave-point rule.
+        clock.SetUtcNow(plan.LeaveAt.AddMinutes(-10));
+        buffer.Points.Add(new LocationPoint(home.Lat, home.Lng, clock.GetUtcNow().AddMinutes(-4)));
+        buffer.Points.Add(new LocationPoint(home.Lat, home.Lng + 0.006, clock.GetUtcNow().AddMinutes(-1))); // ~410 m in 3 min
+
+        var transitions = await Service().EvaluateAllAsync();
+
+        var t = Assert.Single(transitions);
+        Assert.Equal(PlanPhase.EnRoute, t.To);
+        Assert.Contains("moving", t.Detail);
+    }
+
+    [Fact]
+    public async Task Closing_in_on_the_destination_means_en_route()
+    {
+        // Single fresh fix, 15 min before leaveAt, much closer to the destination than home.
+        clock.SetUtcNow(plan.LeaveAt.AddMinutes(-5));
+        FixAt(52.0920, 5.1700); // well along the way to Utrecht Centraal
+
+        var transitions = await Service().EvaluateAllAsync();
+
+        var t = Assert.Single(transitions);
+        Assert.Equal(PlanPhase.EnRoute, t.To);
+        Assert.Contains("closer to", t.Detail);
     }
 
     [Fact]

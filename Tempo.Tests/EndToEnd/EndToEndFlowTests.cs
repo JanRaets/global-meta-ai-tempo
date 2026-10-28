@@ -165,7 +165,7 @@ public sealed class EndToEndFlowTests : IDisposable
         var runner = BuildRunner(models);
         var nudges = new NudgeService(db.Context, store, transport, clock, NullLogger<NudgeService>.Instance);
         var locationProvider = new CurrentLocationProvider(buffer, clock);
-        var phaseService = new PlanPhaseService(db.Context, locationProvider, new PhaseOptions(), clock,
+        var phaseService = new PlanPhaseService(db.Context, locationProvider, buffer, new PhaseOptions(), clock,
             NullLogger<PlanPhaseService>.Instance);
         var tick = new PlannerTickService(db.Context, runner, plans, phaseService, nudges, new TickStateStore(),
             locationProvider, clock, NullLogger<PlannerTickService>.Instance);

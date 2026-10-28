@@ -55,7 +55,7 @@ public sealed class BufferMarginTests : IDisposable
         store, new CurrentLocationProvider(buffer, clock), clock, NullLogger<PlanService>.Instance);
 
     private PlanPhaseService Phases() => new(db.Context,
-        new CurrentLocationProvider(buffer, clock), new PhaseOptions(), clock, NullLogger<PlanPhaseService>.Instance);
+        new CurrentLocationProvider(buffer, clock), buffer, new PhaseOptions(), clock, NullLogger<PlanPhaseService>.Instance);
 
     private NudgeService Nudges(RecordingNudgeTransport transport) =>
         new(db.Context, store, transport, clock, NullLogger<NudgeService>.Instance);
@@ -114,6 +114,39 @@ public sealed class BufferMarginTests : IDisposable
 
         Assert.False(result.Sent);
         Assert.Contains("already past", result.RefusalReason);
+    }
+
+    [Fact]
+    public async Task One_late_nudge_per_appointment_across_versions()
+    {
+        // 28 Oct, live: a mid-drive version bump re-sent the Late nudge ("arrive 08:19",
+        // then "arrive 08:23"). Late is once per appointment, whatever the version does.
+        var plans = Plans();
+        var options = await plans.OptionsAsync(appointment.Id);
+        await plans.CommitAsync(options.Options[0].OptionId, "v1", PlanCommitter.Agent);
+        var plan = (await plans.CurrentAsync(appointment.Id))!;
+        clock.SetUtcNow(plan.LeaveBy.AddMinutes(5));
+        buffer.Points.Add(new LocationPoint(home.Lat, home.Lng, clock.GetUtcNow().AddMinutes(-1)));
+        await Phases().EvaluateAllAsync(); // → Late
+        var nudges = Nudges(new RecordingNudgeTransport());
+        string Local(DateTimeOffset t) => TimeZoneInfo.ConvertTime(t,
+            TimeZoneInfo.FindSystemTimeZoneById("Europe/Amsterdam")).ToString("HH:mm");
+
+        var first = await nudges.SendAsync(NudgeKind.Late,
+            $"Leave now by bike — you'll arrive at {Local(plan.ArriveAt)}.", appointment.Id, null);
+        Assert.True(first.Sent);
+
+        // A recovery recommit bumps the version mid-drive.
+        routing.BaseMinutes[TravelMode.Bicycle] = 10;
+        var recovery = await plans.OptionsAsync(appointment.Id);
+        await plans.CommitAsync(recovery.Options[0].OptionId, "recovery", PlanCommitter.Agent);
+        var v2 = (await plans.CurrentAsync(appointment.Id))!;
+        Assert.True(v2.Version > plan.Version);
+
+        var second = await nudges.SendAsync(NudgeKind.Late,
+            $"Leave now by bike — you'll arrive at {Local(v2.ArriveAt)}.", appointment.Id, null);
+        Assert.False(second.Sent);
+        Assert.Contains("already sent for this appointment", second.RefusalReason);
     }
 
     [Fact]

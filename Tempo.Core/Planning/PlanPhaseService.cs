@@ -24,6 +24,7 @@ public sealed record PhaseTransition(Guid AppointmentId, string AppointmentTitle
 public sealed class PlanPhaseService(
     TempoDbContext db,
     CurrentLocationProvider location,
+    ILocationBuffer buffer,
     PhaseOptions options,
     TimeProvider clock,
     ILogger<PlanPhaseService> logger)
@@ -38,6 +39,10 @@ public sealed class PlanPhaseService(
             : null;
         var fix = await location.GetAsync(ct);
         var fresh = fix is { IsStale: false } ? new GeoPoint(fix.Point.Lat, fix.Point.Lng) : null;
+        // Recent fixes feed the movement rule (28 Oct: sparse Owntracks cadence meant the
+        // 150 m from-the-leave-point rule missed a drive in progress).
+        var recentFixes = (await buffer.GetSinceAsync(now.AddMinutes(-60), ct))
+            .OrderBy(p => p.Timestamp).ToList();
 
         // Plans still in play: appointment not longer ago than the arrived fallback.
         var appointments = (await db.Appointments.AsNoTracking().Include(a => a.Place).ToListAsync(ct))
@@ -67,7 +72,7 @@ public sealed class PlanPhaseService(
                     (plan.LeaveFixLat, plan.LeaveFixLng) = (reference.Lat, reference.Lng);
             }
 
-            var to = NextPhase(plan, appointment, fresh, home, now, out var detail);
+            var to = NextPhase(plan, appointment, fresh, home, now, recentFixes, out var detail);
             if (to == from)
                 continue;
             plan.Phase = to;
@@ -101,7 +106,7 @@ public sealed class PlanPhaseService(
     }
 
     private PlanPhase NextPhase(DeparturePlan plan, Appointment appointment, GeoPoint? fresh, Place? home,
-        DateTimeOffset now, out string detail)
+        DateTimeOffset now, IReadOnlyList<LocationPoint> recentFixes, out string detail)
     {
         var withinDestination = fresh is not null && appointment.Place is not null
             && GeoMath.DistanceMeters(fresh.Lat, fresh.Lng, appointment.Place.Lat, appointment.Place.Lng) <= options.ArrivedMeters;
@@ -146,6 +151,37 @@ public sealed class PlanPhaseService(
             {
                 detail = $"Moved {Math.Round(moved)} m from the leave point — on the way.";
                 return PlanPhase.EnRoute;
+            }
+        }
+
+        // EnRoute from movement (amended 28 Oct 2026, live: sparse fixes left a drive
+        // undetected and a second Late nudge fired mid-journey). From leaveAt − 15 min:
+        // (a) two consecutive fixes within the window far apart = moving, any direction;
+        // (b) the current fix markedly closer to the destination than the leave point.
+        if (plan.Phase != PlanPhase.EnRoute && now >= plan.LeaveAt.AddMinutes(-15))
+        {
+            if (fresh is not null && reference is not null && appointment.Place is not null)
+            {
+                var closedIn = GeoMath.DistanceMeters(reference.Lat, reference.Lng, appointment.Place.Lat, appointment.Place.Lng)
+                    - GeoMath.DistanceMeters(fresh.Lat, fresh.Lng, appointment.Place.Lat, appointment.Place.Lng);
+                if (closedIn > options.ApproachMeters)
+                {
+                    detail = $"{Math.Round(closedIn)} m closer to {appointment.Place.Name} than the leave point — on the way.";
+                    return PlanPhase.EnRoute;
+                }
+            }
+            var since = plan.LeaveAt.AddMinutes(-15);
+            for (var i = 1; i < recentFixes.Count; i++)
+            {
+                var (a, b) = (recentFixes[i - 1], recentFixes[i]);
+                if (a.Timestamp < since || b.Timestamp - a.Timestamp > TimeSpan.FromMinutes(options.MovementWindowMinutes))
+                    continue;
+                var span = GeoMath.DistanceMeters(a.Lat, a.Lng, b.Lat, b.Lng);
+                if (span > options.MovementMeters)
+                {
+                    detail = $"Consecutive fixes {Math.Round(span)} m apart — moving.";
+                    return PlanPhase.EnRoute;
+                }
             }
         }
         if (plan.Phase == PlanPhase.EnRoute)

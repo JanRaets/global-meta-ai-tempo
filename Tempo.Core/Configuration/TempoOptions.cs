@@ -45,6 +45,17 @@ public sealed class PhaseOptions
     /// appointment when it ends no more than this many hours before this one starts.</summary>
     public int ChainGapHours { get; init; } = 3;
 
+    /// <summary>EnRoute from movement (28 Oct 2026): two consecutive fixes within
+    /// MovementWindowMinutes that are more than this far apart mean the user is moving.</summary>
+    public int MovementMeters { get; init; } = 300;
+
+    /// <summary>The pair window for the movement rule.</summary>
+    public int MovementWindowMinutes { get; init; } = 10;
+
+    /// <summary>EnRoute when the current fix is this much closer to the destination
+    /// than the leave point.</summary>
+    public int ApproachMeters { get; init; } = 500;
+
     /// <summary>No fix proof needed: this long after the appointment start → Arrived.</summary>
     public int ArrivedFallbackMin { get; init; } = 15;
 }

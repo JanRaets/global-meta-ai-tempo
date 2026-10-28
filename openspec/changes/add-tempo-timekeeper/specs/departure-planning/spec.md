@@ -111,6 +111,10 @@ Each `DeparturePlan` SHALL carry a phase — `Upcoming`, `Late`, `EnRoute`, `Arr
 - **WHEN** a location post places the user more than 150 m from the leave reference, whether the phase was `Upcoming` or `Late`
 - **THEN** the phase becomes `EnRoute`, recorded as a plain-language trace step
 
+#### Scenario: En route from movement (amended 28 Oct 2026, from real use)
+- **WHEN** after `leaveAt − 15 min` two consecutive fixes within `Phase:MovementWindowMinutes` (10) lie more than `Phase:MovementMeters` (300) apart in any direction, or the current fix is more than `Phase:ApproachMeters` (500) closer to the destination than the leave point
+- **THEN** the phase becomes `EnRoute` — sparse fix cadence must not leave a drive undetected
+
 #### Scenario: Arrived by proximity
 - **WHEN** a location post places the user within 100 m of the destination place
 - **THEN** the phase becomes `Arrived` and the plan no longer appears on the Now screen

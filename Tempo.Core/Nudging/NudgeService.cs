@@ -45,6 +45,12 @@ public sealed partial class NudgeService(
         if (duplicate)
             return NudgeSendResult.Refused("Refused: duplicate — this nudge was already sent for this plan version");
 
+        // One Late nudge per APPOINTMENT, not per plan version (28 Oct, live: a mid-drive
+        // version bump re-sent the late nudge). The in-place refresh keeps times honest.
+        if (kind == NudgeKind.Late && await db.Nudges.AnyAsync(n =>
+                n.AppointmentId == appointmentId && n.Kind == NudgeKind.Late && n.Status != NudgeStatus.Cancelled, ct))
+            return NudgeSendResult.Refused("Refused: late nudge already sent for this appointment");
+
         // D8 (amended 27 Oct, 13.e): once the user is moving — or has arrived — no Leave or
         // Late nudge makes sense; nagging someone who already left is the one thing TEMPO
         // never does. Enforced here so no caller can.

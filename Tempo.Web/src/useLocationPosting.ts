@@ -27,33 +27,48 @@ export function useLocationPosting(enabled: boolean): LocationStatus {
     let watchId = 0
     let cancelled = false
 
+    const post = (pos: GeolocationPosition, force: boolean) => {
+      const { latitude, longitude, accuracy } = pos.coords
+      const now = Date.now()
+      const moved = lastSentAt === 0 || distanceMeters(lastLat, lastLng, latitude, longitude) > MIN_MOVE_M
+      if (!force && now - lastSentAt < MIN_INTERVAL_MS && !moved) return
+      lastSentAt = now
+      lastLat = latitude
+      lastLng = longitude
+      void fetch(`/location?key=${key}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lat: latitude,
+          lng: longitude,
+          timestamp: new Date(pos.timestamp).toISOString(),
+          accuracyM: accuracy,
+        }),
+      })
+      setStatus('live')
+    }
+
+    // Every foreground posts a fix immediately — opening the app from a nudge tap must
+    // tell the server where the user is right now (28 Oct: sparse Owntracks cadence
+    // left a drive undetected). The push service-worker focuses the app, so the
+    // visibilitychange covers notification taps too.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && key)
+        navigator.geolocation.getCurrentPosition((pos) => post(pos, true), () => {}, {
+          enableHighAccuracy: true,
+          maximumAge: 0,
+        })
+    }
+
     setStatus('asking')
     fetch('/admin/location-key')
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`${r.status}`))))
       .then((body: { key: string }) => {
         if (cancelled) return
         key = body.key
+        document.addEventListener('visibilitychange', onVisible)
         watchId = navigator.geolocation.watchPosition(
-          (pos) => {
-            const { latitude, longitude, accuracy } = pos.coords
-            const now = Date.now()
-            const moved = lastSentAt === 0 || distanceMeters(lastLat, lastLng, latitude, longitude) > MIN_MOVE_M
-            if (now - lastSentAt < MIN_INTERVAL_MS && !moved) return
-            lastSentAt = now
-            lastLat = latitude
-            lastLng = longitude
-            void fetch(`/location?key=${key}`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                lat: latitude,
-                lng: longitude,
-                timestamp: new Date(pos.timestamp).toISOString(),
-                accuracyM: accuracy,
-              }),
-            })
-            setStatus('live')
-          },
+          (pos) => post(pos, false),
           (err) => setStatus(err.code === err.PERMISSION_DENIED ? 'denied' : 'error'),
           { enableHighAccuracy: true, maximumAge: 15_000 },
         )
@@ -62,6 +77,7 @@ export function useLocationPosting(enabled: boolean): LocationStatus {
 
     return () => {
       cancelled = true
+      document.removeEventListener('visibilitychange', onVisible)
       if (watchId) navigator.geolocation.clearWatch(watchId)
     }
   }, [enabled])
