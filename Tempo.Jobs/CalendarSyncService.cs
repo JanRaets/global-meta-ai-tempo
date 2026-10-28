@@ -50,8 +50,10 @@ public sealed class CalendarSyncService(
                     Source = AppointmentSource.Synced,
                     ExternalId = ev.Id,
                     Title = ev.Title,
-                    Start = ev.Start,
-                    End = ev.End,
+                    // ToUniversalTime: Google sends local offsets (+01:00); Npgsql rejects
+                    // any non-UTC DateTimeOffset (same fix as capture confirm and the seeds).
+                    Start = ev.Start.ToUniversalTime(),
+                    End = ev.End.ToUniversalTime(),
                     RawLocation = ev.Location,
                     PlaceId = await places.ResolveAsync(ev.Location, ct),
                     IsVirtual = ev.Location is null && ev.HasConferenceLink,
@@ -68,8 +70,8 @@ public sealed class CalendarSyncService(
                     appointment.IsVirtual = ev.Location is null && ev.HasConferenceLink;
                 }
                 appointment.Title = ev.Title;
-                appointment.Start = ev.Start;
-                appointment.End = ev.End;
+                appointment.Start = ev.Start.ToUniversalTime();
+                appointment.End = ev.End.ToUniversalTime();
                 appointment.RawLocation = ev.Location;
                 appointment.UpdatedAt = now;
                 changes.Add(new AppointmentChanged(appointment.Id, AppointmentChangeKind.Updated));

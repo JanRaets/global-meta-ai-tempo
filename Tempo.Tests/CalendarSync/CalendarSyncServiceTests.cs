@@ -45,6 +45,23 @@ public sealed class CalendarSyncServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Event_times_with_local_offsets_are_stored_as_utc()
+    {
+        // Live 28 Oct: Google sends +01:00 offsets; Npgsql rejects non-UTC DateTimeOffset.
+        // SQLite tolerates them, so assert on the offset itself.
+        var local = new DateTimeOffset(2026, 10, 30, 20, 0, 0, TimeSpan.FromHours(1));
+        calendar.Events.Add(new CalendarEvent("ev-local", "Borrel", local, local.AddHours(2),
+            "Dentist, Utrecht", false, false));
+
+        await Service().SyncAsync();
+
+        var appointment = Assert.Single(db.Context.Appointments);
+        Assert.Equal(TimeSpan.Zero, appointment.Start.Offset);
+        Assert.Equal(TimeSpan.Zero, appointment.End.Offset);
+        Assert.Equal(local, appointment.Start); // same instant, UTC representation
+    }
+
+    [Fact]
     public async Task Moved_event_updates_the_appointment_and_raises_AppointmentChanged()
     {
         calendar.Events.Add(Event());
