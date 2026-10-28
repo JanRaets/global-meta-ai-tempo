@@ -103,19 +103,30 @@ public sealed class NowEndpoint(TempoDbContext db, PlanService plans, PhaseOptio
         }, ct);
     }
 
+    /// <summary>Feed hygiene (28 Oct 2026): Live nudges only; one whose appointment is gone
+    /// stays in the database for audit but is hidden — unless it went out today, in which
+    /// case it shows greyed with "appointment removed".</summary>
     internal static async Task<object> RecentNudgesAsync(TempoDbContext db, TimeZoneInfo tz, int limit, CancellationToken ct)
-        => (await db.Nudges.AsNoTracking().Where(n => n.Status == NudgeStatus.Sent).ToListAsync(ct))
+    {
+        var appointmentIds = (await db.Appointments.AsNoTracking().Select(a => a.Id).ToListAsync(ct)).ToHashSet();
+        var todayLocal = TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, tz).Date;
+        return (await db.Nudges.AsNoTracking()
+                .Where(n => n.Status == NudgeStatus.Sent && n.Source == NudgeSource.Live).ToListAsync(ct))
             .OrderByDescending(n => n.CreatedAt) // client-side: SQLite can't order DateTimeOffset
+            .Select(n => (Nudge: n, Removed: !appointmentIds.Contains(n.AppointmentId)))
+            .Where(x => !x.Removed || TimeZoneInfo.ConvertTime(x.Nudge.SentAt ?? x.Nudge.CreatedAt, tz).Date == todayLocal)
             .Take(limit)
-            .Select(n => new
+            .Select(x => new
             {
-                id = n.Id,
-                kind = n.Kind.ToString(),
-                text = n.Text,
-                time = TimeZoneInfo.ConvertTime(n.SentAt ?? n.CreatedAt, tz).ToString("HH:mm"),
-                hasTrace = n.AgentTraceId != null,
+                id = x.Nudge.Id,
+                kind = x.Nudge.Kind.ToString(),
+                text = x.Nudge.Text,
+                time = TimeZoneInfo.ConvertTime(x.Nudge.SentAt ?? x.Nudge.CreatedAt, tz).ToString("HH:mm"),
+                hasTrace = x.Nudge.AgentTraceId != null,
+                appointmentRemoved = x.Removed,
             })
             .ToList();
+    }
 }
 
 /// <summary>GET /api/timeline/today — today's appointments, captured ones included (D12
@@ -238,7 +249,8 @@ public sealed class TimelineTodayEndpoint(TempoDbContext db, Tempo.Core.Planning
     }
 }
 
-/// <summary>GET /api/nudges?limit=20 — nudge history, newest first.</summary>
+/// <summary>GET /api/nudges?limit=20 — nudge history, newest first. Live only by default;
+/// ?source=all includes Demo and Dev rows for debugging (feed hygiene, 28 Oct 2026).</summary>
 public sealed class NudgesEndpoint(TempoDbContext db) : EndpointWithoutRequest
 {
     public override void Configure()
@@ -250,9 +262,11 @@ public sealed class NudgesEndpoint(TempoDbContext db) : EndpointWithoutRequest
     public override async Task HandleAsync(CancellationToken ct)
     {
         var limit = Math.Clamp(Query<int?>("limit", isRequired: false) ?? 20, 1, 100);
+        var all = string.Equals(Query<string>("source", isRequired: false), "all", StringComparison.OrdinalIgnoreCase);
         var settings = await db.UserSettings.AsNoTracking().FirstAsync(ct);
         var tz = TimeZoneInfo.FindSystemTimeZoneById(settings.TimeZone);
         var nudges = (await db.Nudges.AsNoTracking().ToListAsync(ct))
+            .Where(n => all || n.Source == NudgeSource.Live)
             .OrderByDescending(n => n.CreatedAt)
             .Take(limit)
             .Select(n => new
@@ -261,6 +275,7 @@ public sealed class NudgesEndpoint(TempoDbContext db) : EndpointWithoutRequest
                 kind = n.Kind.ToString(),
                 text = n.Text,
                 status = n.Status.ToString(),
+                source = n.Source.ToString(),
                 time = TimeZoneInfo.ConvertTime(n.SentAt ?? n.CreatedAt, tz).ToString("ddd HH:mm"),
                 isReplacement = n.ReplacesNudgeId != null,
                 hasTrace = n.AgentTraceId != null,

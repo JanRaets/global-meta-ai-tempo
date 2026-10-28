@@ -37,7 +37,11 @@ public sealed class PlanService(
 
         // Outcome amendment (28 Oct 2026): a past appointment shows what happened, never a
         // plan — no options, no routing calls, the last committed version stays frozen.
-        if (ctx.Appointment.End <= clock.GetUtcNow())
+        // Started-long-ago counts too (live: a multi-day calendar event got a car plan for
+        // a start two days in the past); the arrived-fallback window still allows late recovery.
+        var nowUtc = clock.GetUtcNow();
+        if (ctx.Appointment.End <= nowUtc
+            || nowUtc >= ctx.Appointment.Start.AddMinutes(phase.ArrivedFallbackMin))
             return PlanOptionsResult.Empty("the appointment is already over — its plan is frozen");
 
         // Already at (or chained to) the destination: zero travel, no stops, no habit

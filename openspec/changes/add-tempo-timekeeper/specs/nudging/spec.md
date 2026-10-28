@@ -57,6 +57,17 @@ Every nudge SHALL carry a reference to the `AgentTrace` of the run that produced
 - **WHEN** no alternative arrives on time
 - **THEN** the nudge states the earliest possible arrival and the mode that achieves it
 
+### Requirement: Nudge source and feed hygiene
+*(Added 28 Oct 2026 from real use: the Recent feed showed nudges for deleted test and demo appointments, plus a Leave nudge whose leave time was two days old.)* Every nudge SHALL carry a source — `Live`, `Demo` (sent while demo mode is on; deleted with the other demo artefacts on toggle-off) or `Dev`. The Recent feed and `/api/nudges` return `Live` only by default (`?source=all` for debugging). A Live nudge whose appointment no longer exists stays stored for audit but is hidden from the feed, unless it was sent today — then it renders greyed with "appointment removed". `notify.send` SHALL also refuse a `Leave` nudge once `now > leaveBy`: the window closes as well as opens, and past the last on-time moment the late machinery owns the message.
+
+#### Scenario: Demo residue disappears
+- **WHEN** demo mode is switched off
+- **THEN** Demo-source nudges are deleted along with the demo appointments and the location buffer
+
+#### Scenario: Stale leave time refused
+- **WHEN** a Leave nudge is attempted for a plan whose `leaveBy` is already past
+- **THEN** it is refused — a time without a date would read as today's
+
 ### Requirement: Quiet hours
 The system SHALL suppress all nudges during the user's quiet hours except a `Late` nudge for an appointment starting within 60 minutes.
 

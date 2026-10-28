@@ -21,7 +21,14 @@ export type NowPayload = {
   nudges: RecentNudge[]
 }
 
-export type RecentNudge = { id: string; kind: string; text: string; time: string; hasTrace: boolean }
+export type RecentNudge = {
+  id: string
+  kind: string
+  text: string
+  time: string
+  hasTrace: boolean
+  appointmentRemoved: boolean
+}
 
 export type TripOutcome = {
   kind: 'onTime' | 'late' | 'noData'

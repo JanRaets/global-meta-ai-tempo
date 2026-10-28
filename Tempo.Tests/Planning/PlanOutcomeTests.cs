@@ -91,6 +91,33 @@ public sealed class PlanOutcomeTests : IDisposable
     }
 
     [Fact]
+    public async Task An_ongoing_multi_day_appointment_is_frozen_too()
+    {
+        // Live 28 Oct: a multi-day calendar event (started two days ago, ends next week)
+        // got a fresh car plan and a Leave nudge reading "15:55" — from two days earlier.
+        var hackathon = new Appointment
+        {
+            Id = Guid.NewGuid(),
+            Title = "Hackathon",
+            Start = Now.AddDays(-2),
+            End = Now.AddDays(7),
+            PlaceId = school.Id,
+            Place = school,
+        };
+        db.Context.Add(hackathon);
+        db.Context.SaveChanges();
+        buffer.Points.Add(new LocationPoint(home.Lat, home.Lng, Now.AddMinutes(-2)));
+        var plans = new PlanService(db.Context,
+            new DeparturePlanner(routing, NullLogger<DeparturePlanner>.Instance),
+            store, new CurrentLocationProvider(buffer, clock), clock, NullLogger<PlanService>.Instance);
+
+        var result = await plans.OptionsAsync(hackathon.Id);
+
+        Assert.Empty(result.Options);
+        Assert.Contains("frozen", result.Note);
+    }
+
+    [Fact]
     public async Task On_time_outcome_from_the_phase_traces()
     {
         PhaseTrace("Drop kids at school: Upcoming → EnRoute", "Moved 300 m from the leave point — on the way.",

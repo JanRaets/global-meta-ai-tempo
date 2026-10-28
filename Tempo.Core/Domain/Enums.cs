@@ -82,6 +82,15 @@ public enum PlanPhase
     LeaveNow,
 }
 
+/// <summary>Where a nudge came from (feed-hygiene amendment, 28 Oct 2026): the Recent feed
+/// shows Live only; Demo nudges die with demo mode; Dev marks test residue.</summary>
+public enum NudgeSource
+{
+    Live,
+    Demo,
+    Dev,
+}
+
 /// <summary>What actually happened on a past appointment's trip (outcome amendment,
 /// 28 Oct 2026): derived once, stored on the plan, never recomputed.</summary>
 public enum PlanOutcomeKind

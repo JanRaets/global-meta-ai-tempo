@@ -147,7 +147,10 @@ export function NowScreen({ locationLive }: { locationLive: boolean }) {
                 <span className={`text-[13px] w-11 flex-shrink-0 pt-0.5 ${late ? 'text-[#FFD2C2]' : 'text-[#6B7280]'}`}>
                   {nudge.time}
                 </span>
-                <span className="text-[15px] leading-[1.35] flex-grow">{nudge.text}</span>
+                <span className={`text-[15px] leading-[1.35] flex-grow ${nudge.appointmentRemoved ? 'text-[#9CA3AF]' : ''}`}>
+                  {nudge.text}
+                  {nudge.appointmentRemoved && <span className="ml-1.5 text-[12px] text-[#9CA3AF]">· appointment removed</span>}
+                </span>
                 {nudge.hasTrace && (
                   <span className={`text-[13px] font-semibold flex-shrink-0 ${late ? 'text-[#FFE4D6]' : 'text-[#1F5EFF]'}`}>
                     Why?

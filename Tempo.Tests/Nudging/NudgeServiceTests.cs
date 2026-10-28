@@ -47,6 +47,7 @@ public sealed class NudgeServiceTests : IDisposable
             Version = 1,
             Mode = TravelMode.Bicycle,
             LeaveAt = DateTimeOffset.Parse("2026-10-27T08:37:00Z"),
+            LeaveBy = DateTimeOffset.Parse("2026-10-27T08:42:00Z"), // buffer is a margin (D6, 28 Oct)
             ArriveAt = DateTimeOffset.Parse("2026-10-27T08:55:00Z"),
             Reason = "test",
         };
@@ -144,8 +145,11 @@ public sealed class NudgeServiceTests : IDisposable
     public async Task Quiet_hours_suppress_a_leave_nudge()
     {
         clock.SetUtcNow(DateTimeOffset.Parse("2026-10-27T21:30:00Z")); // 22:30 local
+        plan.LeaveAt = DateTimeOffset.Parse("2026-10-27T21:35:00Z"); // window open, not past leaveBy
+        plan.LeaveBy = DateTimeOffset.Parse("2026-10-27T21:45:00Z");
+        db.Context.SaveChanges();
 
-        var result = await Service().SendAsync(NudgeKind.Leave, "Leave at 09:37 by bike.", appointment.Id, null);
+        var result = await Service().SendAsync(NudgeKind.Leave, "Leave at 22:35 by bike.", appointment.Id, null);
 
         Assert.False(result.Sent);
         Assert.Contains("quiet hours", result.RefusalReason);
@@ -203,6 +207,7 @@ public sealed class NudgeServiceTests : IDisposable
             Version = 2,
             Mode = TravelMode.Bicycle,
             LeaveAt = plan.LeaveAt.AddMinutes(shiftMin),
+            LeaveBy = plan.LeaveBy.AddMinutes(shiftMin),
             ArriveAt = plan.ArriveAt.AddMinutes(shiftMin),
             Reason = "test v2",
         };

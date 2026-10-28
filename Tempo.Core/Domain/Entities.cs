@@ -125,6 +125,9 @@ public sealed class Nudge
     public Guid? HabitId { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? SentAt { get; set; }
+    /// <summary>Feed hygiene (28 Oct 2026): Live is the default; Demo while demo mode is
+    /// on (deleted with the other demo artefacts); Dev marks test residue.</summary>
+    public NudgeSource Source { get; set; }
 }
 
 /// <summary>A user utterance (voice or text) turned into a structured plan adjustment.</summary>

@@ -35,6 +35,13 @@ public sealed class DemoModeService(
         // The replayed trail left the buffer far from the phone; without a clear, the next
         // real fix reads as an implausible jump and gets rejected (ingest teleport guard).
         await buffer.ClearAsync(ct);
+        var demoNudges = await db.Nudges.Where(n => n.Source == NudgeSource.Demo).ToListAsync(ct);
+        if (demoNudges.Count > 0)
+        {
+            db.Nudges.RemoveRange(demoNudges);
+            await db.SaveChangesAsync(ct);
+            logger.LogInformation("Demo mode off: removed {Count} demo nudge(s)", demoNudges.Count);
+        }
         var demoAppointments = await db.Appointments.Where(a => a.Title.StartsWith("Demo: ")).ToListAsync(ct);
         if (demoAppointments.Count == 0)
             return;

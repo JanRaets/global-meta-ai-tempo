@@ -99,6 +99,45 @@ public sealed class BufferMarginTests : IDisposable
     }
 
     [Fact]
+    public async Task A_leave_nudge_past_leaveBy_is_refused()
+    {
+        // Live 28 Oct: a Leave nudge went out with a leaveAt two days old — the window
+        // must close as well as open; past leaveBy the late machinery owns the message.
+        var plans = Plans();
+        var options = await plans.OptionsAsync(appointment.Id);
+        await plans.CommitAsync(options.Options[0].OptionId, "test", PlanCommitter.Agent);
+        var plan = (await plans.CurrentAsync(appointment.Id))!;
+        clock.SetUtcNow(plan.LeaveBy.AddMinutes(30));
+        var nudges = Nudges(new RecordingNudgeTransport());
+
+        var result = await nudges.SendAsync(NudgeKind.Leave, "Leave at 09:37 by bike.", appointment.Id, null);
+
+        Assert.False(result.Sent);
+        Assert.Contains("already past", result.RefusalReason);
+    }
+
+    [Fact]
+    public async Task A_demo_mode_nudge_is_tagged_demo()
+    {
+        db.Context.UserSettings.Single().DemoMode = true;
+        db.Context.SaveChanges();
+        var plans = Plans();
+        var options = await plans.OptionsAsync(appointment.Id);
+        await plans.CommitAsync(options.Options[0].OptionId, "test", PlanCommitter.Agent);
+        var plan = (await plans.CurrentAsync(appointment.Id))!;
+        clock.SetUtcNow(plan.LeaveAt.AddMinutes(-5)); // inside the window
+        var nudges = Nudges(new RecordingNudgeTransport());
+        string Local(DateTimeOffset t) => TimeZoneInfo.ConvertTime(t,
+            TimeZoneInfo.FindSystemTimeZoneById("Europe/Amsterdam")).ToString("HH:mm");
+
+        var result = await nudges.SendAsync(NudgeKind.Leave,
+            $"Leave at {Local(plan.LeaveAt)} by bike.", appointment.Id, null);
+
+        Assert.True(result.Sent);
+        Assert.Equal(NudgeSource.Demo, result.Nudge!.Source);
+    }
+
+    [Fact]
     public async Task One_leave_now_nudge_per_version_with_the_arrival_time()
     {
         var plans = Plans();

@@ -59,6 +59,10 @@ public sealed partial class NudgeService(
             var opensAt = TimeZoneInfo.ConvertTime(plan.LeaveAt.AddMinutes(-settings.NudgeLeadMin), tz);
             return NudgeSendResult.Refused($"Refused: nudge window not open yet (opens {opensAt:HH:mm})");
         }
+        // The window closes too (28 Oct, live: a Leave nudge fired with a leaveAt two days
+        // old, reading as today's time) — past leaveBy the late machinery owns the message.
+        if (kind == NudgeKind.Leave && now > plan.LeaveBy)
+            return NudgeSendResult.Refused("Refused: the leave time is already past — a Leave nudge would mislead");
         // D6 (28 Oct): the gentle leave-now nudge exists only between leaveAt and leaveBy —
         // guard here so no caller can send it early or once the plan is genuinely late.
         if (kind == NudgeKind.LeaveNow && plan.Phase != PlanPhase.LeaveNow)
@@ -97,6 +101,8 @@ public sealed partial class NudgeService(
             Text = text,
             AgentTraceId = traceId,
             ReplacesNudgeId = replaces,
+            // Feed hygiene (28 Oct): everything born under demo mode dies with demo mode.
+            Source = settings.DemoMode ? NudgeSource.Demo : NudgeSource.Live,
         };
         db.Nudges.Add(nudge);
         await db.SaveChangesAsync(ct);
