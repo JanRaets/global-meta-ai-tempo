@@ -116,6 +116,33 @@ public sealed class CalendarSyncServiceTests : IDisposable
         Assert.False(appointment.IsVirtual);
     }
 
+    [Fact]
+    public async Task Same_location_text_reuses_the_existing_place_without_regeocoding()
+    {
+        // A corrected venue stays corrected for next week's training (live 28 Oct:
+        // "Kampong Hockey, Utrecht" had geocoded to the wrong club).
+        var corrected = new Place { Id = Guid.NewGuid(), Name = "SV Kampong", Lat = 52.0749, Lng = 5.1507 };
+        db.Context.Add(corrected);
+        db.Context.Add(new Appointment
+        {
+            Id = Guid.NewGuid(),
+            Source = AppointmentSource.Synced,
+            ExternalId = "last-week",
+            Title = "Training",
+            Start = now.AddDays(-6),
+            End = now.AddDays(-6).AddHours(1),
+            RawLocation = "Kampong Hockey, Utrecht", // unknown to the FakeGeocoder
+            PlaceId = corrected.Id,
+        });
+        db.Context.SaveChanges();
+        calendar.Events.Add(Event(id: "this-week", title: "Training", location: "Kampong Hockey, Utrecht"));
+
+        await Service().SyncAsync();
+
+        var fresh = db.Context.Appointments.Single(a => a.ExternalId == "this-week");
+        Assert.Equal(corrected.Id, fresh.PlaceId);
+    }
+
     [Theory]
     [InlineData("Remote")]
     [InlineData("online")]

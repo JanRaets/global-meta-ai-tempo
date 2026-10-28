@@ -39,6 +39,10 @@ The system SHALL geocode an event's location string to a `Place`, reusing an exi
 - **WHEN** the event has no location but has a conference link
 - **THEN** the `Appointment` is stored with `placeId = null` and `isVirtual = true`
 
+#### Scenario: Same location text reuses the same place (amended 28 Oct 2026, from real use)
+- **WHEN** an event's location text exactly matches another synced appointment's `rawLocation` that already has a place
+- **THEN** that place is reused without geocoding — recurring events stay at one venue, and a manually corrected venue stays corrected
+
 #### Scenario: Virtual location words (amended 28 Oct 2026, from real use)
 - **WHEN** the event's location is a virtual-meeting word such as "Remote", "online", "Zoom", "Teams" or "Google Meet" (case-insensitive)
 - **THEN** it is never geocoded — the `Appointment` is stored with `placeId = null` and `isVirtual = true` (live, "Remote" had geocoded to a shop 130 km away)

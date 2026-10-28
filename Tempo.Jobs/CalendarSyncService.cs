@@ -49,6 +49,12 @@ public sealed class CalendarSyncService(
             .ToListAsync(ct);
         var changes = new List<AppointmentChanged>();
 
+        // Identical location text means the same place as last time — recurring events
+        // ("Kampong Hockey, Utrecht" every week) must not re-geocode, and a corrected
+        // venue stays corrected (live 28 Oct: the geocoder picked the wrong hockey club).
+        Guid? KnownPlace(string? location) => location is null ? null
+            : existing.FirstOrDefault(a => a.RawLocation == location && a.PlaceId != null)?.PlaceId;
+
         foreach (var ev in fetched.Values)
         {
             var appointment = existing.FirstOrDefault(a => a.ExternalId == ev.Id);
@@ -65,7 +71,8 @@ public sealed class CalendarSyncService(
                     Start = ev.Start.ToUniversalTime(),
                     End = ev.End.ToUniversalTime(),
                     RawLocation = ev.Location,
-                    PlaceId = IsVirtualLocation(ev.Location) ? null : await places.ResolveAsync(ev.Location, ct),
+                    PlaceId = IsVirtualLocation(ev.Location) ? null
+                        : KnownPlace(ev.Location) ?? await places.ResolveAsync(ev.Location, ct),
                     IsVirtual = IsVirtualLocation(ev.Location) || (ev.Location is null && ev.HasConferenceLink),
                 };
                 db.Appointments.Add(appointment);
@@ -76,7 +83,8 @@ public sealed class CalendarSyncService(
             {
                 if (appointment.RawLocation != ev.Location)
                 {
-                    appointment.PlaceId = IsVirtualLocation(ev.Location) ? null : await places.ResolveAsync(ev.Location, ct);
+                    appointment.PlaceId = IsVirtualLocation(ev.Location) ? null
+                        : KnownPlace(ev.Location) ?? await places.ResolveAsync(ev.Location, ct);
                     appointment.IsVirtual = IsVirtualLocation(ev.Location) || (ev.Location is null && ev.HasConferenceLink);
                 }
                 appointment.Title = ev.Title;
