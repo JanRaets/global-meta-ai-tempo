@@ -20,6 +20,16 @@ public sealed class CalendarSyncService(
     TimeProvider clock,
     ILogger<CalendarSyncService> logger)
 {
+    // Location strings that mean "this meeting has no physical place" — geocoding them
+    // finds whatever business happens to carry the word (live 28 Oct: "Remote" resolved
+    // to an appliance shop 130 km away, which the planner would happily route to).
+    private static readonly string[] VirtualLocationWords =
+        ["remote", "online", "virtual", "call", "video call", "zoom", "teams", "microsoft teams",
+         "google meet", "meet", "hangouts", "webinar", "thuiswerken"];
+
+    private static bool IsVirtualLocation(string? location) =>
+        location is not null && VirtualLocationWords.Contains(location.Trim().ToLowerInvariant());
+
     public async Task SyncAsync(CancellationToken ct = default)
     {
         if (!await calendar.IsConnectedAsync(ct))
@@ -55,8 +65,8 @@ public sealed class CalendarSyncService(
                     Start = ev.Start.ToUniversalTime(),
                     End = ev.End.ToUniversalTime(),
                     RawLocation = ev.Location,
-                    PlaceId = await places.ResolveAsync(ev.Location, ct),
-                    IsVirtual = ev.Location is null && ev.HasConferenceLink,
+                    PlaceId = IsVirtualLocation(ev.Location) ? null : await places.ResolveAsync(ev.Location, ct),
+                    IsVirtual = IsVirtualLocation(ev.Location) || (ev.Location is null && ev.HasConferenceLink),
                 };
                 db.Appointments.Add(appointment);
                 changes.Add(new AppointmentChanged(appointment.Id, AppointmentChangeKind.Created));
@@ -66,8 +76,8 @@ public sealed class CalendarSyncService(
             {
                 if (appointment.RawLocation != ev.Location)
                 {
-                    appointment.PlaceId = await places.ResolveAsync(ev.Location, ct);
-                    appointment.IsVirtual = ev.Location is null && ev.HasConferenceLink;
+                    appointment.PlaceId = IsVirtualLocation(ev.Location) ? null : await places.ResolveAsync(ev.Location, ct);
+                    appointment.IsVirtual = IsVirtualLocation(ev.Location) || (ev.Location is null && ev.HasConferenceLink);
                 }
                 appointment.Title = ev.Title;
                 appointment.Start = ev.Start.ToUniversalTime();

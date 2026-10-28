@@ -116,6 +116,22 @@ public sealed class CalendarSyncServiceTests : IDisposable
         Assert.False(appointment.IsVirtual);
     }
 
+    [Theory]
+    [InlineData("Remote")]
+    [InlineData("online")]
+    [InlineData("Google Meet")]
+    public async Task Virtual_location_words_mean_no_place(string location)
+    {
+        // Live 28 Oct: "Remote" geocoded to an appliance shop 130 km away.
+        calendar.Events.Add(Event(location: location));
+
+        await Service().SyncAsync();
+
+        var appointment = Assert.Single(db.Context.Appointments);
+        Assert.Null(appointment.PlaceId);
+        Assert.True(appointment.IsVirtual);
+    }
+
     [Fact]
     public async Task Conference_event_without_location_is_virtual()
     {
