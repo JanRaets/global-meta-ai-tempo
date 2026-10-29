@@ -108,8 +108,45 @@ public sealed class PlannerTickTests : IDisposable
         Assert.Equal(before.Version, after.Version); // in place, no version bump
         Assert.Equal(leaveAtBefore.AddMinutes(-8), after.LeaveAt); // 8 min slower → leave 8 min earlier
         Assert.Equal(6, after.TrafficDelayMin);
+        // The shift carries its cause (29 Oct): traffic grew 6 min ≥ 3 and explains ≥ half.
+        Assert.Equal(PlanShiftReason.Traffic, after.ShiftReason);
+        Assert.Equal(leaveAtBefore, after.ShiftedFromLeaveAt);
         Assert.Single(model.ChatInvocations); // still only the first tick's run
-        Assert.Empty(db.Context.Nudges); // refresh never nudges
+        Assert.Empty(db.Context.Nudges); // before the window: no nudge, the countdown just moves
+    }
+
+    // Replacement nudge (29 Oct 2026): leaveAt moved >5 min earlier AFTER the Leave nudge
+    // went out → exactly one replacement, naming the cause and both times.
+    [Fact]
+    public async Task Traffic_shift_after_the_leave_nudge_sends_one_replacement_with_cause()
+    {
+        model.EnqueueFinal("Nothing to do.");
+        await tick.TickAsync(); // 08:00 — inputs new
+        Assert.NotNull(await plans.FallbackCommitAsync(appointment.Id)); // leave 08:37Z
+
+        clock.SetUtcNow(DateTimeOffset.Parse("2026-10-27T08:27:00Z")); // window open
+        model.EnqueueFinal("Window open.");
+        await tick.TickAsync(); // agent run + template fallback → Leave nudge
+        var first = Assert.Single(db.Context.Nudges);
+        Assert.Equal(NudgeKind.Leave, first.Kind);
+
+        routing.BaseMinutes[TravelMode.Bicycle] = 26; // 18 → 26: leave 08:29Z instead
+        routing.TrafficDelayMinutes[TravelMode.Bicycle] = 6;
+        // 08:28 — the shifted leaveAt (08:29Z) is still ahead, so the plan stays Upcoming;
+        // a shift that lands leaveAt in the past hands over to the LeaveNow machinery instead.
+        clock.SetUtcNow(DateTimeOffset.Parse("2026-10-27T08:28:00Z"));
+        model.EnqueueFinal("Replan noted.");
+        await tick.TickAsync(); // refresh → tick:replan → template replacement
+
+        var nudges = db.Context.Nudges.ToList().OrderBy(n => n.CreatedAt).ToList();
+        Assert.Equal(2, nudges.Count);
+        var replacement = nudges[1];
+        Assert.Equal(first.Id, replacement.ReplacesNudgeId);
+        Assert.Contains("traffic", replacement.Text, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("09:29", replacement.Text); // new leave time (local)
+        Assert.Contains("09:37", replacement.Text); // "instead of" the nudged time
+        var replanTrace = db.Context.AgentTraces.Single(t => t.Trigger == "tick:replan");
+        Assert.Contains(replanTrace.Steps, s => s.ResultSummary == "replan: traffic +8 min");
     }
 
     [Fact]

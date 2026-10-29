@@ -42,8 +42,22 @@ public sealed partial class NudgeService(
 
         var duplicate = await db.Nudges.AnyAsync(n =>
             n.PlanId == plan.Id && n.PlanVersion == plan.Version && n.Kind == kind && n.Status != NudgeStatus.Cancelled, ct);
+        // Traffic-aware replacement (29 Oct 2026): ONE Leave re-send per appointment is
+        // allowed when the in-place refresh moved leaveAt more than 5 min EARLIER after the
+        // first Leave nudge went out — it replaces that nudge and must name its cause. A
+        // later leaveAt never re-nudges (good news is not an alarm).
+        var shiftedEarlierMin = plan.ShiftedFromLeaveAt is { } shiftedFrom
+            ? (shiftedFrom - plan.LeaveAt).TotalMinutes : 0;
+        var isInPlaceReplacement = false;
         if (duplicate)
-            return NudgeSendResult.Refused("Refused: duplicate — this nudge was already sent for this plan version");
+        {
+            var alreadyReplaced = await db.Nudges.AnyAsync(n =>
+                n.AppointmentId == appointmentId && n.Kind == NudgeKind.Leave
+                && n.ReplacesNudgeId != null && n.Status != NudgeStatus.Cancelled, ct);
+            if (kind != NudgeKind.Leave || shiftedEarlierMin <= 5 || alreadyReplaced)
+                return NudgeSendResult.Refused("Refused: duplicate — this nudge was already sent for this plan version");
+            isInPlaceReplacement = true;
+        }
 
         // One Late nudge per APPOINTMENT, not per plan version (28 Oct, live: a mid-drive
         // version bump re-sent the late nudge). The in-place refresh keeps times honest.
@@ -80,6 +94,21 @@ public sealed partial class NudgeService(
         if (Validate(text, plan, kind, tz) is { } textProblem)
             return NudgeSendResult.Refused(textProblem);
 
+        // The replacement must name its cause in plain words (29 Oct 2026) — a corrected
+        // leave time with no why reads like a glitch.
+        if (isInPlaceReplacement)
+        {
+            string[] causeWords = plan.ShiftReason switch
+            {
+                PlanShiftReason.Traffic => ["traffic"],
+                PlanShiftReason.Routing => ["route", "routing", "road"],
+                _ => [],
+            };
+            if (causeWords.Length > 0 && !causeWords.Any(w => text.Contains(w, StringComparison.OrdinalIgnoreCase)))
+                return NudgeSendResult.Refused(
+                    $"Refused: a replacement nudge must name its cause in plain words ({plan.ShiftReason.ToString().ToLowerInvariant()})");
+        }
+
         // Nudging spec "Plan version changes after nudge": when an earlier version of this
         // plan was already nudged and leaveAt moved by more than 5 minutes, the new nudge
         // presents itself as a replacement (the transport words the notification as an update).
@@ -96,6 +125,15 @@ public sealed partial class NudgeService(
             if (previousPlan is not null && (plan.LeaveAt - previousPlan.LeaveAt).Duration() > TimeSpan.FromMinutes(5))
                 replaces = previous.Id;
         }
+        // In-place replacement (29 Oct 2026): same plan version, so the nudge being replaced
+        // is this version's own earlier Leave nudge.
+        if (isInPlaceReplacement && replaces is null)
+            replaces = (await db.Nudges
+                    .Where(n => n.PlanId == plan.Id && n.PlanVersion == plan.Version
+                        && n.Kind == kind && n.Status == NudgeStatus.Sent)
+                    .ToListAsync(ct)) // client-side order: SQLite can't ORDER BY DateTimeOffset
+                .OrderByDescending(n => n.CreatedAt)
+                .FirstOrDefault()?.Id;
 
         var nudge = new Nudge
         {
@@ -150,6 +188,10 @@ public sealed partial class NudgeService(
             return "Refused: more than two sentences";
 
         var allowed = new HashSet<string> { Local(plan.LeaveAt), Local(plan.LeaveBy), Local(plan.ArriveAt) };
+        // "leave at 09:21 instead of 09:28" — the pre-shift leave time is a plan value too
+        // (replacement-nudge amendment, 29 Oct 2026).
+        if (plan.ShiftedFromLeaveAt is { } shiftedFromLeaveAt)
+            allowed.Add(Local(shiftedFromLeaveAt));
         foreach (var (_, option) in optionStore.All())
         {
             allowed.Add(Local(option.LeaveAt));

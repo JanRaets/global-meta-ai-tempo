@@ -194,6 +194,12 @@ namespace Tempo.Api.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<int>("ShiftReason")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("ShiftedFromLeaveAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<int>("SlackMin")
                         .HasColumnType("integer");
 

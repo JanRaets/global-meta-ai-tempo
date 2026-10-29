@@ -21,7 +21,32 @@ public static class NudgeTemplates
             NudgeKind.Late => $"Leave now by {mode} for {appointment.Title} — you'll arrive at {roughly}{Local(plan.ArriveAt)}.",
             // D6 (28 Oct): the gentle one at leaveAt — on time, no alarm, just go.
             NudgeKind.LeaveNow => $"Time to go — leave now by {mode} for {appointment.Title} and you're there at {roughly}{Local(plan.ArriveAt)}.",
+            // A Leave nudge after a shift carries the cause (29 Oct 2026): when the leave
+            // time already moved before the window opened, say why in the same breath.
+            _ when plan.ShiftReason != PlanShiftReason.None && plan.ShiftedFromLeaveAt is not null =>
+                $"{CausePhrase(plan.ShiftReason)} — time to leave at {roughly}{Local(plan.LeaveAt)} by {mode} for {appointment.Title}{stops}.",
             _ => $"Time to leave at {roughly}{Local(plan.LeaveAt)} by {mode} for {appointment.Title}{stops}.",
         };
     }
+
+    /// <summary>The replacement after a Leave nudge already went out and leaveAt then moved
+    /// more than 5 min earlier (replacement-nudge amendment, 29 Oct 2026): names the cause
+    /// and both times, one sentence, all values from the plan.</summary>
+    public static string BuildReplacement(DeparturePlan plan, Appointment appointment, TimeZoneInfo tz)
+    {
+        string Local(DateTimeOffset t) => TimeZoneInfo.ConvertTime(t, tz).ToString("HH:mm");
+        var mode = plan.Mode.ToString().ToLowerInvariant();
+        var instead = plan.ShiftedFromLeaveAt is { } from ? $" instead of {Local(from)}" : "";
+        return $"{CausePhrase(plan.ShiftReason)} — leave at {Local(plan.LeaveAt)}{instead}, by {mode} for {appointment.Title}.";
+    }
+
+    private static string CausePhrase(PlanShiftReason reason) => reason switch
+    {
+        PlanShiftReason.Traffic => "Traffic's building",
+        PlanShiftReason.Routing => "The route changed",
+        PlanShiftReason.Habit => "Your usual stop changed the plan",
+        PlanShiftReason.Intent => "As you asked",
+        PlanShiftReason.Appointment => "The appointment moved",
+        _ => "The plan changed",
+    };
 }

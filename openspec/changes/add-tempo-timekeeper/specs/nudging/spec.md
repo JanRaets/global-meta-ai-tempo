@@ -17,6 +17,25 @@ The system SHALL send one push notification per plan version at `leaveAt − nud
 - **WHEN** the plan moves to version 4 with `leaveAt` more than 5 minutes different
 - **THEN** a new nudge is sent that states it replaces the previous one
 
+### Requirement: Replacement nudge carries its cause
+*(Added 29 Oct 2026. No new nudge kind.)* Every plan and option SHALL carry a `ShiftReason ∈ { Traffic, Routing, Habit, Intent, Appointment }` set deterministically when `leaveAt` moves versus its previous value (`Traffic` when `trafficDelayMin` grew by ≥3 minutes and that growth explains at least half the shift), plus the pre-shift `shiftedFromLeaveAt`. When the in-place refresh moves `leaveAt` more than 5 minutes EARLIER after the `Leave` nudge already went out, the system SHALL send one replacement `Leave` nudge — at most once per appointment, never for a later `leaveAt`, only while the plan is still `Upcoming` and the window is open. The replacement's agent context includes the reason; its text MUST name the cause in plain words ("Traffic's building — leave at 09:21 instead of 09:28, by car"), both times MUST be plan values (`shiftedFromLeaveAt` joins the allowed vocabulary), and `notify.send` refuses a cause-less replacement. The trace records the deterministic summary ("replan: traffic +7 min"). Before the window opens nothing is sent: the countdown and the "+N traffic" reason line move silently; a shift inside the window before the `Leave` nudge has gone out makes the `Leave` nudge itself carry the cause instead of a separate replacement.
+
+#### Scenario: Shift before the window
+- **WHEN** traffic moves `leaveAt` 8 minutes earlier before `leaveAt − nudgeLeadMin`
+- **THEN** no nudge is sent; the Now countdown and reason line follow the refreshed plan
+
+#### Scenario: Shift after the Leave nudge
+- **WHEN** the Leave nudge went out and the refresh then moves `leaveAt` more than 5 minutes earlier
+- **THEN** one replacement is sent naming the cause and both times, linked to the nudge it replaces
+
+#### Scenario: Second shift
+- **WHEN** a replacement was already sent for the appointment and `leaveAt` shifts again
+- **THEN** `notify.send` refuses a second replacement
+
+#### Scenario: Traffic clears
+- **WHEN** the refresh moves `leaveAt` later
+- **THEN** no nudge is sent — good news is not an alarm
+
 ### Requirement: Gentle leave-now nudge at the target
 *(Added 28 Oct 2026: the buffer is a margin, not a deadline — design D6.)* At `leaveAt` itself, while the plan is in the `LeaveNow` phase (between `leaveAt` and `leaveBy`), the system SHALL send one gentle `LeaveNow` nudge per plan version ("Time to go — leave now … and you're there at HH:mm"): calm, naming the arrival time, no recovery talk. `notify.send` SHALL refuse a `LeaveNow` nudge outside the `LeaveNow` phase.
 

@@ -29,7 +29,12 @@ public sealed class AgentRunner(
     private static readonly Lazy<string> SystemPrompt = new(() =>
         File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Prompts", "agent.system.md")));
 
-    public async Task<AgentTrace?> RunAsync(string trigger, Guid? appointmentId, CancellationToken ct = default)
+    public Task<AgentTrace?> RunAsync(string trigger, Guid? appointmentId, CancellationToken ct = default) =>
+        RunAsync(trigger, appointmentId, note: null, ct);
+
+    /// <summary>`note` is a deterministic one-liner from the caller recorded on the trace
+    /// and handed to the model as context — e.g. "replan: traffic +7 min" (29 Oct 2026).</summary>
+    public async Task<AgentTrace?> RunAsync(string trigger, Guid? appointmentId, string? note, CancellationToken ct = default)
     {
         using var scope = scopeFactory.CreateScope();
         var sp = scope.ServiceProvider;
@@ -69,6 +74,8 @@ public sealed class AgentRunner(
         }
 
         var trace = new AgentTrace { Id = Guid.NewGuid(), Trigger = trigger, StartedAt = now };
+        if (note is not null)
+            trace.Steps.Add(new TraceStep(0, "note", "{}", note)); // "replan: traffic +7 min"
         db.AgentTraces.Add(trace);
         await db.SaveChangesAsync(ct);
 
@@ -102,7 +109,12 @@ public sealed class AgentRunner(
                 leaveAt = Fmt(currentPlan.LeaveAt),
                 stops = currentPlan.Stops.Select(s => s.Name),
                 isEstimated = currentPlan.IsEstimated,
+                // Why leaveAt last moved + the pre-shift time (replacement nudge, 29 Oct).
+                shiftReason = currentPlan.ShiftReason.ToString(),
+                shiftedFromLeaveAt = currentPlan.ShiftedFromLeaveAt is { } from ? Fmt(from) : null,
             },
+            // Deterministic replan summary from the tick, e.g. "replan: traffic +7 min".
+            replan = note,
             // The buffer is a margin (D6, 28 Oct): past leaveBy is late; past leaveAt is
             // only "leaveNow" — leaving immediately still arrives on time.
             state = currentPlan is null ? "normal"

@@ -90,6 +90,12 @@ public sealed class DeparturePlan
     /// <summary>Live-traffic share of the travel time (TomTom car routing, 28 Oct 2026);
     /// shown as "+N traffic" from 5 min up.</summary>
     public int TrafficDelayMin { get; set; }
+    /// <summary>Why leaveAt last moved (replacement-nudge amendment, 29 Oct 2026); the
+    /// replacement nudge names this cause in plain words.</summary>
+    public PlanShiftReason ShiftReason { get; set; }
+    /// <summary>The leaveAt before the last shift — the "instead of 09:28" time, part of the
+    /// nudge text guard's allowed vocabulary.</summary>
+    public DateTimeOffset? ShiftedFromLeaveAt { get; set; }
     /// <summary>Design D6 phase model; transitions are deterministic (PlanPhaseService).</summary>
     public PlanPhase Phase { get; set; } = PlanPhase.Upcoming;
     public DateTimeOffset? PhaseChangedAt { get; set; }

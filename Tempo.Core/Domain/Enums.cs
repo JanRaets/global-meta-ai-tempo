@@ -101,6 +101,19 @@ public enum PlanOutcomeKind
     NoData,
 }
 
+/// <summary>Why a plan's leaveAt moved versus its previous value (replacement-nudge
+/// amendment, 29 Oct 2026). Traffic when the traffic delay grew by ≥3 min and explains
+/// at least half the shift; set deterministically by the tick/commit, never by the model.</summary>
+public enum PlanShiftReason
+{
+    None,
+    Traffic,
+    Routing,
+    Habit,
+    Intent,
+    Appointment,
+}
+
 /// <summary>Where a plan's departure is measured from (chained origins, D6 amendment).</summary>
 public enum OriginKind
 {

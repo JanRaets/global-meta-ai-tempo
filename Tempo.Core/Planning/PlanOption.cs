@@ -24,7 +24,10 @@ public sealed record PlanOption(
     DateTimeOffset LeaveBy = default,
     /// <summary>Live-traffic share of the travel time (TomTom, car; added 28 Oct 2026).
     /// A tool-computed fact: shown from 5 min up, never derived by the model.</summary>
-    int TrafficDelayMin = 0)
+    int TrafficDelayMin = 0,
+    /// <summary>Why this option's leaveAt differs from the committed plan's, when it does
+    /// (replacement-nudge amendment, 29 Oct 2026); None for a fresh computation.</summary>
+    PlanShiftReason ShiftReason = PlanShiftReason.None)
 {
     /// <summary>Same-place plan: zero travel, no stops, leaveAt = start (D6 amendment).</summary>
     public bool IsNoTravel => LeaveAt == ArriveAt && Stops.Count == 0;

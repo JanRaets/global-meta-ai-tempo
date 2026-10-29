@@ -99,6 +99,18 @@ public sealed class PlannerTickService(
             var windowOpen = plan is { Phase: PlanPhase.Upcoming }
                 && now >= plan.LeaveAt.AddMinutes(-settings.NudgeLeadMin)
                 && !await NudgeExistsAsync(plan, NudgeKind.Leave, ct);
+            // Traffic-aware replacement (29 Oct 2026): the refresh above moved leaveAt more
+            // than 5 min EARLIER after the Leave nudge already went out — one replacement per
+            // appointment, inside the window, only while still Upcoming (past leaveAt the
+            // LeaveNow/Late machinery owns the message). Before the window opens nothing is
+            // sent: the countdown and reason line move silently.
+            var replanOwed = plan is { Phase: PlanPhase.Upcoming, ShiftedFromLeaveAt: { } shiftedFrom }
+                && (shiftedFrom - plan.LeaveAt).TotalMinutes > 5
+                && now >= plan.LeaveAt.AddMinutes(-settings.NudgeLeadMin)
+                && await NudgeExistsAsync(plan, NudgeKind.Leave, ct)
+                && !await db.Nudges.AnyAsync(n => n.AppointmentId == appointment.Id
+                    && n.Kind == NudgeKind.Leave && n.ReplacesNudgeId != null
+                    && n.Status != NudgeStatus.Cancelled, ct);
             var lateOpen = plan is { Phase: PlanPhase.Late }
                 && !await NudgeExistsAsync(plan, NudgeKind.Late, ct);
             // D6 (28 Oct): at leaveAt one gentle leave-now nudge, while the buffer still
@@ -118,13 +130,18 @@ public sealed class PlannerTickService(
                 : inputsChanged ? "tick:inputs-changed"
                 : lateOpen ? "tick:late"
                 : leaveNowOpen ? "tick:leave-now"
+                : replanOwed ? "tick:replan"
                 : windowOpen ? "tick:nudge-window"
                 : null;
             state.Set(appointment.Id, hash);
             if (reason is null)
                 continue; // unchanged inputs, nothing pending → no model call
 
-            var trace = await runner.RunAsync(reason, appointment.Id, ct);
+            // The trace records what moved and why: "replan: traffic +7 min".
+            var note = reason == "tick:replan" && plan?.ShiftedFromLeaveAt is { } from
+                ? $"replan: {plan.ShiftReason.ToString().ToLowerInvariant()} +{Math.Round((from - plan.LeaveAt).TotalMinutes)} min"
+                : null;
+            var trace = await runner.RunAsync(reason, appointment.Id, note, ct);
             if (trace?.Outcome == TraceOutcome.Failed)
             {
                 var fallback = await plans.FallbackCommitAsync(appointment.Id, ct);
@@ -154,10 +171,26 @@ public sealed class PlannerTickService(
             : plan.Phase == PlanPhase.Upcoming && now >= plan.LeaveAt.AddMinutes(-settings.NudgeLeadMin)
                 && !await NudgeExistsAsync(plan, NudgeKind.Leave, ct) ? NudgeKind.Leave
             : null;
+        var tz = TimeZoneInfo.FindSystemTimeZoneById(settings.TimeZone);
+        string? text = null;
+        // Replacement owed (29 Oct 2026): the Leave nudge went out, then leaveAt moved more
+        // than 5 min earlier — the deterministic template names the cause and both times;
+        // notify.send enforces the once-per-appointment and earlier-only rules.
+        if (owed is null
+            && plan is { Phase: PlanPhase.Upcoming, ShiftedFromLeaveAt: { } shiftedFrom }
+            && (shiftedFrom - plan.LeaveAt).TotalMinutes > 5
+            && now >= plan.LeaveAt.AddMinutes(-settings.NudgeLeadMin)
+            && await NudgeExistsAsync(plan, NudgeKind.Leave, ct)
+            && !await db.Nudges.AnyAsync(n => n.AppointmentId == appointment.Id
+                && n.Kind == NudgeKind.Leave && n.ReplacesNudgeId != null
+                && n.Status != NudgeStatus.Cancelled, ct))
+        {
+            owed = NudgeKind.Leave;
+            text = Tempo.Core.Nudging.NudgeTemplates.BuildReplacement(plan, appointment, tz);
+        }
         if (owed is null)
             return;
-        var tz = TimeZoneInfo.FindSystemTimeZoneById(settings.TimeZone);
-        var text = Tempo.Core.Nudging.NudgeTemplates.Build(owed.Value, plan, appointment, tz);
+        text ??= Tempo.Core.Nudging.NudgeTemplates.Build(owed.Value, plan, appointment, tz);
         var result = await nudges.SendAsync(owed.Value, text, appointment.Id, traceId, ct);
         logger.LogInformation("Template fallback nudge ({Kind}): {Outcome}",
             owed, result.Sent ? "sent" : result.RefusalReason);

@@ -143,6 +143,22 @@ public sealed class PlanService(
             OriginName = option.OriginName,
             TrafficDelayMin = option.TrafficDelayMin,
         };
+        // Why did leaveAt move versus the previous version? (replacement-nudge amendment,
+        // 29 Oct 2026) Classified deterministically from what changed since that version:
+        // an explicit user intent wins, then an edited appointment, then a different stop
+        // set, then the traffic rule; Routing is the remainder.
+        if (current is not null && (current.LeaveAt - option.LeaveAt).Duration() >= TimeSpan.FromMinutes(1))
+        {
+            var appointmentRow = await db.Appointments.AsNoTracking().SingleOrDefaultAsync(a => a.Id == appointmentId, ct);
+            var inputs = await db.PlanInputs.AsNoTracking().SingleOrDefaultAsync(p => p.AppointmentId == appointmentId, ct);
+            plan.ShiftReason =
+                inputs is not null && inputs.UpdatedAt > current.CreatedAt ? PlanShiftReason.Intent
+                : appointmentRow is not null && appointmentRow.UpdatedAt > current.CreatedAt ? PlanShiftReason.Appointment
+                : !SameStops(current.Stops, option.Stops) ? PlanShiftReason.Habit
+                : TrafficOrRouting(current.TrafficDelayMin, option.TrafficDelayMin,
+                    (current.LeaveAt - option.LeaveAt).TotalMinutes);
+            plan.ShiftedFromLeaveAt = current.LeaveAt;
+        }
         db.DeparturePlans.Add(plan);
         await db.SaveChangesAsync(ct);
         logger.LogInformation("Plan v{Version} committed for {AppointmentId}: {Mode}, leave {LeaveAt:HH:mm} ({Committer})",
@@ -187,6 +203,15 @@ public sealed class PlanService(
                 || (plan.LeaveAt - match.LeaveAt).Duration() >= TimeSpan.FromMinutes(1)
                 || plan.IsEstimated != match.IsEstimated))
         {
+            // Why did leaveAt move? (replacement-nudge amendment, 29 Oct 2026) Same mode and
+            // stops here, so only two causes exist: Traffic when the delay grew ≥3 min and
+            // explains at least half the shift, otherwise Routing.
+            if ((plan.LeaveAt - match.LeaveAt).Duration() >= TimeSpan.FromMinutes(1))
+            {
+                plan.ShiftReason = TrafficOrRouting(plan.TrafficDelayMin, match.TrafficDelayMin,
+                    (plan.LeaveAt - match.LeaveAt).TotalMinutes);
+                plan.ShiftedFromLeaveAt = plan.LeaveAt;
+            }
             plan.LeaveAt = match.LeaveAt;
             plan.LeaveBy = match.LeaveBy;
             plan.ArriveAt = match.ArriveAt;
@@ -300,6 +325,14 @@ public sealed class PlanService(
             .Select(ConfirmHabitHandler.FromPersisted)
             .Where(h => (h.Matches(ctx.Key) || h.Matches(preKey)) && !skipped.Contains(h.PlaceId))
             .ToList();
+    }
+
+    /// <summary>Traffic when the traffic delay grew by ≥3 min AND that growth explains at
+    /// least half of the leaveAt shift; otherwise Routing (replacement-nudge amendment).</summary>
+    private static PlanShiftReason TrafficOrRouting(int oldDelayMin, int newDelayMin, double shiftMin)
+    {
+        var grewBy = newDelayMin - oldDelayMin;
+        return grewBy >= 3 && grewBy >= Math.Abs(shiftMin) / 2 ? PlanShiftReason.Traffic : PlanShiftReason.Routing;
     }
 
     private static TimeBucket PreviousBucket(TimeBucket bucket) => bucket switch
