@@ -200,7 +200,8 @@ public sealed class DemoModeService(
     /// <summary>13.2 + 13.e (amended 29 Oct 2026): the trail is replayed in real time into
     /// the same ingest path as the phone, in two parts. First it idles at home — jittered
     /// fixes every 15 s — until two minutes past the committed plan's leaveBy AND the Late
-    /// nudge has gone out (giving up 6 min past leaveBy, or 25 min in), so the Late beat
+    /// nudge has gone out (giving up 6 min past leaveBy, or after 25 min with no committed
+    /// plan at all), so the Late beat
     /// always lands. Then a ~3.5-minute GPX drive to the destination: moving away
     /// (EnRoute — no more nudges), ending within the arrived radius (Arrived → "Made it").</summary>
     private async Task ReplayTrailAsync(Place home, Appointment appointment, Place destination, CancellationToken ct)
@@ -245,9 +246,12 @@ public sealed class DemoModeService(
                     break;
                 }
             }
-            if (now - started > TimeSpan.FromMinutes(25))
+            // The give-up cap guards against a plan never appearing — once one exists, the
+            // leaveBy-anchored conditions above bound the wait (a 10:00 meeting seeded 75 min
+            // ahead legitimately idles ~45 min; the cap must not cut that arc short).
+            if (plan is null && now - started > TimeSpan.FromMinutes(25))
             {
-                logger.LogWarning("Demo mode: no committed plan went late within 25 min — driving anyway");
+                logger.LogWarning("Demo mode: no plan was committed within 25 min — driving anyway");
                 break;
             }
             await Task.Delay(TimeSpan.FromSeconds(15), clock, ct);
