@@ -161,11 +161,15 @@ Each `DeparturePlan` SHALL carry a phase — `Upcoming`, `Late`, `EnRoute`, `Arr
 - **THEN** the look-ahead origin is home
 
 ### Requirement: Late re-estimate in place
-While a plan is `Late` or `EnRoute`, the tick SHALL re-run the planner deterministically (no model call) and refresh the committed option's `leaveAt` and `arriveAt` in place for the same mode and stops — same plan version, no new nudge. When a different option would arrive more than 5 minutes earlier than the refreshed committed option, that SHALL count as an input change and the agent runs again. *(Added 27 Oct 2026: the recovery's arrival time froze at nudge time while "N min late" kept ticking.)*
+While a plan is `Late` or `EnRoute`, the tick SHALL re-run the planner deterministically (no model call) and refresh the committed option's `leaveAt` and `arriveAt` in place for the same mode and stops — same plan version, no new nudge. When a different option would arrive more than 5 minutes earlier than the refreshed committed option, that SHALL count as an input change and the agent runs again. *(Added 27 Oct 2026: the recovery's arrival time froze at nudge time while "N min late" kept ticking.)* *(Amended 29 Oct 2026, from real use: a plan committed at 02:20 still showed its free-flow 16 minutes in the 07:40 rush.)* The same in-place refresh SHALL also run while the plan is `Upcoming` or `LeaveNow` within 60 minutes of `leaveAt` — fresh routing through the 5-minute cache on every tick, so the countdown and travel time track building traffic before departure; the refresh compares `leaveAt` as well as `arriveAt` (before departure the arrival is pinned at start − buffer, so traffic moves `leaveAt` only). Switching options remains the agent's business.
 
 #### Scenario: Arrival time stays honest
 - **WHEN** the user is 12 minutes late and the tick re-estimates
 - **THEN** the committed option's `arriveAt` moves with reality, the version is unchanged and no nudge is sent
+
+#### Scenario: Morning rush reaches the countdown *(added 29 Oct 2026)*
+- **WHEN** an Upcoming plan is within 60 minutes of `leaveAt` and travel grows from 16 to 20 minutes
+- **THEN** within a tick the committed plan's `leaveAt` moves 4 minutes earlier in place — same version, no model call, no nudge — and the Now screen's countdown and travel line follow
 
 #### Scenario: A better option appears
 - **WHEN** the refreshed committed option arrives more than 5 minutes after an alternative

@@ -68,6 +68,20 @@ public sealed class PlannerTickService(
                 if (refreshed is { } r)
                     (plan, betterAlternative, routingRecovered) = (r.Plan, r.BetterAlternative, r.RecoveredWithShift);
             }
+            // Near-departure refresh (29 Oct 2026, from real use: a plan computed at 02:20
+            // still showed 16 min in the 07:40 rush while Google said 20): while Upcoming or
+            // LeaveNow within 60 min of leaveAt, re-estimate the committed option in place on
+            // every tick — fresh routing through the 5-min cache, same mode and stops, no
+            // version bump, no model call, no nudge. The refresh runs BEFORE the nudge-window
+            // check below, so a Leave nudge always carries the freshest leave time; switching
+            // to a different option remains the agent's inputs-changed business.
+            else if (plan is { Phase: PlanPhase.Upcoming or PlanPhase.LeaveNow }
+                && now >= plan.LeaveAt.AddMinutes(-60))
+            {
+                var refreshed = await plans.RefreshCommittedAsync(appointment.Id, ct);
+                if (refreshed is { } r)
+                    plan = r.Plan;
+            }
 
             // AtDestination (D6 amendment): the zero-travel plan commits deterministically —
             // no model run, no nudge. "already at destination" is the whole decision.

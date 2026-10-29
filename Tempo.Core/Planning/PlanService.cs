@@ -179,8 +179,13 @@ public sealed class PlanService(
 
         var recoveredWithShift = plan.IsEstimated && !match.IsEstimated
             && (plan.LeaveAt - match.LeaveAt).Duration() > TimeSpan.FromMinutes(5);
+        // LeaveAt matters as much as ArriveAt (29 Oct 2026, from real use): before departure
+        // the arrival is pinned at start − buffer, so growing traffic moves leaveAt only —
+        // an ArriveAt-only comparison left a 02:20 estimate on screen through the 07:40 rush.
         if (!recoveredWithShift
-            && ((plan.ArriveAt - match.ArriveAt).Duration() >= TimeSpan.FromMinutes(1) || plan.IsEstimated != match.IsEstimated))
+            && ((plan.ArriveAt - match.ArriveAt).Duration() >= TimeSpan.FromMinutes(1)
+                || (plan.LeaveAt - match.LeaveAt).Duration() >= TimeSpan.FromMinutes(1)
+                || plan.IsEstimated != match.IsEstimated))
         {
             plan.LeaveAt = match.LeaveAt;
             plan.LeaveBy = match.LeaveBy;

@@ -85,6 +85,33 @@ public sealed class PlannerTickTests : IDisposable
         Assert.Single(model.ChatInvocations); // unchanged → no model call
     }
 
+    // Near-departure refresh (29 Oct 2026, from real use: a plan computed at 02:20 still
+    // showed 16 min in the 07:40 rush): an Upcoming plan within 60 min of leaveAt is
+    // re-estimated in place on every tick — same version, no model call, no nudge.
+    [Fact]
+    public async Task Near_departure_tick_refreshes_an_upcoming_plan_in_place()
+    {
+        model.EnqueueFinal("Nothing to do.");
+        await tick.TickAsync(); // first tick: inputs are new → one (non-committing) run
+        var committed = await plans.FallbackCommitAsync(appointment.Id);
+        Assert.NotNull(committed);
+        var before = (await plans.CurrentAsync(appointment.Id))!;
+        Assert.Equal(PlanPhase.Upcoming, before.Phase);
+        var leaveAtBefore = before.LeaveAt;
+
+        routing.BaseMinutes[TravelMode.Bicycle] = 26; // traffic built: 18 → 26 min
+        routing.TrafficDelayMinutes[TravelMode.Bicycle] = 6;
+        clock.Advance(TimeSpan.FromMinutes(2));
+        await tick.TickAsync(); // inputs unchanged → no model call, but the refresh runs
+
+        var after = (await plans.CurrentAsync(appointment.Id))!;
+        Assert.Equal(before.Version, after.Version); // in place, no version bump
+        Assert.Equal(leaveAtBefore.AddMinutes(-8), after.LeaveAt); // 8 min slower → leave 8 min earlier
+        Assert.Equal(6, after.TrafficDelayMin);
+        Assert.Single(model.ChatInvocations); // still only the first tick's run
+        Assert.Empty(db.Context.Nudges); // refresh never nudges
+    }
+
     [Fact]
     public async Task No_upcoming_appointment_makes_no_model_and_no_routing_call()
     {
