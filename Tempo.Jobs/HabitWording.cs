@@ -28,7 +28,7 @@ public sealed partial class HabitWording(IMetaModels models, ILogger<HabitWordin
             var facts = System.Text.Json.JsonSerializer.Serialize(new
             {
                 place = placeName,
-                weekday = context.Weekday.ToString(),
+                weekday = context.Weekday?.ToString() ?? "weekdays",
                 timeOfDay = context.TimeBucket.ToString().ToLowerInvariant(),
                 direction = context.Direction.ToString(),
                 beforeAppointmentKind = context.AdjacentAppointmentKind,
@@ -69,7 +69,8 @@ public sealed partial class HabitWording(IMetaModels models, ILogger<HabitWordin
 
     private static (string, string) Template(string placeName, ContextKey context, double avgMin, int visitCount)
     {
-        var when = $"{context.Weekday}{(context.TimeBucket == TimeBucket.Early ? " early morning" : " " + context.TimeBucket.ToString().ToLowerInvariant())}";
+        var day = context.Weekday?.ToString() ?? "weekday";
+        var when = $"{day}{(context.TimeBucket == TimeBucket.Early ? " early morning" : " " + context.TimeBucket.ToString().ToLowerInvariant())}";
         return (
             $"Looks like you usually stop at {placeName} on {when}s, about {Math.Round(avgMin)} min — want me to plan for it?",
             $"{visitCount} visits, ~{Math.Round(avgMin)} min each");

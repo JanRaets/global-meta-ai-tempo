@@ -20,6 +20,12 @@ export function NowScreen({ locationLive }: { locationLive: boolean }) {
     <div className={`flex flex-col flex-grow overflow-y-auto ${late ? 'bg-[#B42318] text-white' : 'bg-white text-[#111318]'}`}>
       <Header locationLive={locationLive} late={late} reconnecting={error} />
 
+      {data.agentPaused && (
+        <div className={`mx-6 mt-3 rounded-xl px-3.5 py-2 text-[13px] font-medium ${late ? 'bg-white/15 text-[#FFE4D6]' : 'bg-amber-100 text-amber-800'}`}>
+          paused: daily limit — plans and nudges resume at midnight
+        </div>
+      )}
+
       {data.state === 'none' && (
         <div className="px-6 pt-11 flex flex-col gap-2">
           <div className="text-[34px] font-extrabold tracking-[-0.03em] leading-none">All clear</div>

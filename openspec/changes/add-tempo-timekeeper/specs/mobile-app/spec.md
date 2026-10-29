@@ -62,7 +62,11 @@ The Settings screen SHALL let the user set home address, enabled modes, pinned m
 
 #### Scenario: Demo mode on
 - **WHEN** demo mode is switched on
-- **THEN** live geolocation posting stops and the server starts replaying the demo trail; the Now screen shows a "demo" badge
+- **THEN** live geolocation posting stops and the server starts replaying the demo trail; the Now screen shows a "demo" badge; Demo nudges appear in the Recent feed for the duration *(amended 29 Oct 2026 — filmable without the lock screen)*
+
+#### Scenario: Daily cap visible *(added 29 Oct 2026: the cap had refused runs silently during a demo walk)*
+- **WHEN** the daily agent-run cap is spent
+- **THEN** the Now screen shows a "paused: daily limit" line (`agentPaused` on `/api/now`) instead of failing silently
 
 ### Requirement: Voice and capture controls
 The Now screen SHALL show a hold-to-talk button and a camera button side by side below the countdown, each at least 64 px tall, with behaviour specified in `voice-input` and `capture-appointment`.

@@ -34,12 +34,21 @@ public sealed record CaptureResult(
     string TimeText,
     string PlaceText,
     string? PlaceName,
+    // The card's geocode result (resolve once, 29 Oct 2026): confirm reuses these
+    // coordinates so the created appointment is exactly the place the card showed.
+    double? PlaceLat,
+    double? PlaceLng,
     bool HasLocation,
     double Confidence,
     string RawText,
     bool Found);
 
-public sealed record ConfirmCapture(string Title, string StartLocal, string? PlaceText);
+/// <summary>PlaceLat/PlaceLng/PlaceName echo the card's resolved place. When present and the
+/// place text was not edited, confirm uses them verbatim — it never re-geocodes what the card
+/// already showed (resolve once, 29 Oct 2026). An edited place text re-geocodes as before.</summary>
+public sealed record ConfirmCapture(
+    string Title, string StartLocal, string? PlaceText,
+    double? PlaceLat = null, double? PlaceLng = null, string? PlaceName = null);
 
 public sealed record ConfirmedCapture(Guid AppointmentId, string Title, DateTimeOffset Start, string? PlaceName);
 
@@ -115,6 +124,7 @@ public sealed class CaptureService(
             || !string.IsNullOrWhiteSpace(captured.PlaceText);
 
         string? placeName = null;
+        double? placeLat = null, placeLng = null;
         var hasLocation = false;
         if (!string.IsNullOrWhiteSpace(captured.PlaceText))
         {
@@ -122,6 +132,7 @@ public sealed class CaptureService(
             if (geo is not null)
             {
                 placeName = geo.Label ?? captured.PlaceText.Trim();
+                (placeLat, placeLng) = (geo.Lat, geo.Lng);
                 hasLocation = true;
             }
         }
@@ -135,6 +146,8 @@ public sealed class CaptureService(
             TimeText: captured.TimeText ?? "",
             PlaceText: captured.PlaceText ?? "",
             PlaceName: placeName,
+            PlaceLat: placeLat,
+            PlaceLng: placeLng,
             HasLocation: hasLocation,
             Confidence: double.IsNaN(captured.Confidence) ? 0 : Math.Clamp(captured.Confidence, 0, 1),
             RawText: captured.RawText ?? "",
@@ -154,7 +167,20 @@ public sealed class CaptureService(
 
         Guid? placeId = null;
         string? placeName = null;
-        if (!string.IsNullOrWhiteSpace(req.PlaceText))
+        // Resolve once (29 Oct 2026, live: the card said "De Jonge, Leiderdorp" and confirm
+        // re-geocoded to a different venue): when the card's resolved coordinates come back
+        // with an unedited place text, they ARE the place — no second geocode, no 50 km rule
+        // (the card's geocode already ran with the home focus).
+        if (req is { PlaceLat: { } lat, PlaceLng: { } lng }
+            && !string.IsNullOrWhiteSpace(req.PlaceText)
+            && Math.Abs(lat) <= 90 && Math.Abs(lng) <= 180)
+        {
+            var place = await places.ResolvePointAsync(lat, lng,
+                string.IsNullOrWhiteSpace(req.PlaceName) ? req.PlaceText!.Trim() : req.PlaceName!.Trim(), ct);
+            await db.SaveChangesAsync(ct);
+            (placeId, placeName) = (place.Id, place.Name);
+        }
+        else if (!string.IsNullOrWhiteSpace(req.PlaceText))
         {
             try
             {

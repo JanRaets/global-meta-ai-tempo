@@ -4,6 +4,11 @@
     <ProjectReference Include="..\Tempo.Core\Tempo.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Only for job attributes (DisableConcurrentExecution); the server lives in Tempo.Api. -->
+    <PackageReference Include="Hangfire.Core" Version="1.8.25" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>

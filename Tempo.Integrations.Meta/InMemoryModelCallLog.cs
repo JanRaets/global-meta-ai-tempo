@@ -3,15 +3,17 @@ using Tempo.Core.Models;
 
 namespace Tempo.Integrations.Meta;
 
-/// <summary>In-memory call accounting; good enough for one process and an honest README snapshot.</summary>
+/// <summary>In-memory call accounting — the test default; production uses the persisted
+/// <see cref="DbModelCallLog"/> (29 Oct 2026).</summary>
 public sealed class InMemoryModelCallLog : IModelCallLog
 {
     private readonly ConcurrentQueue<ModelCallRecord> records = new();
 
     public void Record(ModelCallRecord record) => records.Enqueue(record);
 
-    public IReadOnlyList<ModelUsageSummary> Summarize() =>
+    public IReadOnlyList<ModelUsageSummary> Summarize(DateTimeOffset? since = null) =>
         records
+            .Where(r => since is null || r.At >= since)
             .GroupBy(r => (r.Provider, r.Model, r.Purpose))
             .Select(g => new ModelUsageSummary(
                 g.Key.Provider,

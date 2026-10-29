@@ -287,6 +287,43 @@ namespace Tempo.Api.Migrations
                     b.ToTable("Intents");
                 });
 
+            modelBuilder.Entity("Tempo.Core.Domain.ModelCall", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("At")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("CompletionTokens")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("LatencyMs")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int?>("PromptTokens")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Provider")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("Success")
+                        .HasColumnType("boolean");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ModelCalls");
+                });
+
             modelBuilder.Entity("Tempo.Core.Domain.Nudge", b =>
                 {
                     b.Property<Guid>("Id")
@@ -650,7 +687,7 @@ namespace Tempo.Api.Migrations
                             b1.Property<int>("TimeBucket")
                                 .HasColumnType("integer");
 
-                            b1.Property<int>("Weekday")
+                            b1.Property<int?>("Weekday")
                                 .HasColumnType("integer");
 
                             b1.HasKey("HabitId");

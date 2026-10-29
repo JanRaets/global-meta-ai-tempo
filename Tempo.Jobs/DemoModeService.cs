@@ -11,10 +11,12 @@ namespace Tempo.Jobs;
 
 /// <summary>
 /// The demo-mode toggle's backing job (13.1/13.2, design D11): seeds the safety net only
-/// when real data is thin, creates one demo appointment ~22 minutes out, and replays a
-/// generated GPX trail from the home place through the normal ingest path. With a
-/// 10-minute nudge lead the window opens within a tick (leave nudge) and lateness follows
-/// a few minutes later (late recovery nudge) — the whole arc inside a ~5-minute replay.
+/// when real data is thin, creates one demo appointment (today 10:00 when that is 20–75 min
+/// out — the "coffee before a morning meeting" scene — otherwise now+30), and replays a
+/// trail from the home place through the normal ingest path. The trail idles at home until
+/// two minutes past the plan's leaveBy and the Late nudge is out, so the full arc lands:
+/// Upcoming → LeaveNow → Late (nudge) → EnRoute → Arrived (amended 29 Oct 2026 — earlier
+/// fixed-length trails left home inside the margin and the Late beat never happened).
 /// Everything demo-made is marked "Demo:" so it is recognisable and removable.
 /// </summary>
 public sealed class DemoModeService(
@@ -70,8 +72,13 @@ public sealed class DemoModeService(
             return;
         }
 
-        var destination = await EnsureDemoAppointmentAsync(ct);
-        await ReplayTrailAsync(home, destination, ct);
+        var target = await EnsureDemoAppointmentAsync(settings, ct);
+        if (target is null)
+        {
+            logger.LogWarning("Demo mode: no appointment to play the arc against — nothing to replay");
+            return;
+        }
+        await ReplayTrailAsync(home, target.Value.Appointment, target.Value.Destination, ct);
     }
 
     /// <summary>13.1: the seed is a safety net, used only when real data is thin.</summary>
@@ -101,34 +108,85 @@ public sealed class DemoModeService(
             new DateTimeOffset(todayLocal.Date.AddDays(-daysBack).AddHours(hour).AddMinutes(minute), todayLocal.Offset)
                 .ToUniversalTime();
 
-        // Two habit candidates: café on this weekday's morning for three weeks, supermarket
-        // on this weekday's early evening — same (weekday, bucket) so inference proposes both.
+        // Coffee on weekday mornings before a meeting (every weekday of the last two weeks),
+        // groceries on Thursday evenings for three weeks (the evidence behind the habits below).
+        var cafeVisits = 0;
+        for (var daysBack = 1; daysBack <= 14; daysBack++)
+        {
+            var day = todayLocal.Date.AddDays(-daysBack).DayOfWeek;
+            if (day is >= DayOfWeek.Monday and <= DayOfWeek.Friday)
+            {
+                Visit(cafe.Id, Past(daysBack, 9, 15), 9);
+                cafeVisits++;
+            }
+        }
         for (var week = 1; week <= 3; week++)
         {
-            Visit(cafe.Id, Past(7 * week, 8, 50), 9);
-            Visit(super.Id, Past(7 * week, 17, 40), 15);
+            var thursday = todayLocal.Date.AddDays(-7 * week);
+            while (thursday.DayOfWeek != DayOfWeek.Thursday)
+                thursday = thursday.AddDays(-1);
+            Visit(super.Id, new DateTimeOffset(thursday.AddHours(17).AddMinutes(40), todayLocal.Offset).ToUniversalTime(), 15);
         }
+
+        // The demo habits themselves (amended 29 Oct 2026): the coffee stop is seeded
+        // CONFIRMED on any weekday morning before a meeting, so the "coffee before a morning
+        // meeting" scene works on every weekday; the supermarket stays a Thursday PROPOSAL so
+        // the confirm flow can be shown. Inference-derived habits keep concrete weekdays —
+        // the generalised weekday form exists only here (ContextKey, null Weekday).
+        db.Habits.Add(new Habit
+        {
+            Id = Guid.NewGuid(),
+            PlaceId = cafe.Id,
+            Context = new ContextKey(null, TimeBucket.Morning, TravelDirection.AwayFromHome, AppointmentKind.Meeting),
+            State = HabitState.Confirmed,
+            AvgDurationMin = 9,
+            VisitCount = cafeVisits,
+            ProposalText = "Looks like you usually stop at Bar Bello on weekday mornings before a meeting, about 9 min — want me to plan for it?",
+            Rationale = $"{cafeVisits} visits, ~9 min each",
+            DecidedAt = clock.GetUtcNow(),
+        });
+        db.Habits.Add(new Habit
+        {
+            Id = Guid.NewGuid(),
+            PlaceId = super.Id,
+            Context = new ContextKey(DayOfWeek.Thursday, TimeBucket.Evening, TravelDirection.Other, null),
+            State = HabitState.Proposed,
+            AvgDurationMin = 15,
+            VisitCount = 3,
+            ProposalText = "Looks like you usually stop at Albert Heijn on Thursday evenings, about 15 min — want me to plan for it?",
+            Rationale = "3 visits, ~15 min each",
+        });
         await db.SaveChangesAsync(ct);
     }
 
-    private async Task<Place> EnsureDemoAppointmentAsync(CancellationToken ct)
+    private async Task<(Appointment Appointment, Place Destination)?> EnsureDemoAppointmentAsync(
+        UserSettings settings, CancellationToken ct)
     {
         var now = clock.GetUtcNow();
+        // An appointment already in the arc window is the arc: the replay heads for it.
+        var existing = (await db.Appointments.AsNoTracking().Include(a => a.Place).ToListAsync(ct))
+            .FirstOrDefault(a => a.PlaceId != null && !a.IsVirtual && a.Start > now && a.Start <= now.AddMinutes(60));
+        if (existing is not null)
+            return (existing, existing.Place!);
+
         var destination = await places.ResolvePointAsync(52.0894, 5.1100, "Utrecht Centraal", ct);
-        var upcoming = (await db.Appointments.AsNoTracking().ToListAsync(ct))
-            .Any(a => a.PlaceId != null && !a.IsVirtual && a.Start > now && a.Start <= now.AddMinutes(60));
-        if (upcoming)
-            return destination;
         await db.SaveChangesAsync(ct);
+        // A 10:00 meeting when that is 20–75 min out (the morning filming scene: "Leave in N
+        // min" with the weekday-morning coffee stop); otherwise now+30 so the arc works at any
+        // hour. Either way leaveAt lands minutes out and lateness follows mid-replay.
+        var tz = TimeZoneInfo.FindSystemTimeZoneById(settings.TimeZone);
+        var local = TimeZoneInfo.ConvertTime(now, tz);
+        var tenLocal = new DateTimeOffset(local.Date.AddHours(10), local.Offset).ToUniversalTime();
+        var start = tenLocal - now >= TimeSpan.FromMinutes(20) && tenLocal - now <= TimeSpan.FromMinutes(75)
+            ? tenLocal
+            : now.AddMinutes(30);
         var appointment = new Appointment
         {
             Id = Guid.NewGuid(),
             Source = AppointmentSource.Captured, // calendar sync must never delete it
-            // +30: car travel ~25 min puts leaveAt ~5 min out — the leave nudge fires with a
-            // future time on the first tick, lateness follows mid-replay (verified live 27 Oct).
-            Title = "Demo: borrel met Tom",
-            Start = now.AddMinutes(30),
-            End = now.AddMinutes(90),
+            Title = "Demo: meeting met Tom", // "meeting" so the before-a-meeting coffee habit applies
+            Start = start,
+            End = start.AddMinutes(60),
             PlaceId = destination.Id,
             BufferMin = 5,
         };
@@ -136,61 +194,97 @@ public sealed class DemoModeService(
         await db.SaveChangesAsync(ct);
         await events.PublishAsync(new AppointmentChanged(appointment.Id, AppointmentChangeKind.Created), ct);
         logger.LogWarning("Demo mode: seeded appointment '{Title}' at {Start:HH:mm} UTC", appointment.Title, appointment.Start);
-        return destination;
+        return (appointment, destination);
     }
 
-    /// <summary>13.2 + 13.e: a ~10-minute trail replayed in real time into the same ingest
-    /// path as the phone. Phase arc: near home while leaveAt passes (leave nudge → late
-    /// nudge), then moving away (EnRoute — no more nudges), ending within the arrived
-    /// radius of the destination (Arrived → "Made it").</summary>
-    private async Task ReplayTrailAsync(Place home, Place destination, CancellationToken ct)
+    /// <summary>13.2 + 13.e (amended 29 Oct 2026): the trail is replayed in real time into
+    /// the same ingest path as the phone, in two parts. First it idles at home — jittered
+    /// fixes every 15 s — until two minutes past the committed plan's leaveBy AND the Late
+    /// nudge has gone out (giving up 6 min past leaveBy, or 25 min in), so the Late beat
+    /// always lands. Then a ~3.5-minute GPX drive to the destination: moving away
+    /// (EnRoute — no more nudges), ending within the arrived radius (Arrived → "Made it").</summary>
+    private async Task ReplayTrailAsync(Place home, Appointment appointment, Place destination, CancellationToken ct)
     {
         // The trail starts at home while the phone may be anywhere: clear the buffer first,
         // or the ingest teleport guard rejects the whole replay (and vice versa on cleanup).
         await buffer.ClearAsync(ct);
-        var source = new GpxReplaySource(BuildTrailGpx(home, destination, clock.GetUtcNow()), speedFactor: 1, clock);
+        logger.LogWarning("Demo mode: trail {Home} → {Destination} — idling at home until the Late beat, then driving",
+            home.Name, destination.Name);
+
+        var started = clock.GetUtcNow();
+        for (var i = 0; ; i++)
+        {
+            var now = clock.GetUtcNow();
+            var idle = new LocationPoint(
+                home.Lat + 0.0006 * Math.Sin(i / 3.0),
+                home.Lng + 0.0006 * Math.Cos(i / 4.0), now);
+            if ((await ingest.IngestAsync(idle, ct)).Accepted)
+                await phases.EvaluateAllAsync(ct); // phase transitions fire on every post (D6)
+
+            var fresh = await db.UserSettings.AsNoTracking().FirstAsync(ct);
+            if (!fresh.DemoMode)
+            {
+                logger.LogInformation("Demo mode switched off — replay stopped while idling at home");
+                return;
+            }
+
+            var plan = await db.DeparturePlans.AsNoTracking()
+                .Where(p => p.AppointmentId == appointment.Id)
+                .OrderByDescending(p => p.Version)
+                .FirstOrDefaultAsync(ct);
+            if (plan is not null && now > plan.LeaveBy.AddMinutes(2))
+            {
+                // The Late nudge comes from the 2-min tick; hold at home until it is out so
+                // the beat is on screen — but never wait more than 6 min past leaveBy.
+                var lateSent = await db.Nudges.AsNoTracking().AnyAsync(n =>
+                    n.AppointmentId == appointment.Id && n.Kind == NudgeKind.Late && n.Status == NudgeStatus.Sent, ct);
+                if (lateSent || now > plan.LeaveBy.AddMinutes(6))
+                {
+                    logger.LogWarning("Demo mode: Late beat {State} — starting the drive",
+                        lateSent ? "landed" : "NOT observed (giving up waiting)");
+                    break;
+                }
+            }
+            if (now - started > TimeSpan.FromMinutes(25))
+            {
+                logger.LogWarning("Demo mode: no committed plan went late within 25 min — driving anyway");
+                break;
+            }
+            await Task.Delay(TimeSpan.FromSeconds(15), clock, ct);
+        }
+
+        var source = new GpxReplaySource(BuildDriveGpx(home, destination, clock.GetUtcNow()), speedFactor: 1, clock);
         var posted = 0;
-        logger.LogWarning("Demo mode: replaying the GPX trail {Home} → {Destination} (~10 min)", home.Name, destination.Name);
         await foreach (var point in source.StreamAsync(ct))
         {
             var result = await ingest.IngestAsync(point, ct);
             if (result.Accepted)
             {
                 posted++;
-                await phases.EvaluateAllAsync(ct); // phase transitions fire on every post (D6)
+                await phases.EvaluateAllAsync(ct);
             }
             var fresh = await db.UserSettings.AsNoTracking().FirstAsync(ct);
             if (!fresh.DemoMode)
             {
-                logger.LogInformation("Demo mode switched off — replay stopped after {Posted} point(s)", posted);
+                logger.LogInformation("Demo mode switched off — replay stopped after {Posted} drive point(s)", posted);
                 return;
             }
         }
-        logger.LogWarning("Demo mode: trail replay finished ({Posted} point(s) posted)", posted);
+        logger.LogWarning("Demo mode: trail replay finished ({Posted} drive point(s) posted)", posted);
     }
 
-    private static string BuildTrailGpx(Place home, Place destination, DateTimeOffset start)
+    private static string BuildDriveGpx(Place home, Place destination, DateTimeOffset start)
     {
-        // 40 points, 15 s apart (~10 min). 0–26: jitter within ~70 m of home (Upcoming → Late).
-        // 26–34: progressively away from home (> EnRouteMeters → EnRoute). 34–39: closing in
-        // on the destination, the last points inside the arrived radius (→ Arrived).
+        // 14 points, 15 s apart (~3.5 min): progressively away from home (> EnRouteMeters →
+        // EnRoute), the last point inside the arrived radius of the destination (→ Arrived).
         var inv = CultureInfo.InvariantCulture;
-        var points = Enumerable.Range(0, 40).Select(i =>
+        var points = Enumerable.Range(0, 14).Select(i =>
         {
-            double lat, lng;
-            if (i < 26)
-            {
-                lat = home.Lat + 0.0006 * Math.Sin(i / 3.0);
-                lng = home.Lng + 0.0006 * Math.Cos(i / 4.0);
-            }
-            else
-            {
-                // fraction of the way home → destination: 3 % … 100 %
-                var t = i >= 39 ? 1.0 : 0.03 + (i - 26) * 0.075;
-                lat = home.Lat + (destination.Lat - home.Lat) * t;
-                lng = home.Lng + (destination.Lng - home.Lng) * t;
-            }
-            var time = start.AddSeconds(i * 15).UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ssZ", inv);
+            // fraction of the way home → destination: 3 % … 100 %
+            var t = i >= 13 ? 1.0 : 0.03 + i * 0.075;
+            var lat = home.Lat + (destination.Lat - home.Lat) * t;
+            var lng = home.Lng + (destination.Lng - home.Lng) * t;
+            var time = start.AddSeconds((i + 1) * 15).UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ssZ", inv);
             return $"<trkpt lat=\"{lat.ToString(inv)}\" lon=\"{lng.ToString(inv)}\"><time>{time}</time></trkpt>";
         });
         return $"<gpx><trk><trkseg>{string.Join("", points)}</trkseg></trk></gpx>";

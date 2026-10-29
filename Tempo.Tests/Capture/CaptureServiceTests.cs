@@ -137,6 +137,27 @@ public sealed class CaptureServiceTests : IDisposable
         Assert.Equal(appointment.Id, change.AppointmentId);
     }
 
+    // Resolve once (29 Oct 2026, live: card "De Jonge, Leiderdorp" became "De Jonge Graaf,
+    // Cothen" on confirm): the card's coordinates travel back and confirm never re-geocodes.
+    [Fact]
+    public async Task Confirm_reuses_the_cards_resolved_place_without_a_second_geocode()
+    {
+        model.EnqueueTyped(Extract());
+        var card = await Service().CaptureAsync(new byte[] { 1, 2, 3 }, "image/jpeg");
+        Assert.Equal(52.0907, Assert.IsType<double>(card.PlaceLat), precision: 4);
+        Assert.Equal(5.1214, Assert.IsType<double>(card.PlaceLng), precision: 4);
+        var lookupsAfterCard = geocoder.Lookups.Count;
+
+        var confirmed = await Service().ConfirmAsync(new ConfirmCapture(
+            card.Title, card.StartLocal!, card.PlaceText, card.PlaceLat, card.PlaceLng, card.PlaceName));
+
+        Assert.Equal(lookupsAfterCard, geocoder.Lookups.Count); // no second geocode
+        var appointment = db.Context.Appointments.Single(a => a.Id == confirmed.AppointmentId);
+        var place = db.Context.Places.Single(p => p.Id == appointment.PlaceId);
+        Assert.Equal("De Jonge Haan, Utrecht", place.Name); // exactly what the card showed
+        Assert.Equal(52.0907, place.Lat, precision: 4);
+    }
+
     [Fact]
     public async Task Confirm_rejects_blank_title()
     {

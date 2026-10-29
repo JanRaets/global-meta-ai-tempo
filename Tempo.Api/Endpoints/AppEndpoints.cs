@@ -14,7 +14,7 @@ namespace Tempo.Api.Endpoints;
 
 /// <summary>GET /api/now — everything the Now screen shows in one payload. The state comes
 /// from the deterministic plan phase (D6): normal, late, enroute, arrived (for ~30 s), none.</summary>
-public sealed class NowEndpoint(TempoDbContext db, PlanService plans, PhaseOptions phaseOptions, TimeProvider clock) : EndpointWithoutRequest
+public sealed class NowEndpoint(TempoDbContext db, PlanService plans, PhaseOptions phaseOptions, AgentOptions agentOptions, TimeProvider clock) : EndpointWithoutRequest
 {
     public override void Configure()
     {
@@ -57,7 +57,12 @@ public sealed class NowEndpoint(TempoDbContext db, PlanService plans, PhaseOptio
         }
         if (appointment is null)
         {
-            await Send.OkAsync(new { state = "none", nudges = await RecentNudgesAsync(db, tz, 3, ct) }, ct);
+            await Send.OkAsync(new
+            {
+                state = "none",
+                agentPaused = await AgentPausedAsync(db, agentOptions, tz, now, ct),
+                nudges = await RecentNudgesAsync(db, tz, 3, settings.DemoMode, ct),
+            }, ct);
             return;
         }
 
@@ -101,19 +106,39 @@ public sealed class NowEndpoint(TempoDbContext db, PlanService plans, PhaseOptio
             lateByMin = state == "late" ? (int)Math.Ceiling((now - plan!.LeaveBy).TotalMinutes) : 0,
             // En route: the dominant number; arriveAt refreshes in place every tick (13.e).
             minutesRemaining = state == "enroute" ? Math.Max(0, (int)Math.Ceiling((plan!.ArriveAt - now).TotalMinutes)) : 0,
-            nudges = await RecentNudgesAsync(db, tz, 3, ct),
+            // Visible cap state (29 Oct 2026): the daily agent-run cap must never fail silently.
+            agentPaused = await AgentPausedAsync(db, agentOptions, tz, now, ct),
+            nudges = await RecentNudgesAsync(db, tz, 3, settings.DemoMode, ct),
         }, ct);
     }
 
-    /// <summary>Feed hygiene (28 Oct 2026): Live nudges only; one whose appointment is gone
-    /// stays in the database for audit but is hidden — unless it went out today, in which
-    /// case it shows greyed with "appointment removed".</summary>
-    internal static async Task<object> RecentNudgesAsync(TempoDbContext db, TimeZoneInfo tz, int limit, CancellationToken ct)
+    /// <summary>True when the daily agent-run cap (13.c) is spent: the Now screen then shows
+    /// "paused: daily limit" instead of failing silently (added 29 Oct 2026). Same count as
+    /// AgentRunner: non-phase traces since local midnight, compared client-side (SQLite).</summary>
+    internal static async Task<bool> AgentPausedAsync(
+        TempoDbContext db, AgentOptions agentOptions, TimeZoneInfo tz, DateTimeOffset now, CancellationToken ct)
+    {
+        var local = TimeZoneInfo.ConvertTime(now, tz);
+        var dayStart = new DateTimeOffset(local.Date, local.Offset).ToUniversalTime();
+        var runsToday = (await db.AgentTraces.AsNoTracking()
+                .Where(t => t.Trigger != "phase")
+                .Select(t => t.StartedAt).ToListAsync(ct))
+            .Count(t => t >= dayStart);
+        return runsToday >= agentOptions.MaxRunsPerDay;
+    }
+
+    /// <summary>Feed hygiene (28 Oct 2026, amended 29 Oct): Live nudges only — plus Demo
+    /// nudges while demo mode is ON (they vanish with the toggle), so the replay's beats are
+    /// filmable in the feed. A nudge whose appointment is gone stays in the database for
+    /// audit but is hidden — unless it went out today, in which case it shows greyed with
+    /// "appointment removed".</summary>
+    internal static async Task<object> RecentNudgesAsync(TempoDbContext db, TimeZoneInfo tz, int limit, bool includeDemo, CancellationToken ct)
     {
         var appointmentIds = (await db.Appointments.AsNoTracking().Select(a => a.Id).ToListAsync(ct)).ToHashSet();
         var todayLocal = TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, tz).Date;
         return (await db.Nudges.AsNoTracking()
-                .Where(n => n.Status == NudgeStatus.Sent && n.Source == NudgeSource.Live).ToListAsync(ct))
+                .Where(n => n.Status == NudgeStatus.Sent
+                    && (n.Source == NudgeSource.Live || (includeDemo && n.Source == NudgeSource.Demo))).ToListAsync(ct))
             .OrderByDescending(n => n.CreatedAt) // client-side: SQLite can't order DateTimeOffset
             .Select(n => (Nudge: n, Removed: !appointmentIds.Contains(n.AppointmentId)))
             .Where(x => !x.Removed || TimeZoneInfo.ConvertTime(x.Nudge.SentAt ?? x.Nudge.CreatedAt, tz).Date == todayLocal)
@@ -251,8 +276,9 @@ public sealed class TimelineTodayEndpoint(TempoDbContext db, Tempo.Core.Planning
     }
 }
 
-/// <summary>GET /api/nudges?limit=20 — nudge history, newest first. Live only by default;
-/// ?source=all includes Demo and Dev rows for debugging (feed hygiene, 28 Oct 2026).</summary>
+/// <summary>GET /api/nudges?limit=20 — nudge history, newest first. Live only by default
+/// (plus Demo while demo mode is on — feed hygiene, amended 29 Oct 2026); ?source=all
+/// includes Demo and Dev rows for debugging.</summary>
 public sealed class NudgesEndpoint(TempoDbContext db) : EndpointWithoutRequest
 {
     public override void Configure()
@@ -268,7 +294,7 @@ public sealed class NudgesEndpoint(TempoDbContext db) : EndpointWithoutRequest
         var settings = await db.UserSettings.AsNoTracking().FirstAsync(ct);
         var tz = TimeZoneInfo.FindSystemTimeZoneById(settings.TimeZone);
         var nudges = (await db.Nudges.AsNoTracking().ToListAsync(ct))
-            .Where(n => all || n.Source == NudgeSource.Live)
+            .Where(n => all || n.Source == NudgeSource.Live || (settings.DemoMode && n.Source == NudgeSource.Demo))
             .OrderByDescending(n => n.CreatedAt)
             .Take(limit)
             .Select(n => new

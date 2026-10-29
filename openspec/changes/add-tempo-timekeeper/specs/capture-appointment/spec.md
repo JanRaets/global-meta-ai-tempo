@@ -31,6 +31,10 @@ A captured appointment SHALL become an `Appointment { Source = Captured }` only 
 - **WHEN** the user taps the time on the card
 - **THEN** a native time picker lets them correct it before adding
 
+#### Scenario: Resolve once *(added 29 Oct 2026 from real use: the card showed one venue and confirm re-geocoded to another)*
+- **WHEN** the user confirms a card whose place was resolved at capture
+- **THEN** the created appointment uses exactly the place the card showed — the card's coordinates travel back with the confirm and no second geocode runs; only an edited place text re-geocodes (with the >50 km home-focus retry)
+
 ### Requirement: Captured appointments are first-class
 Captured appointments SHALL flow through departure planning, nudging and habit context exactly like synced ones.
 

@@ -58,8 +58,12 @@ The system SHALL retry a failed chat or vision call once on the fallback impleme
 - **THEN** the transcript is returned in Dutch (e.g. "ik ga eerst even naar de Albert Heijn") with `Language = "unknown"`
 
 ### Requirement: Call accounting
-The system SHALL log every model call with provider, model, purpose, token counts where available, and latency, so the README can state usage honestly.
+The system SHALL log every model call with provider, model, purpose, token counts where available, and latency, so the README can state usage honestly. *(Amended 29 Oct 2026)* The log SHALL be persisted (the `ModelCalls` table) so the numbers survive restarts; a failed accounting write never fails the model call. Nothing is backfilled: the table counts from 29 Oct 2026.
 
 #### Scenario: Usage summary
 - **WHEN** `GET /admin/model-usage` is called
-- **THEN** counts per provider and purpose are returned
+- **THEN** counts per provider and purpose are returned, from the persisted table; `?since=<timestamp>` narrows the window
+
+#### Scenario: Restart
+- **WHEN** the API restarts
+- **THEN** earlier calls still appear in the summary (the routing cache and TomTom quota counters remain in-memory and reset)

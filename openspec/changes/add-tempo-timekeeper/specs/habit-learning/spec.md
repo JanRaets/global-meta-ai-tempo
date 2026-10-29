@@ -44,11 +44,15 @@ The system SHALL deliver proposed habits as one push notification per day deep-l
 - **THEN** the habit remains `Proposed` and is re-sent once in the next batch
 
 ### Requirement: Habit context matching
-A `ConfirmedHabit` SHALL match a planning context only when weekday, time bucket and direction all match and, if the habit has an `adjacentAppointmentKind`, that matches as well.
+A `ConfirmedHabit` SHALL match a planning context only when weekday, time bucket and direction all match and, if the habit has an `adjacentAppointmentKind`, that matches as well. *(Amended 29 Oct 2026)* A habit whose context has no specific weekday (`Weekday = null`) SHALL match any Monday–Friday planning context and never a weekend one. Inference always derives concrete weekdays; the generalised form exists only for seeded or hand-edited habits (the demo coffee stop).
 
 #### Scenario: Weekend mismatch
 - **WHEN** a weekday-morning coffee habit is evaluated on a Saturday
 - **THEN** it does not match
+
+#### Scenario: Weekday-generalised habit
+- **WHEN** a habit with no specific weekday (morning, away from home, before a meeting) is evaluated against a Wednesday 10:00 meeting departure from home
+- **THEN** it matches — and on a Sunday morning it does not
 
 ### Requirement: Habit management API
 The system SHALL expose endpoints to list habits by state and to confirm or reject a habit; the app's Habits screen and the Android notification actions use the same endpoints.

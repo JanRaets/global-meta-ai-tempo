@@ -23,6 +23,11 @@ builder.Configuration.AddJsonFile("appsettings.local.json", optional: true, relo
 // Config schema (fail fast; see architecture.md). Each integration enforces its own
 // required values the moment it is registered.
 builder.Services.AddMetaModels(builder.Configuration);
+// Persisted usage accounting (29 Oct 2026): the API swaps the in-memory default for the
+// ModelCalls table, so /admin/model-usage survives restarts. Tests keep the in-memory log.
+Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions.Replace(
+    builder.Services,
+    Microsoft.Extensions.DependencyInjection.ServiceDescriptor.Singleton<Tempo.Core.Models.IModelCallLog, DbModelCallLog>());
 // Routing and Google options are bound by AddMapsIntegration / AddGoogleCalendar below.
 
 var postgres = builder.Configuration.GetConnectionString("Postgres")

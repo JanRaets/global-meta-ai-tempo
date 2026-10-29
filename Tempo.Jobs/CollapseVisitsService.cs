@@ -70,6 +70,7 @@ public sealed class CollapseVisitsService(
     public async Task CollapseAsync(CancellationToken ct = default)
     {
         var now = clock.GetUtcNow();
+        await DedupeOpenVisitsAsync(ct);
         var points = await buffer.GetSinceAsync(now.AddHours(-24), ct);
         var stays = DetectStays(points, now);
         if (stays.Count == 0)
@@ -117,10 +118,31 @@ public sealed class CollapseVisitsService(
             await events.PublishAsync(new VisitCreated(id), ct);
         logger.LogInformation("Visit collapse: {Stays} stay(s), {Created} new visit(s)", stays.Count, created.Count);
     }
+
+    /// <summary>Two open (DepartedAt null) visits at the same place describe one stay twice —
+    /// residue of concurrent collapse runs before the job became non-reentrant (29 Oct 2026).
+    /// The earliest arrival is the stay; later duplicates are removed.</summary>
+    private async Task DedupeOpenVisitsAsync(CancellationToken ct)
+    {
+        var open = await db.Visits.Where(v => v.DepartedAt == null).ToListAsync(ct);
+        var duplicates = open
+            .GroupBy(v => v.PlaceId)
+            .Where(g => g.Count() > 1)
+            .SelectMany(g => g.OrderBy(v => v.ArrivedAt).Skip(1))
+            .ToList();
+        if (duplicates.Count == 0)
+            return;
+        db.Visits.RemoveRange(duplicates);
+        await db.SaveChangesAsync(ct);
+        logger.LogWarning("Visit collapse: removed {Count} duplicate open visit(s)", duplicates.Count);
+    }
 }
 
-/// <summary>Hangfire entry point: every 10 minutes.</summary>
+/// <summary>Hangfire entry point: every 10 minutes. Non-reentrant (29 Oct 2026): two
+/// concurrent runs each read the open visits before the other wrote, creating duplicate
+/// rows for the same stay (seen live 28 Oct).</summary>
 public sealed class CollapseVisitsJob(CollapseVisitsService collapse)
 {
+    [Hangfire.DisableConcurrentExecution(timeoutInSeconds: 300)]
     public Task RunAsync(CancellationToken ct) => collapse.CollapseAsync(ct);
 }

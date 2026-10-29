@@ -19,6 +19,8 @@ export type NowPayload = {
   leaveInMin?: number | null
   lateByMin?: number
   minutesRemaining?: number
+  /** The daily agent-run cap is spent — shown as "paused: daily limit", never a silent stop. */
+  agentPaused?: boolean
   nudges: RecentNudge[]
 }
 

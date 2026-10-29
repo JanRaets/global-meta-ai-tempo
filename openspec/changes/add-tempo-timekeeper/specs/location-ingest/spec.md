@@ -40,7 +40,7 @@ The system SHALL define `ILocationSource` with at least a `GpxReplaySource` impl
 - **THEN** points are posted to `/location` in order with scaled timestamps
 
 ### Requirement: Visit collapsing
-The system SHALL run a job every 10 minutes that converts buffered points into `Visit` records: a stay of at least 5 minutes within a 75 m radius becomes one Visit.
+The system SHALL run a job every 10 minutes that converts buffered points into `Visit` records: a stay of at least 5 minutes within a 75 m radius becomes one Visit. *(Amended 29 Oct 2026 from real use: concurrent runs each read the open visits before the other wrote, duplicating a stay.)* The job SHALL be non-reentrant (Hangfire `DisableConcurrentExecution`), and each run SHALL first dedupe open visits: multiple `departedAt = null` rows at the same place keep only the earliest arrival.
 
 #### Scenario: Stay detected
 - **WHEN** points show the user within 75 m of a centroid for 20 minutes
@@ -53,6 +53,10 @@ The system SHALL run a job every 10 minutes that converts buffered points into `
 #### Scenario: Ongoing stay
 - **WHEN** the stay has not ended when the job runs
 - **THEN** a `Visit` is created with `departedAt = null` and updated on a later run
+
+#### Scenario: Duplicate open visits
+- **WHEN** a run finds two open visits at the same place
+- **THEN** only the earliest-arrival row survives
 
 ### Requirement: Raw points are not persisted
 The system SHALL NOT write raw location points to PostgreSQL.

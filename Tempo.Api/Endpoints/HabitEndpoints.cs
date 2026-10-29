@@ -29,7 +29,8 @@ public sealed class ListHabitsEndpoint(TempoDbContext db) : EndpointWithoutReque
             rationale = h.Rationale,
             avgDurationMin = h.AvgDurationMin,
             visitCount = h.VisitCount,
-            weekday = h.Context.Weekday.ToString(),
+            weekday = h.Context.Weekday?.ToString() ?? "Weekday", // null = any Monday–Friday
+
             timeBucket = h.Context.TimeBucket.ToString(),
             direction = h.Context.Direction.ToString(),
             kind = h.Context.AdjacentAppointmentKind,

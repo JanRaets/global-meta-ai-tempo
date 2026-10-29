@@ -22,9 +22,11 @@ public sealed record ModelUsageSummary(
     long CompletionTokens,
     long TotalLatencyMs);
 
-/// <summary>Records every model call (provider, model, purpose, tokens, latency) so the README can state usage honestly.</summary>
+/// <summary>Records every model call (provider, model, purpose, tokens, latency) so the README
+/// can state usage honestly. Persisted to the ModelCalls table in production (29 Oct 2026);
+/// <paramref name="since"/> limits a summary to calls at or after that moment.</summary>
 public interface IModelCallLog
 {
     void Record(ModelCallRecord record);
-    IReadOnlyList<ModelUsageSummary> Summarize();
+    IReadOnlyList<ModelUsageSummary> Summarize(DateTimeOffset? since = null);
 }

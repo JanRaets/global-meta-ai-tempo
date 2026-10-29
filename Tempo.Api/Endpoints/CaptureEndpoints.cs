@@ -41,6 +41,12 @@ public sealed class ConfirmCaptureRequest
     /// <summary>From the card's datetime-local input: "yyyy-MM-ddTHH:mm" in the user timezone.</summary>
     public string StartLocal { get; set; } = "";
     public string? PlaceText { get; set; }
+    /// <summary>The card's resolved place, echoed back (resolve once, 29 Oct 2026). The
+    /// client sends these only while the place text is unedited; present, confirm uses them
+    /// verbatim instead of geocoding again.</summary>
+    public double? PlaceLat { get; set; }
+    public double? PlaceLng { get; set; }
+    public string? PlaceName { get; set; }
 }
 
 /// <summary>POST /api/capture/confirm — the card's Add button. Creates the captured
@@ -58,7 +64,8 @@ public sealed class ConfirmCaptureEndpoint(CaptureService capture) : Endpoint<Co
         try
         {
             await Send.OkAsync(
-                await capture.ConfirmAsync(new ConfirmCapture(req.Title, req.StartLocal, req.PlaceText), ct), ct);
+                await capture.ConfirmAsync(new ConfirmCapture(
+                    req.Title, req.StartLocal, req.PlaceText, req.PlaceLat, req.PlaceLng, req.PlaceName), ct), ct);
         }
         catch (CaptureValidationException ex)
         {

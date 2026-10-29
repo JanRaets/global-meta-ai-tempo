@@ -44,6 +44,29 @@ public sealed class ContextKeyTests
             new ContextKey(DayOfWeek.Tuesday, TimeBucket.Morning, TravelDirection.AwayFromHome, null)));
     }
 
+    // A null weekday means "any Monday–Friday" (ContextKey amendment, 29 Oct 2026) — the
+    // seeded demo coffee habit matches a morning meeting on every weekday, never the weekend.
+    [Theory]
+    [InlineData(DayOfWeek.Monday)]
+    [InlineData(DayOfWeek.Wednesday)]
+    [InlineData(DayOfWeek.Friday)]
+    public void Weekday_generalised_habit_matches_every_weekday(DayOfWeek day)
+    {
+        var anyWeekday = WeekdayMorningCoffee with { Weekday = null };
+        Assert.True(anyWeekday.Matches(
+            new ContextKey(day, TimeBucket.Morning, TravelDirection.AwayFromHome, "meeting")));
+    }
+
+    [Theory]
+    [InlineData(DayOfWeek.Saturday)]
+    [InlineData(DayOfWeek.Sunday)]
+    public void Weekday_generalised_habit_does_not_match_the_weekend(DayOfWeek day)
+    {
+        var anyWeekday = WeekdayMorningCoffee with { Weekday = null };
+        Assert.False(anyWeekday.Matches(
+            new ContextKey(day, TimeBucket.Morning, TravelDirection.AwayFromHome, "meeting")));
+    }
+
     [Fact]
     public void Habit_without_adjacent_kind_matches_any_appointment_kind()
     {

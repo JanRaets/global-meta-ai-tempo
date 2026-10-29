@@ -177,6 +177,21 @@ public sealed class AgentTrace
     public List<TraceStep> Steps { get; set; } = [];
 }
 
+/// <summary>One model call (provider, model, purpose, tokens, latency) — persisted so the
+/// README's usage numbers survive restarts (29 Oct 2026; was in-memory before).</summary>
+public sealed class ModelCall
+{
+    public Guid Id { get; set; }
+    public Tempo.Core.Configuration.ModelProvider Provider { get; set; }
+    public required string Model { get; set; }
+    public required string Purpose { get; set; }
+    public int? PromptTokens { get; set; }
+    public int? CompletionTokens { get; set; }
+    public long LatencyMs { get; set; }
+    public bool Success { get; set; }
+    public DateTimeOffset At { get; set; }
+}
+
 /// <summary>Single row (one user, one phone).</summary>
 public sealed class UserSettings
 {

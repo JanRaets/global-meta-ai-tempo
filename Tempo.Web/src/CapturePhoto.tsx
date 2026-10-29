@@ -7,6 +7,10 @@ type CaptureResponse = {
   startLocal: string | null
   placeText: string
   placeName: string | null
+  /** The card's geocode result — echoed back on confirm so the created appointment is
+   * exactly the place the card showed (resolve once, never a second geocode). */
+  placeLat: number | null
+  placeLng: number | null
   hasLocation: boolean
   confidence: number
   rawText: string
@@ -68,7 +72,16 @@ export function CapturePhoto({ onApplied }: { onApplied?: () => void } = {}) {
       const response = await fetch('/api/capture/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: capture.title, startLocal, placeText: capture.placeText }),
+        body: JSON.stringify({
+          title: capture.title,
+          startLocal,
+          placeText: capture.placeText,
+          // The card's place is not editable, so the resolved coordinates always travel back;
+          // if a place editor ever lands, send them only while the text is untouched.
+          placeLat: capture.placeLat,
+          placeLng: capture.placeLng,
+          placeName: capture.placeName,
+        }),
       })
       if (!response.ok) throw new Error(await response.text())
       setPhase('added')

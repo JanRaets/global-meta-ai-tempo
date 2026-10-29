@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
+using Tempo.Core.Domain;
 using Tempo.Core.Events;
 using Tempo.Core.Geo;
 using Tempo.Core.Location;
@@ -116,6 +117,25 @@ public sealed class CollapseVisitsServiceTests : IDisposable
         visit = Assert.Single(db.Context.Visits); // updated, not duplicated
         Assert.Equal(T0.AddMinutes(20), visit.DepartedAt);
         Assert.Single(events.Published.OfType<VisitCreated>()); // only the first run created one
+    }
+
+    // Residue of concurrent collapse runs (live, 28 Oct): two open visits describing the
+    // same stay. The earliest arrival is the stay; the later duplicate goes (29 Oct 2026).
+    [Fact]
+    public async Task Duplicate_open_visits_at_the_same_place_keep_only_the_earliest()
+    {
+        var place = new Place { Id = Guid.NewGuid(), Name = "Thuis", Lat = 52.09, Lng = 5.12 };
+        db.Context.Places.Add(place);
+        db.Context.Visits.AddRange(
+            new Visit { Id = Guid.NewGuid(), PlaceId = place.Id, ArrivedAt = T0.AddHours(-5), DepartedAt = null },
+            new Visit { Id = Guid.NewGuid(), PlaceId = place.Id, ArrivedAt = T0.AddHours(-2), DepartedAt = null });
+        await db.Context.SaveChangesAsync();
+
+        await Service().CollapseAsync();
+
+        var visit = Assert.Single(db.Context.Visits);
+        Assert.Equal(T0.AddHours(-5), visit.ArrivedAt);
+        Assert.Null(visit.DepartedAt); // still the ongoing stay
     }
 
     [Fact]

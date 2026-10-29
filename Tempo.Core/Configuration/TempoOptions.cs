@@ -25,7 +25,10 @@ public sealed class AgentOptions
 {
     public const string Section = "Agent";
 
-    public int MaxRunsPerDay { get; init; } = 200;
+    // 400 (raised from 200, 29 Oct 2026): a full live day plus demo replays hit 200; the
+    // cap's job is catching a runaway loop, not throttling a busy day. When it does trip,
+    // the Now screen shows "paused: daily limit" (never a silent stop).
+    public int MaxRunsPerDay { get; init; } = 400;
 }
 
 /// <summary>Plan phase thresholds (design D6). Forgiving on purpose: Owntracks significant
