@@ -104,11 +104,19 @@ Every action outside the Settings screen SHALL complete with a single tap and no
 - **THEN** the chosen alternative is applied to the plan (stop skipped or mode switched) and the screen returns to the normal state with the updated countdown
 
 ### Requirement: En-route and arrived states
-When the plan phase is `EnRoute`, the Now screen SHALL show "On your way" with minutes remaining as the dominant number and the arrival time beneath it, in normal colours even when the user left late; the number refreshes from the deterministic re-estimate. When the phase becomes `Arrived`, the screen SHALL show a brief "Made it" state for ~30 seconds, after which the next appointment takes over. *(Added 27 Oct 2026; design D6 phase model.)*
+When the plan phase is `EnRoute`, the Now screen SHALL show "On your way" with minutes remaining as the dominant number and the arrival time beneath it, in normal colours even when the user left late; the number refreshes from the deterministic re-estimate. When the phase becomes `Arrived`, the screen SHALL show a brief "Made it" state for ~30 seconds, after which the next appointment takes over. *(Added 27 Oct 2026; design D6 phase model.)* *(Amended 29 Oct 2026, from real use: at 08:04 the screen read "arrive 08:24" against an 08:20 start with nothing marking the slip.)* When the projected arrival lands past the appointment start, the arrival chip — and only the chip, never the whole screen — SHALL turn amber and read "arriving 08:24 · 4 min late", from the server-computed `arriveLateMin`; it returns to normal colours and wording when the ETA recovers. No nudge accompanies the slip. Rationale: calm while driving — the user is already moving and can act on nothing a red screen or a push would add.
 
 #### Scenario: Walking it off
 - **WHEN** the user left 6 minutes late and starts cycling
 - **THEN** the red late screen gives way to "On your way — arrive 10:07" in normal colours
+
+#### Scenario: Slip shown calmly *(added 29 Oct 2026)*
+- **WHEN** the state is `enroute` and the projected arrival is 4 minutes past the start
+- **THEN** the screen stays in normal colours, the arrival chip turns amber reading "arriving 08:24 · 4 min late", and no nudge is sent
+
+#### Scenario: ETA recovers *(added 29 Oct 2026)*
+- **WHEN** a later refresh brings the projected arrival back to the start or earlier
+- **THEN** the chip returns to normal colours and wording
 
 #### Scenario: Made it
 - **WHEN** the user comes within 100 m of the destination

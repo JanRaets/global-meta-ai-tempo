@@ -61,6 +61,13 @@ public sealed class PhaseOptions
 
     /// <summary>No fix proof needed: this long after the appointment start → Arrived.</summary>
     public int ArrivedFallbackMin { get; init; } = 15;
+
+    /// <summary>Ingest-driven en-route refresh (29 Oct 2026): while EnRoute, a location
+    /// post re-estimates the committed plan at most once per this many seconds…</summary>
+    public int EnRouteRefreshSeconds { get; init; } = 60;
+
+    /// <summary>…unless the fix moved at least this far since the last refresh.</summary>
+    public int EnRouteRefreshMeters { get; init; } = 300;
 }
 
 public sealed class MetaApiOptions

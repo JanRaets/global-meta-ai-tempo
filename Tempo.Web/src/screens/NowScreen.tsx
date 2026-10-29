@@ -15,6 +15,8 @@ export function NowScreen({ locationLive }: { locationLive: boolean }) {
 
   if (!data) return <Shell locationLive={locationLive} />
   const late = data.state === 'late'
+  // En-route slip shown calmly (D13 amendment): the chip turns amber, the screen does not.
+  const slip = data.state === 'enroute' ? (data.arriveLateMin ?? 0) : 0
 
   return (
     <div className={`flex flex-col flex-grow overflow-y-auto ${late ? 'bg-[#B42318] text-white' : 'bg-white text-[#111318]'}`}>
@@ -107,12 +109,14 @@ export function NowScreen({ locationLive }: { locationLive: boolean }) {
           )}
 
           {!late && data.plan && (
-            <div className="mx-6 mt-7 flex items-center gap-3.5 px-4.5 py-4 bg-[#F3F4F6] rounded-2xl">
+            <div className={`mx-6 mt-7 flex items-center gap-3.5 px-4.5 py-4 rounded-2xl ${slip > 0 ? 'bg-[#FEF3C7] text-[#92400E]' : 'bg-[#F3F4F6]'}`}>
               <ModeIcon mode={data.plan.mode} size={28} />
               <div className="flex flex-col gap-0.5">
                 <div className="text-base font-semibold">
                   {data.state === 'enroute'
-                    ? `By ${data.plan.mode} · arrive ${data.plan.arriveAt}`
+                    ? slip > 0
+                      ? `By ${data.plan.mode} · arriving ${data.plan.arriveAt} · ${slip} min late`
+                      : `By ${data.plan.mode} · arrive ${data.plan.arriveAt}`
                     : `${data.plan.travelMin} min by ${data.plan.mode}${(data.plan.trafficDelayMin ?? 0) >= 5 ? ` · +${data.plan.trafficDelayMin} traffic` : ''} · leave ${data.plan.leaveAt}`}
                   {data.plan.isEstimated && (
                     <span className="ml-2 align-middle text-[11px] font-semibold text-[#6B7280] bg-[#E5E7EB] rounded-full px-2 py-0.5">

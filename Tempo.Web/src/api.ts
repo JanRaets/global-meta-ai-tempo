@@ -19,6 +19,9 @@ export type NowPayload = {
   leaveInMin?: number | null
   lateByMin?: number
   minutesRemaining?: number
+  /** En route only: whole minutes the projected arrival lands past the start (0 = on time).
+   * Shown calmly — amber arrival chip, never the whole screen, no nudge. */
+  arriveLateMin?: number
   /** The daily agent-run cap is spent — shown as "paused: daily limit", never a silent stop. */
   agentPaused?: boolean
   nudges: RecentNudge[]

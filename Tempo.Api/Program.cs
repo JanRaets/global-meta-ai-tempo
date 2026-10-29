@@ -48,6 +48,8 @@ builder.Services.AddSingleton(sp => sp.GetRequiredService<Microsoft.Extensions.O
 builder.Services.AddOptions<PhaseOptions>().Bind(builder.Configuration.GetSection(PhaseOptions.Section));
 builder.Services.AddSingleton(sp => sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<PhaseOptions>>().Value);
 builder.Services.AddScoped<Tempo.Core.Planning.PlanPhaseService>();
+builder.Services.AddSingleton<Tempo.Core.Planning.EnRouteEtaThrottle>(); // throttle state outlives requests
+builder.Services.AddScoped<Tempo.Core.Planning.EnRouteEtaService>();
 builder.Services.AddScoped<Tempo.Core.Planning.PlanOutcomeService>();
 builder.Services.AddSingleton<Tempo.Agent.AgentRunner>();
 builder.Services.AddSingleton<Tempo.Agent.TickStateStore>();

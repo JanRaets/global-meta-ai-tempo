@@ -106,11 +106,20 @@ public sealed class NowEndpoint(TempoDbContext db, PlanService plans, PhaseOptio
             lateByMin = state == "late" ? (int)Math.Ceiling((now - plan!.LeaveBy).TotalMinutes) : 0,
             // En route: the dominant number; arriveAt refreshes in place every tick (13.e).
             minutesRemaining = state == "enroute" ? Math.Max(0, (int)Math.Ceiling((plan!.ArriveAt - now).TotalMinutes)) : 0,
+            // En-route slip shown calmly (D13 amendment, 29 Oct 2026): amber arrival chip,
+            // never the whole screen, and no nudge — the user is driving.
+            arriveLateMin = state == "enroute" ? ArriveSlipMin(plan!.ArriveAt, appointment.Start) : 0,
             // Visible cap state (29 Oct 2026): the daily agent-run cap must never fail silently.
             agentPaused = await AgentPausedAsync(db, agentOptions, tz, now, ct),
             nudges = await RecentNudgesAsync(db, tz, 3, settings.DemoMode, ct),
         }, ct);
     }
+
+    /// <summary>Whole minutes the projected en-route arrival lands past the appointment
+    /// start, 0 when on time (D13 amendment, 29 Oct 2026: slip shown calmly). Server-side:
+    /// clients display, they don't do time math (D1).</summary>
+    public static int ArriveSlipMin(DateTimeOffset arriveAt, DateTimeOffset start) =>
+        Math.Max(0, (int)Math.Ceiling((arriveAt - start).TotalMinutes));
 
     /// <summary>True when the daily agent-run cap (13.c) is spent: the Now screen then shows
     /// "paused: daily limit" instead of failing silently (added 29 Oct 2026). Same count as

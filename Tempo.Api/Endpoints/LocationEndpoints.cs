@@ -34,7 +34,8 @@ public sealed class LocationPointRequest
 }
 
 public sealed class LocationIngestEndpoint(
-    LocationIngestService ingest, LocationApiKeyAuth auth, Tempo.Core.Planning.PlanPhaseService phases)
+    LocationIngestService ingest, LocationApiKeyAuth auth, Tempo.Core.Planning.PlanPhaseService phases,
+    Tempo.Core.Planning.EnRouteEtaService eta)
     : Endpoint<LocationPointRequest>
 {
     public override void Configure()
@@ -56,7 +57,8 @@ public sealed class LocationIngestEndpoint(
             await Send.StringAsync(result.Reason!, 400, cancellation: ct);
             return;
         }
-        await phases.EvaluateAllAsync(ct); // phase transitions fire on every accepted post (D6)
+        var transitions = await phases.EvaluateAllAsync(ct); // phase transitions fire on every accepted post (D6)
+        await eta.RefreshOnIngestAsync(transitions, ct); // live ETA on departure (29 Oct 2026)
         await Send.StringAsync("", statusCode: 202, cancellation: ct); // 202 Accepted per spec
     }
 }
@@ -65,7 +67,7 @@ public sealed class LocationIngestEndpoint(
 /// or Owntracks keeps the message queued forever. Invalid or stale points are dropped quietly.</summary>
 public sealed class OwntracksEndpoint(
     LocationIngestService ingest, LocationApiKeyAuth auth, Tempo.Core.Planning.PlanPhaseService phases,
-    ILogger<OwntracksEndpoint> logger)
+    Tempo.Core.Planning.EnRouteEtaService eta, ILogger<OwntracksEndpoint> logger)
     : EndpointWithoutRequest
 {
     public override void Configure()
@@ -89,7 +91,10 @@ public sealed class OwntracksEndpoint(
             if (!result.Accepted)
                 logger.LogInformation("Owntracks point dropped: {Reason}", result.Reason);
             else
-                await phases.EvaluateAllAsync(ct); // phase transitions fire on every accepted post (D6)
+            {
+                var transitions = await phases.EvaluateAllAsync(ct); // phase transitions fire on every accepted post (D6)
+                await eta.RefreshOnIngestAsync(transitions, ct); // live ETA on departure (29 Oct 2026)
+            }
         }
         await Send.StringAsync("[]", contentType: "application/json", cancellation: ct);
     }

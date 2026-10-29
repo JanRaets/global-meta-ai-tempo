@@ -25,6 +25,7 @@ public sealed class DemoModeService(
     LocationIngestService ingest,
     ILocationBuffer buffer,
     Tempo.Core.Planning.PlanPhaseService phases,
+    Tempo.Core.Planning.EnRouteEtaService eta,
     IDomainEvents events,
     TimeProvider clock,
     ILogger<DemoModeService> logger)
@@ -265,7 +266,10 @@ public sealed class DemoModeService(
             if (result.Accepted)
             {
                 posted++;
-                await phases.EvaluateAllAsync(ct);
+                var transitions = await phases.EvaluateAllAsync(ct);
+                // The demo drive goes through the same ingest contract as the phone:
+                // departure flips refresh the ETA in place (live ETA, 29 Oct 2026).
+                await eta.RefreshOnIngestAsync(transitions, ct);
             }
             var fresh = await db.UserSettings.AsNoTracking().FirstAsync(ct);
             if (!fresh.DemoMode)
