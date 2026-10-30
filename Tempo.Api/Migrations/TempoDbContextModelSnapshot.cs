@@ -235,6 +235,9 @@ namespace Tempo.Api.Migrations
                     b.Property<bool>("IsPaused")
                         .HasColumnType("boolean");
 
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer");
+
                     b.Property<DateTimeOffset?>("LastProposedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -689,6 +692,9 @@ namespace Tempo.Api.Migrations
 
                             b1.Property<int>("Direction")
                                 .HasColumnType("integer");
+
+                            b1.Property<string>("GapBucket")
+                                .HasColumnType("text");
 
                             b1.Property<int>("TimeBucket")
                                 .HasColumnType("integer");

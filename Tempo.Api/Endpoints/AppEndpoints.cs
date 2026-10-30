@@ -236,10 +236,13 @@ public sealed class TimelineTodayEndpoint(TempoDbContext db, Tempo.Core.Planning
                     stops = p.Stops.Select(s => s.Name),
                     // Chained origins (D6 amendment): where this departure starts from.
                     noTravel = p.LeaveAt == p.ArriveAt && p.Stops.Count == 0,
+                    // Every chained case names its origin (30 Oct 2026): "from home" /
+                    // "from <previous title>" / "from here".
                     originLabel = p.OriginKind switch
                     {
                         OriginKind.Current => "from here",
                         OriginKind.PreviousAppointment when p.OriginName is not null => $"from {p.OriginName}",
+                        OriginKind.Home => "from home",
                         _ => (string?)null,
                     },
                 };

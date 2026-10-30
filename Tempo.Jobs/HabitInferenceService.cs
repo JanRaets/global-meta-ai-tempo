@@ -43,6 +43,8 @@ public sealed class HabitInferenceService(
         {
             if (group.Key.PlaceId == settings.HomePlaceId)
                 continue; // home is the anchor of directions, never a stop habit
+            if (group.Key.Context.GapBucket is not null)
+                continue; // origin-habit contexts never shape a stop habit
             var durations = group.Select(v => (v.DepartedAt!.Value - v.ArrivedAt).TotalMinutes).ToList();
             if (StdDev(durations) > MaxStdDevMin)
                 continue;
@@ -94,8 +96,114 @@ public sealed class HabitInferenceService(
             created++;
         }
 
+        created += await InferOriginHabitsAsync(visits, appointments, habits, settings, tz, now, ct);
+
         await db.SaveChangesAsync(ct);
         logger.LogInformation("Habit inference: {Created} new proposal(s) from {Visits} visits", created, visits.Count);
+        return created;
+    }
+
+    /// <summary>ReturnsHome/StaysPut patterns (chained-origin amendment, 30 Oct 2026): between
+    /// two placed appointments on the same day, a home visit inside the gap counts toward
+    /// ReturnsHome; staying at the previous place until the next departure counts toward
+    /// StaysPut. At least MinVisits comparable days — same previous-appointment kind, weekday
+    /// and gap bucket — become a proposal, decided like any habit.</summary>
+    private async Task<int> InferOriginHabitsAsync(
+        IReadOnlyList<Visit> visits,
+        IReadOnlyList<Appointment> appointments,
+        List<Habit> habits,
+        UserSettings settings,
+        TimeZoneInfo tz,
+        DateTimeOffset now,
+        CancellationToken ct)
+    {
+        if (settings.HomePlaceId is not { } homeId)
+            return 0;
+
+        var placed = appointments
+            .Where(a => a.PlaceId != null && !a.IsVirtual && a.End <= now)
+            .OrderBy(a => a.Start)
+            .ToList();
+        var observations = new List<(HabitKind Kind, Guid PlaceId, ContextKey Context, string Title, DateOnly Day)>();
+        foreach (var previous in placed)
+        {
+            var next = placed.FirstOrDefault(n => n.Id != previous.Id && n.Start >= previous.End);
+            if (next is null)
+                continue;
+            var localEnd = TimeZoneInfo.ConvertTime(previous.End, tz);
+            if (TimeZoneInfo.ConvertTime(next.Start, tz).Date != localEnd.Date)
+                continue;
+            var gap = next.Start - previous.End;
+            if (gap <= TimeSpan.Zero)
+                continue;
+            var context = new ContextKey(
+                localEnd.DayOfWeek,
+                ContextKey.BucketOf(TimeOnly.FromDateTime(localEnd.DateTime)),
+                TravelDirection.TowardHome,
+                AppointmentKind.Classify(previous.Title),
+                ContextKey.GapBucketOf(gap));
+            var day = DateOnly.FromDateTime(localEnd.Date);
+            var wentHome = visits.Any(v => v.PlaceId == homeId
+                && v.ArrivedAt >= previous.End && v.ArrivedAt <= next.Start);
+            if (wentHome)
+                observations.Add((HabitKind.ReturnsHome, homeId, context, previous.Title, day));
+            else if (visits.Any(v => v.PlaceId == previous.PlaceId && v.ArrivedAt <= previous.End
+                         && v.DepartedAt >= next.Start - TimeSpan.FromMinutes(15)))
+                observations.Add((HabitKind.StaysPut, previous.PlaceId!.Value,
+                    context with { Direction = TravelDirection.Other }, previous.Title, day));
+        }
+
+        var created = 0;
+        foreach (var group in observations.GroupBy(o => (o.Kind, o.PlaceId, o.Context)))
+        {
+            var days = group.Select(o => o.Day).Distinct().Count();
+            if (days < MinVisits)
+                continue;
+            var title = group.GroupBy(o => o.Title).MaxBy(g => g.Count())!.Key;
+
+            var existing = habits.FirstOrDefault(h => h.Kind == group.Key.Kind
+                && h.PlaceId == group.Key.PlaceId && h.Context == group.Key.Context);
+            if (existing is not null)
+            {
+                switch (existing.State)
+                {
+                    case HabitState.Confirmed:
+                        continue;
+                    case HabitState.Proposed:
+                        existing.VisitCount = days;
+                        continue;
+                    case HabitState.Rejected when now - existing.DecidedAt < RejectedSuppression:
+                        continue;
+                    case HabitState.Rejected:
+                        existing.State = HabitState.Proposed;
+                        existing.DecidedAt = null;
+                        existing.VisitCount = days;
+                        existing.ProposalSentCount = 0;
+                        existing.LastProposedAt = null;
+                        (existing.ProposalText, existing.Rationale) =
+                            await wording.WordOriginAsync(group.Key.Kind, title, group.Key.Context.GapBucket!, days, ct);
+                        created++;
+                        continue;
+                }
+            }
+
+            var (sentence, rationale) = await wording.WordOriginAsync(group.Key.Kind, title, group.Key.Context.GapBucket!, days, ct);
+            var habit = new Habit
+            {
+                Id = Guid.NewGuid(),
+                PlaceId = group.Key.PlaceId,
+                Kind = group.Key.Kind,
+                Context = group.Key.Context,
+                State = HabitState.Proposed,
+                AvgDurationMin = 0,
+                VisitCount = days,
+                ProposalText = sentence,
+                Rationale = rationale,
+            };
+            db.Habits.Add(habit);
+            habits.Add(habit);
+            created++;
+        }
         return created;
     }
 

@@ -40,6 +40,6 @@ public sealed class ConfirmHabitHandler(TempoDbContext db, IDomainEvents events)
         if (habit.Place is null)
             throw new InvalidOperationException($"Habit {habit.Id} must be loaded with its Place");
         return new ConfirmedHabit(habit.Id, habit.PlaceId, habit.Place.Name, habit.AvgDurationMin, habit.Context,
-            habit.Place.Lat, habit.Place.Lng);
+            habit.Place.Lat, habit.Place.Lng, habit.Kind);
     }
 }

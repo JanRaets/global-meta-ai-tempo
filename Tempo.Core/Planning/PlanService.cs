@@ -20,7 +20,8 @@ public sealed class PlanService(
     CurrentLocationProvider location,
     TimeProvider clock,
     ILogger<PlanService> logger,
-    Tempo.Core.Configuration.PhaseOptions? phaseOptions = null)
+    Tempo.Core.Configuration.PhaseOptions? phaseOptions = null,
+    IRoutingClient? routing = null)
 {
     private static readonly TimeSpan JitterTolerance = TimeSpan.FromMinutes(3);
     private readonly Tempo.Core.Configuration.PhaseOptions phase = phaseOptions ?? new();
@@ -258,9 +259,10 @@ public sealed class PlanService(
             ? await db.Places.AsNoTracking().SingleOrDefaultAsync(p => p.Id == homeId, ct)
             : null;
 
-        // Chained origins (D6 amendment, 28 Oct 2026): only the NEXT placed appointment
-        // departs from the current fix. A look-ahead appointment departs from the previous
-        // placed appointment's place when the gap is at most Phase:ChainGapHours, else home.
+        // Chained origins (D6 amendment, 28 Oct 2026; gap rule amended 30 Oct 2026): only
+        // the NEXT placed appointment departs from the current fix. A look-ahead appointment
+        // assumes home unless the gap is too short to bother going home (travel home plus
+        // Phase:StayThresholdMin) or a confirmed ReturnsHome/StaysPut habit says otherwise.
         var now = clock.GetUtcNow();
         // Client-side date filtering: SQLite (tests) cannot compare DateTimeOffset in SQL.
         var placedOthers = (await db.Appointments.AsNoTracking().Include(a => a.Place)
@@ -278,19 +280,49 @@ public sealed class PlanService(
         // The chain origin is the most recently STARTED placed appointment — overlapping
         // events (JO7 still running when JO9 starts) chain from where the user actually is,
         // not from the last one that happened to end (live, 28 Oct).
-        var chained = placedOthers
-            .Where(a => a.Start < appointment.Start && appointment.Start - a.End <= TimeSpan.FromHours(phase.ChainGapHours))
+        var previous = placedOthers
+            .Where(a => a.Start < appointment.Start)
             .MaxBy(a => a.Start);
-        if (!isNext && chained is { } previous)
+        if (!isNext && previous is not null)
         {
-            origin = new GeoPoint(previous.Place!.Lat, previous.Place.Lng);
-            originKind = OriginKind.PreviousAppointment;
-            originName = previous.Title;
+            // Home is the default between appointments (amended 30 Oct 2026, from real use:
+            // a 20:00 party was planned from hockey ending 17:00 — "I always go home in
+            // between"). Without a home place the old chaining stands.
+            if (homePlace is null || await ChainsFromPreviousAsync(appointment, previous, settings, homePlace, ct))
+            {
+                origin = new GeoPoint(previous.Place!.Lat, previous.Place.Lng);
+                originKind = OriginKind.PreviousAppointment;
+                originName = previous.Title;
+            }
+            else
+            {
+                origin = new GeoPoint(homePlace.Lat, homePlace.Lng);
+                originKind = OriginKind.Home;
+            }
         }
         else if (isNext && current is { IsStale: false })
         {
-            origin = new GeoPoint(current.Point.Lat, current.Point.Lng);
-            originKind = OriginKind.Current;
+            // Evidence names the origin (30 Oct 2026): a fix at home plans — and reads —
+            // "from home"; a fix still at the previous place after its end reads "from
+            // <title>"; anywhere else stays "from here".
+            if (homePlace is not null && GeoMath.DistanceMeters(
+                    current.Point.Lat, current.Point.Lng, homePlace.Lat, homePlace.Lng) <= phase.ArrivedMeters)
+            {
+                origin = new GeoPoint(homePlace.Lat, homePlace.Lng);
+                originKind = OriginKind.Home;
+            }
+            else if (previous is not null && previous.End <= now && GeoMath.DistanceMeters(
+                    current.Point.Lat, current.Point.Lng, previous.Place!.Lat, previous.Place.Lng) <= phase.ArrivedMeters)
+            {
+                origin = new GeoPoint(previous.Place.Lat, previous.Place.Lng);
+                originKind = OriginKind.PreviousAppointment;
+                originName = previous.Title;
+            }
+            else
+            {
+                origin = new GeoPoint(current.Point.Lat, current.Point.Lng);
+                originKind = OriginKind.Current;
+            }
         }
         else if (homePlace is not null)
         {
@@ -320,12 +352,67 @@ public sealed class PlanService(
         // Morning). Match both buckets (D5 note, 27 Oct).
         var preKey = ctx.Key with { TimeBucket = PreviousBucket(ctx.Key.TimeBucket) };
         return (await db.Habits.Include(h => h.Place)
-                .Where(h => h.State == HabitState.Confirmed && !h.IsPaused)
+                .Where(h => h.State == HabitState.Confirmed && !h.IsPaused && h.Kind == HabitKind.Stop)
                 .ToListAsync(ct))
             .Select(ConfirmHabitHandler.FromPersisted)
             .Where(h => (h.Matches(ctx.Key) || h.Matches(preKey)) && !skipped.Contains(h.PlaceId))
             .ToList();
     }
+
+    /// <summary>Does a look-ahead plan depart from the previous appointment's place, or from
+    /// home? (Chained-origin amendment, 30 Oct 2026.) Overlapping or back-to-back events
+    /// always chain. A confirmed ReturnsHome/StaysPut habit for this previous-appointment
+    /// kind, weekday and gap bucket overrides the heuristic. The heuristic: chain only when
+    /// the gap is shorter than the travel home plus Phase:StayThresholdMin — there wasn't
+    /// time to go home. The home leg rides the normal (cached) routing; when routing is
+    /// unavailable the straight-line estimate decides.</summary>
+    private async Task<bool> ChainsFromPreviousAsync(
+        Appointment appointment, Appointment previous, UserSettings settings, Place homePlace, CancellationToken ct)
+    {
+        var gap = appointment.Start - previous.End;
+        if (gap <= TimeSpan.Zero)
+            return true;
+
+        var tz = TimeZoneInfo.FindSystemTimeZoneById(settings.TimeZone);
+        var weekday = TimeZoneInfo.ConvertTime(previous.End, tz).DayOfWeek;
+        var previousKind = AppointmentKind.Classify(previous.Title);
+        var gapBucket = ContextKey.GapBucketOf(gap);
+        var originHabit = (await db.Habits.AsNoTracking().Include(h => h.Place)
+                .Where(h => h.State == HabitState.Confirmed && !h.IsPaused && h.Kind != HabitKind.Stop)
+                .ToListAsync(ct))
+            .Select(ConfirmHabitHandler.FromPersisted)
+            .FirstOrDefault(h => h.Context.MatchesOrigin(weekday, previousKind, gapBucket));
+        if (originHabit is not null)
+            return originHabit.Kind == HabitKind.StaysPut;
+
+        if (gap.TotalMinutes < phase.StayThresholdMin)
+            return true; // too short to go home whatever the travel time
+        if (gap >= TimeSpan.FromHours(6))
+            return false; // always long enough to go home — skip the routing lookup
+
+        var mode = HomeLegMode(settings);
+        var from = new GeoPoint(previous.Place!.Lat, previous.Place.Lng);
+        var home = new GeoPoint(homePlace.Lat, homePlace.Lng);
+        TimeSpan travelHome;
+        try
+        {
+            travelHome = routing is null
+                ? throw new RoutingUnavailableException("no routing client")
+                : (await routing.EstimateAsync(from, home, mode, previous.End, ct)).Duration;
+        }
+        catch (RoutingUnavailableException)
+        {
+            travelHome = (await new StraightLineRouting().EstimateAsync(from, home, mode, previous.End, ct)).Duration;
+        }
+        return gap.TotalMinutes < travelHome.TotalMinutes + phase.StayThresholdMin;
+    }
+
+    /// <summary>The mode for the hypothetical home leg: the pinned mode, else car, else the
+    /// first enabled mode. Train never — the straight-line fallback has no train speed.</summary>
+    private static TravelMode HomeLegMode(UserSettings settings) =>
+        settings.PinnedMode is { } pinned && pinned != TravelMode.Train ? pinned
+        : settings.EnabledModes.Contains(TravelMode.Car) ? TravelMode.Car
+        : settings.EnabledModes.FirstOrDefault(m => m != TravelMode.Train, TravelMode.Car);
 
     /// <summary>Traffic when the traffic delay grew by ≥3 min AND that growth explains at
     /// least half of the leaveAt shift; otherwise Routing (replacement-nudge amendment).</summary>

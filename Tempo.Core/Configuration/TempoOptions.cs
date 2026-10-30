@@ -44,9 +44,11 @@ public sealed class PhaseOptions
     /// (the spec's "ArriveRadiusM"). Also the same-place threshold for chained origins.</summary>
     public int ArrivedMeters { get; init; } = 100;
 
-    /// <summary>Chained origins: a look-ahead plan departs from the previous placed
-    /// appointment when it ends no more than this many hours before this one starts.</summary>
-    public int ChainGapHours { get; init; } = 3;
+    /// <summary>Chained origins (amended 30 Oct 2026, from real use — a 20:00 party chained
+    /// from hockey ending 17:00): a look-ahead plan departs from the previous placed
+    /// appointment only when the gap is shorter than the travel home from there plus this
+    /// margin; otherwise home is assumed. Replaces the flat ChainGapHours = 3 rule.</summary>
+    public int StayThresholdMin { get; init; } = 45;
 
     /// <summary>EnRoute from movement (28 Oct 2026): two consecutive fixes within
     /// MovementWindowMinutes that are more than this far apart mean the user is moving.</summary>

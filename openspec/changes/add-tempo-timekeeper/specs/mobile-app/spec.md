@@ -40,7 +40,11 @@ The Now screen SHALL show the next appointment with a dominant countdown to `lea
 - **THEN** the screen background changes to the late colour, the headline counts the minutes past `leaveBy` (the minutes the arrival actually slips past the start), and one large button presents the recovery action from the latest `Late` nudge
 
 ### Requirement: Today screen
-The Today screen SHALL show today's appointments as a vertical timeline with leave time, mode and stops per appointment; appointments without a resolvable place SHALL be shown greyed with "no location".
+The Today screen SHALL show today's appointments as a vertical timeline with leave time, mode and stops per appointment; appointments without a resolvable place SHALL be shown greyed with "no location". *(Amended 30 Oct 2026 — chained origins:)* every plan row SHALL name its origin — "from home" / "from <previous title>" / "from here" — so a wrong origin assumption is visible at a glance.
+
+#### Scenario: Origin named on the row *(added 30 Oct 2026)*
+- **WHEN** a look-ahead plan departs from home after a long gap
+- **THEN** its Today row reads "from home" in the plan line
 
 #### Scenario: Timeline order
 - **WHEN** three appointments exist today

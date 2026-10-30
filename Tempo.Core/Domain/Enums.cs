@@ -114,6 +114,16 @@ public enum PlanShiftReason
     Appointment,
 }
 
+/// <summary>What a habit says (chained-origin amendment, 30 Oct 2026). Stop habits add a
+/// stop to the route; ReturnsHome/StaysPut habits decide a look-ahead plan's origin —
+/// whether the user goes home between two appointments — and never become stops.</summary>
+public enum HabitKind
+{
+    Stop,
+    ReturnsHome,
+    StaysPut,
+}
+
 /// <summary>Where a plan's departure is measured from (chained origins, D6 amendment).</summary>
 public enum OriginKind
 {

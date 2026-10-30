@@ -27,7 +27,8 @@ public sealed record ContextKey(
     DayOfWeek? Weekday,
     TimeBucket TimeBucket,
     TravelDirection Direction,
-    string? AdjacentAppointmentKind)
+    string? AdjacentAppointmentKind,
+    string? GapBucket = null)
 {
     /// <summary>A confirmed habit matches a planning context only when weekday, time bucket and
     /// direction all match and, if the habit has an adjacent appointment kind, that matches too
@@ -41,6 +42,22 @@ public sealed record ContextKey(
         && Direction == planning.Direction
         && (AdjacentAppointmentKind is null
             || string.Equals(AdjacentAppointmentKind, planning.AdjacentAppointmentKind, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>ReturnsHome/StaysPut matching (chained-origin amendment, 30 Oct 2026): the
+    /// previous appointment's kind, the weekday (null = any Monday–Friday) and the gap
+    /// bucket all match. Time bucket and direction play no part — the gap bucket carries
+    /// the shape of the day between the two appointments.</summary>
+    public bool MatchesOrigin(DayOfWeek weekday, string previousKind, string gapBucket) =>
+        (Weekday is null
+            ? weekday is >= DayOfWeek.Monday and <= DayOfWeek.Friday
+            : Weekday == weekday)
+        && string.Equals(AdjacentAppointmentKind, previousKind, StringComparison.OrdinalIgnoreCase)
+        && string.Equals(GapBucket, gapBucket, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Gap between two placed appointments, bucketed so evidence from different
+    /// days is comparable: under an hour, an hour to three, three or more.</summary>
+    public static string GapBucketOf(TimeSpan gap) =>
+        gap.TotalMinutes < 60 ? "short" : gap.TotalMinutes < 180 ? "medium" : "long";
 
     public static TimeBucket BucketOf(TimeOnly time) => time.Hour switch
     {

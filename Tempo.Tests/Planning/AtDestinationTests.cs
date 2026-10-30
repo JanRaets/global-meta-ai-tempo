@@ -144,7 +144,8 @@ public sealed class AtDestinationTests : IDisposable
 
         var firstOptions = await plans.OptionsAsync(first.Id);
         Assert.All(firstOptions.Options, o => Assert.False(o.IsNoTravel)); // home → office travels
-        Assert.All(firstOptions.Options, o => Assert.Equal(OriginKind.Current, o.OriginKind));
+        // The fix is at home, so the origin is named home (chained-origin amendment, 30 Oct 2026).
+        Assert.All(firstOptions.Options, o => Assert.Equal(OriginKind.Home, o.OriginKind));
 
         var secondOptions = await plans.OptionsAsync(second.Id);
         var middle = Assert.Single(secondOptions.Options); // same office: no travel

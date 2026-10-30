@@ -149,6 +149,69 @@ public sealed class HabitInferenceTests : IDisposable
         Assert.Contains("Albert Heijn", Assert.Single(db.Context.Habits).ProposalText);
     }
 
+    /// <summary>One comparable Friday (chained-origin amendment, 30 Oct 2026): hockey
+    /// 16:00–18:00 local, dinner at 21:00, a home visit in the 3 h gap between them.</summary>
+    private void AddHockeyThenDinnerDay(int weeksBack, Place hockeyPlace, Place dinnerPlace)
+    {
+        var hockeyStart = new DateTimeOffset(new DateTime(2026, 10, 23, 14, 0, 0).AddDays(-7 * weeksBack), TimeSpan.Zero);
+        db.Context.AddRange(
+            new Appointment
+            {
+                Id = Guid.NewGuid(), Title = "Hockey JO9", PlaceId = hockeyPlace.Id,
+                Start = hockeyStart, End = hockeyStart.AddHours(2),
+            },
+            new Appointment
+            {
+                Id = Guid.NewGuid(), Title = "Dinner at Jos", PlaceId = dinnerPlace.Id,
+                Start = hockeyStart.AddHours(5), End = hockeyStart.AddHours(7),
+            },
+            new Visit
+            {
+                Id = Guid.NewGuid(), PlaceId = home.Id,
+                ArrivedAt = hockeyStart.AddHours(2.5), DepartedAt = hockeyStart.AddHours(4.5),
+            });
+        db.Context.SaveChanges();
+    }
+
+    [Fact]
+    public async Task Three_fridays_home_between_hockey_and_dinner_propose_ReturnsHome()
+    {
+        var hockeyPlace = new Place { Id = Guid.NewGuid(), Name = "Schaerweijde", Lat = 52.1042, Lng = 5.2658 };
+        var dinnerPlace = new Place { Id = Guid.NewGuid(), Name = "Bij Jos", Lat = 52.0894, Lng = 5.1100 };
+        db.Context.AddRange(hockeyPlace, dinnerPlace);
+        db.Context.SaveChanges();
+        AddHockeyThenDinnerDay(1, hockeyPlace, dinnerPlace);
+        AddHockeyThenDinnerDay(2, hockeyPlace, dinnerPlace);
+        AddHockeyThenDinnerDay(3, hockeyPlace, dinnerPlace);
+        // nothing enqueued → the template words the proposal
+
+        Assert.Equal(1, await Service().RunAsync());
+
+        var habit = Assert.Single(db.Context.Habits);
+        Assert.Equal(HabitKind.ReturnsHome, habit.Kind);
+        Assert.Equal(HabitState.Proposed, habit.State);
+        Assert.Equal(home.Id, habit.PlaceId);
+        Assert.Equal(3, habit.VisitCount);
+        Assert.Equal(DayOfWeek.Friday, habit.Context.Weekday);
+        Assert.Equal("personal", habit.Context.AdjacentAppointmentKind);
+        Assert.Equal("long", habit.Context.GapBucket);
+        Assert.Contains("plan from home", habit.ProposalText);
+    }
+
+    [Fact]
+    public async Task Two_comparable_days_do_not_propose_ReturnsHome()
+    {
+        var hockeyPlace = new Place { Id = Guid.NewGuid(), Name = "Schaerweijde", Lat = 52.1042, Lng = 5.2658 };
+        var dinnerPlace = new Place { Id = Guid.NewGuid(), Name = "Bij Jos", Lat = 52.0894, Lng = 5.1100 };
+        db.Context.AddRange(hockeyPlace, dinnerPlace);
+        db.Context.SaveChanges();
+        AddHockeyThenDinnerDay(1, hockeyPlace, dinnerPlace);
+        AddHockeyThenDinnerDay(2, hockeyPlace, dinnerPlace);
+
+        Assert.Equal(0, await Service().RunAsync());
+        Assert.Empty(db.Context.Habits);
+    }
+
     [Fact]
     public void Direction_derives_from_surrounding_home_visits()
     {

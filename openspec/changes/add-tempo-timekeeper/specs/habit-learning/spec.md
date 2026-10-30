@@ -21,6 +21,21 @@ The system SHALL run a nightly job (and on demand) that groups `Visit` records b
 - **WHEN** a `Confirmed` or `Rejected` habit exists for the same `(placeId, contextKey)`
 - **THEN** no duplicate is created; a rejected habit is not re-proposed within 30 days
 
+### Requirement: ReturnsHome and StaysPut patterns *(added 30 Oct 2026 — chained-origin amendment)*
+The inference job SHALL also look between two placed appointments on the same local day: a home `Visit` inside the gap counts toward a `ReturnsHome` observation; a `Visit` at the previous appointment's place lasting until the next departure (within 15 minutes of the next start) counts toward `StaysPut`. Observations are comparable when the previous appointment's kind, the weekday and the gap bucket (`short` < 1 h, `medium` 1–3 h, `long` ≥ 3 h) match; at least 3 comparable days become a `Proposed` habit with that `Kind`, decided through the same confirmation handler and the same type-level guard as every other habit. A confirmed `ReturnsHome` or `StaysPut` habit overrides the departure-planning gap heuristic for matching look-ahead plans; neither kind ever enters a plan's stop subsets.
+
+#### Scenario: Returning home after hockey is noticed
+- **WHEN** on three comparable Fridays a home visit sits between hockey and the evening appointment
+- **THEN** one `ReturnsHome` habit is proposed — "After Hockey JO9 you usually head home before the next thing — plan from home?"
+
+#### Scenario: Two days are not a pattern
+- **WHEN** only two comparable days exist
+- **THEN** no habit is proposed
+
+#### Scenario: Confirmed override
+- **WHEN** the user confirms the `ReturnsHome` proposal
+- **THEN** matching look-ahead plans depart from home regardless of the gap heuristic
+
 ### Requirement: Proposal wording by LLM
 The system SHALL ask `IMetaModels.ChatJsonAsync` (Muse Spark) to produce a proposal sentence and a one-line rationale from the candidate's structured facts, and SHALL NOT let the model alter the numeric facts.
 

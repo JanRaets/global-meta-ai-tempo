@@ -8,7 +8,7 @@ namespace Tempo.Core.Domain;
 /// </summary>
 public sealed class ConfirmedHabit
 {
-    internal ConfirmedHabit(Guid habitId, Guid placeId, string placeName, double avgDurationMin, ContextKey context, double lat, double lng)
+    internal ConfirmedHabit(Guid habitId, Guid placeId, string placeName, double avgDurationMin, ContextKey context, double lat, double lng, HabitKind kind)
     {
         HabitId = habitId;
         PlaceId = placeId;
@@ -17,9 +17,13 @@ public sealed class ConfirmedHabit
         Context = context;
         Lat = lat;
         Lng = lng;
+        Kind = kind;
     }
 
     public Guid HabitId { get; }
+    /// <summary>Stop joins the route; ReturnsHome/StaysPut decide a look-ahead origin
+    /// (chained-origin amendment, 30 Oct 2026) and never enter stop subsets.</summary>
+    public HabitKind Kind { get; }
     public Guid PlaceId { get; }
     public string PlaceName { get; }
     public double AvgDurationMin { get; }

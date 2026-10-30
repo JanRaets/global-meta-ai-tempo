@@ -60,6 +60,59 @@ public sealed partial class HabitWording(IMetaModels models, ILogger<HabitWordin
         }
     }
 
+    /// <summary>Words a ReturnsHome/StaysPut proposal (chained-origin amendment, 30 Oct
+    /// 2026). Same guard as stop proposals: the only digit the model may write is the day
+    /// count; otherwise the deterministic template speaks.</summary>
+    public async Task<(string Sentence, string Rationale)> WordOriginAsync(
+        HabitKind kind, string previousTitle, string gapBucket, int dayCount, CancellationToken ct = default)
+    {
+        var fallback = OriginTemplate(kind, previousTitle, dayCount);
+        try
+        {
+            var facts = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                pattern = kind == HabitKind.ReturnsHome
+                    ? "goes home between this appointment and the next"
+                    : "stays at this appointment's place until the next one",
+                previousAppointment = previousTitle,
+                gap = gapBucket,
+                observedDays = dayCount,
+            });
+            var result = await models.ChatJsonAsync<HabitProposalText>(
+                [
+                    ChatMessage.System(
+                        "You word a habit proposal for a time-keeper app. Given facts about what the user does " +
+                        "between two appointments, write {\"sentence\", \"rationale\"}: the sentence reads like a " +
+                        "friend noticing something and asks whether to plan departures from that pattern; the " +
+                        "rationale is one short evidence line. Use only the numbers given, keep the appointment " +
+                        "title exactly as written, no clock times."),
+                    ChatMessage.User(facts),
+                ],
+                Schema, purpose: "habit-wording", ct);
+            var text = result.Value;
+            if (string.IsNullOrWhiteSpace(text.Sentence)
+                || !NumberPattern().Matches(text.Sentence + " " + text.Rationale)
+                    .All(m => long.Parse(m.Value) == dayCount))
+            {
+                logger.LogWarning("Origin-habit wording altered the numbers; using the template for {Title}", previousTitle);
+                return fallback;
+            }
+            return (text.Sentence.Trim(), text.Rationale.Trim());
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning("Origin-habit wording unavailable ({Message}); using the template for {Title}", ex.Message, previousTitle);
+            return fallback;
+        }
+    }
+
+    private static (string, string) OriginTemplate(HabitKind kind, string previousTitle, int dayCount) =>
+        kind == HabitKind.ReturnsHome
+            ? ($"After {previousTitle} you usually head home before the next thing — plan from home?",
+                $"Seen on {dayCount} comparable days")
+            : ($"After {previousTitle} you usually stay put until the next thing — plan from there?",
+                $"Seen on {dayCount} comparable days");
+
     private static bool NumbersAreFactual(HabitProposalText text, double avgMin, int visitCount)
     {
         var allowed = new HashSet<long> { (long)Math.Round(avgMin), visitCount };

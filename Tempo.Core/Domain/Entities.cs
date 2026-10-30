@@ -49,6 +49,9 @@ public sealed class Habit
     public Guid PlaceId { get; set; }
     public Place? Place { get; set; }
     public required ContextKey Context { get; set; }
+    /// <summary>Stop habits join the route; ReturnsHome/StaysPut habits decide a look-ahead
+    /// plan's origin (chained-origin amendment, 30 Oct 2026).</summary>
+    public HabitKind Kind { get; set; } = HabitKind.Stop;
     public HabitState State { get; set; } = HabitState.Proposed;
     public double AvgDurationMin { get; set; }
     public int VisitCount { get; set; }
