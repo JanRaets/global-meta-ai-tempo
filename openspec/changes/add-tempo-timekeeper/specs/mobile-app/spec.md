@@ -87,11 +87,19 @@ Every nudge in the app SHALL have a "Why?" affordance that opens a bottom sheet 
 - **THEN** the sheet shows the steps and a "Served by Muse Spark" footer
 
 ### Requirement: Push subscription
-The Settings screen SHALL have an "Enable notifications" control; on iOS, when the app is not installed to the home screen, it SHALL show a one-line install hint instead. The subscription is posted to `POST /push/subscribe`, and a test-notification button sends one.
+The Settings screen SHALL have an "Enable notifications" control; on iOS, when the app is not installed to the home screen, it SHALL show a one-line install hint instead. The subscription is posted to `POST /push/subscribe`, and a test-notification button sends one. *(Amended 30 Oct 2026, from real use: nudges went dark while the push service kept answering 200 on a device-dead endpoint, and Settings refused a re-enable because the server already held a row.)* The app SHALL silently re-post this device's current subscription on every open when notification permission is already granted (re-subscribing if the browser dropped it, never prompting); the service worker SHALL handle `pushsubscriptionchange` by re-subscribing, registering the new endpoint and unregistering the old one; and the Enable control SHALL stay reachable (as "Re-enable") even when the server already holds subscriptions, because a stored row proves nothing about this device.
 
 #### Scenario: Notification tap
 - **WHEN** the user taps a nudge notification
 - **THEN** the app opens on the linked screen (`/now` for nudges, `/habits` for proposals)
+
+#### Scenario: Rotated subscription heals on open *(added 30 Oct 2026)*
+- **WHEN** the OS has rotated or dropped the push subscription and the user opens the app with permission still granted
+- **THEN** the app re-subscribes and re-posts the current endpoint without any tap, and the next nudge is delivered to it
+
+#### Scenario: Re-enable despite "subscribed" *(added 30 Oct 2026)*
+- **WHEN** the server holds a subscription row but this device receives nothing
+- **THEN** the Settings screen still offers "Re-enable", which re-registers this device's subscription
 
 ### Requirement: In-app nudge mirror
 The Now screen SHALL show the last three push-notified nudges, newest first.

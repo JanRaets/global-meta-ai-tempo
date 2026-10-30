@@ -168,22 +168,34 @@ export function SettingsScreen() {
                   : 'Leave and late nudges as push messages'}
             </span>
           </div>
-          {pushState === 'subscribed' || data.pushSubscriptions > 0 ? (
-            <button
-              className="min-h-10 px-3.5 border-2 border-[#E5E7EB] rounded-xl bg-transparent text-sm font-semibold"
-              onClick={() => void api.pushTest().then(() => setPushState('tested'))}
-            >
-              {pushState === 'tested' ? 'Sent ✓' : 'Send test'}
-            </button>
-          ) : (
+          {/* Enable stays reachable even when the server already holds a subscription:
+              that row can belong to a dead endpoint, and this device may not be it
+              (amended 30 Oct 2026 — "I cannot hit enable again, it says enabled"). */}
+          <div className="flex gap-2 flex-shrink-0">
+            {(pushState === 'subscribed' || data.pushSubscriptions > 0) && (
+              <button
+                className="min-h-10 px-3.5 border-2 border-[#E5E7EB] rounded-xl bg-transparent text-sm font-semibold"
+                onClick={() => void api.pushTest().then(() => setPushState('tested'))}
+              >
+                {pushState === 'tested' ? 'Sent ✓' : 'Send test'}
+              </button>
+            )}
             <button
               className="min-h-10 px-3.5 border-0 rounded-xl bg-[#1F5EFF] text-white text-sm font-semibold disabled:opacity-60"
               disabled={pushState === 'busy'}
               onClick={onEnablePush}
             >
-              {pushState === 'busy' ? '…' : pushState === 'denied' ? 'Allow notifications in the browser first' : pushState === 'unsupported' ? 'Not available in this browser' : 'Enable'}
+              {pushState === 'busy'
+                ? '…'
+                : pushState === 'denied'
+                  ? 'Allow notifications in the browser first'
+                  : pushState === 'unsupported'
+                    ? 'Not available in this browser'
+                    : pushState === 'subscribed' || data.pushSubscriptions > 0
+                      ? 'Re-enable'
+                      : 'Enable'}
             </button>
-          )}
+          </div>
         </div>
 
         <div className="flex justify-between items-center py-3.5 min-h-14">

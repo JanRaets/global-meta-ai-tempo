@@ -10,12 +10,7 @@ function base64UrlToUint8Array(base64Url: string): Uint8Array<ArrayBuffer> {
   return bytes
 }
 
-export async function enablePush(): Promise<'subscribed' | 'denied' | 'unsupported'> {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return 'unsupported'
-  const permission = await Notification.requestPermission()
-  if (permission !== 'granted') return 'denied'
-
-  const registration = await navigator.serviceWorker.ready
+async function registerCurrentSubscription(registration: ServiceWorkerRegistration): Promise<void> {
   const { publicKey } = await fetch('/push/vapid-public-key').then((r) => r.json())
   const subscription =
     (await registration.pushManager.getSubscription()) ??
@@ -30,7 +25,30 @@ export async function enablePush(): Promise<'subscribed' | 'denied' | 'unsupport
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys, userAgent: navigator.userAgent }),
   })
+}
+
+export async function enablePush(): Promise<'subscribed' | 'denied' | 'unsupported'> {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return 'unsupported'
+  const permission = await Notification.requestPermission()
+  if (permission !== 'granted') return 'denied'
+
+  await registerCurrentSubscription(await navigator.serviceWorker.ready)
   return 'subscribed'
+}
+
+/** Silent re-sync on every app open (added 30 Oct 2026, from real use: pushes went dark —
+ * the server kept sending to a device-dead endpoint that Apple still answered 200 for.
+ * iOS can rotate or drop a web-push subscription without telling anyone, so the stored
+ * endpoint is only trustworthy for as long as the app keeps re-asserting it). Acts only
+ * when permission is already granted; never prompts, never throws into app start. */
+export async function resyncPush(): Promise<void> {
+  try {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
+    if (Notification.permission !== 'granted') return
+    await registerCurrentSubscription(await navigator.serviceWorker.ready)
+  } catch {
+    // Best effort — the app must start even when the push service misbehaves.
+  }
 }
 
 export async function disablePush(): Promise<void> {
