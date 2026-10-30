@@ -172,5 +172,25 @@ public sealed class ChainedOriginTests : IDisposable
         Assert.All(options.Options, o => Assert.Equal(OriginKind.Home, o.OriginKind));
     }
 
+    [Fact]
+    public async Task An_origin_change_defeats_the_jitter_guard()
+    {
+        Appointment("Weekly sync", office, "2026-10-30T08:00:00Z", "2026-10-30T09:00:00Z");
+        var review = Appointment("Design review", venue, "2026-10-30T09:40:00Z", "2026-10-30T10:30:00Z");
+        FixAt(home);
+        var plans = Plans();
+        var v1 = await plans.FallbackCommitAsync(review.Id);
+        Assert.Equal(OriginKind.PreviousAppointment, v1!.OriginKind); // 40 min gap chains
+
+        // A confirmed ReturnsHome habit flips the origin; the flat fake routing keeps the
+        // times identical, which used to fall inside the ±3 min jitter guard.
+        OriginHabit(HabitKind.ReturnsHome, home,
+            new ContextKey(null, TimeBucket.Morning, TravelDirection.TowardHome, "meeting", "short"));
+        var v2 = await plans.FallbackCommitAsync(review.Id);
+
+        Assert.Equal(OriginKind.Home, v2!.OriginKind);
+        Assert.Equal(v1.Version + 1, v2.Version);
+    }
+
     public void Dispose() => db.Dispose();
 }

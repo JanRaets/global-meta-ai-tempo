@@ -113,6 +113,10 @@ public sealed class PlanService(
             && current.Mode == option.Mode
             && SameStops(current.Stops, option.Stops)
             && current.IsEstimated == option.IsEstimated // estimate → real is a real change (D18)
+            // The Today row names the origin, so a changed origin is a real change even
+            // when the times barely move (chained-origin amendment, 30 Oct 2026).
+            && current.OriginKind == option.OriginKind
+            && current.OriginName == option.OriginName
             && (current.LeaveAt - option.LeaveAt).Duration() <= JitterTolerance)
         {
             return CommitResult.Unchanged(current); // ±3 min routing jitter: version unchanged
@@ -220,6 +224,10 @@ public sealed class PlanService(
             plan.SlackMin = match.SlackMin;
             plan.IsEstimated = match.IsEstimated;
             plan.TrafficDelayMin = match.TrafficDelayMin;
+            // The in-place refresh carries the origin too — near departure the evidence
+            // (a fix at home or still at the previous place) may rename it (30 Oct 2026).
+            plan.OriginKind = match.OriginKind;
+            plan.OriginName = match.OriginName;
             await db.SaveChangesAsync(ct);
             logger.LogInformation("Plan v{Version} refreshed in place for {AppointmentId}: arrive {ArriveAt:HH:mm}{Estimated}",
                 plan.Version, appointmentId, plan.ArriveAt, plan.IsEstimated ? " (estimated)" : "");
