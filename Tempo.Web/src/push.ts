@@ -10,15 +10,7 @@ function base64UrlToUint8Array(base64Url: string): Uint8Array<ArrayBuffer> {
   return bytes
 }
 
-async function registerCurrentSubscription(registration: ServiceWorkerRegistration): Promise<void> {
-  const { publicKey } = await fetch('/push/vapid-public-key').then((r) => r.json())
-  const subscription =
-    (await registration.pushManager.getSubscription()) ??
-    (await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: base64UrlToUint8Array(publicKey),
-    }))
-
+async function postSubscription(subscription: PushSubscription): Promise<void> {
   const json = subscription.toJSON()
   await fetch('/push/subscribe', {
     method: 'POST',
@@ -32,20 +24,32 @@ export async function enablePush(): Promise<'subscribed' | 'denied' | 'unsupport
   const permission = await Notification.requestPermission()
   if (permission !== 'granted') return 'denied'
 
-  await registerCurrentSubscription(await navigator.serviceWorker.ready)
+  const registration = await navigator.serviceWorker.ready
+  const { publicKey } = await fetch('/push/vapid-public-key').then((r) => r.json())
+  const subscription =
+    (await registration.pushManager.getSubscription()) ??
+    (await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: base64UrlToUint8Array(publicKey),
+    }))
+  await postSubscription(subscription)
   return 'subscribed'
 }
 
 /** Silent re-sync on every app open (added 30 Oct 2026, from real use: pushes went dark —
- * the server kept sending to a device-dead endpoint that Apple still answered 200 for.
- * iOS can rotate or drop a web-push subscription without telling anyone, so the stored
- * endpoint is only trustworthy for as long as the app keeps re-asserting it). Acts only
- * when permission is already granted; never prompts, never throws into app start. */
+ * the server kept sending to a device-dead endpoint that Apple still answered 200 for).
+ * Re-posts only a subscription the browser already holds (amended 1 Nov 2026, from real
+ * use: calling subscribe() here made iOS show the permission popup on every open).
+ * Creating a subscription needs a user gesture — that is the Settings Re-enable button;
+ * a rotation with the app closed is the service worker's pushsubscriptionchange handler.
+ * Never prompts, never throws into app start. */
 export async function resyncPush(): Promise<void> {
   try {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
     if (Notification.permission !== 'granted') return
-    await registerCurrentSubscription(await navigator.serviceWorker.ready)
+    const registration = await navigator.serviceWorker.ready
+    const subscription = await registration.pushManager.getSubscription()
+    if (subscription) await postSubscription(subscription)
   } catch {
     // Best effort — the app must start even when the push service misbehaves.
   }

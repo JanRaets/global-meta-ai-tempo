@@ -87,15 +87,19 @@ Every nudge in the app SHALL have a "Why?" affordance that opens a bottom sheet 
 - **THEN** the sheet shows the steps and a "Served by Muse Spark" footer
 
 ### Requirement: Push subscription
-The Settings screen SHALL have an "Enable notifications" control; on iOS, when the app is not installed to the home screen, it SHALL show a one-line install hint instead. The subscription is posted to `POST /push/subscribe`, and a test-notification button sends one. *(Amended 30 Oct 2026, from real use: nudges went dark while the push service kept answering 200 on a device-dead endpoint, and Settings refused a re-enable because the server already held a row.)* The app SHALL silently re-post this device's current subscription on every open when notification permission is already granted (re-subscribing if the browser dropped it, never prompting); the service worker SHALL handle `pushsubscriptionchange` by re-subscribing, registering the new endpoint and unregistering the old one; and the Enable control SHALL stay reachable (as "Re-enable") even when the server already holds subscriptions, because a stored row proves nothing about this device.
+The Settings screen SHALL have an "Enable notifications" control; on iOS, when the app is not installed to the home screen, it SHALL show a one-line install hint instead. The subscription is posted to `POST /push/subscribe`, and a test-notification button sends one. *(Amended 30 Oct 2026, from real use: nudges went dark while the push service kept answering 200 on a device-dead endpoint, and Settings refused a re-enable because the server already held a row.)* The app SHALL silently re-post this device's current subscription on every open when notification permission is already granted — re-posting only a subscription the browser already holds, never calling `subscribe()` *(narrowed 1 Nov 2026, from real use: subscribing on open made iOS show the permission popup every time, which breaks a demo)*; creating a subscription happens only from the Re-enable tap or the service worker's `pushsubscriptionchange` handler (re-subscribe, register the new endpoint, unregister the old one). The Enable control SHALL stay reachable (as "Re-enable") even when the server already holds subscriptions, because a stored row proves nothing about this device.
 
 #### Scenario: Notification tap
 - **WHEN** the user taps a nudge notification
 - **THEN** the app opens on the linked screen (`/now` for nudges, `/habits` for proposals)
 
-#### Scenario: Rotated subscription heals on open *(added 30 Oct 2026)*
-- **WHEN** the OS has rotated or dropped the push subscription and the user opens the app with permission still granted
-- **THEN** the app re-subscribes and re-posts the current endpoint without any tap, and the next nudge is delivered to it
+#### Scenario: Rotated subscription heals on open *(added 30 Oct 2026; narrowed 1 Nov 2026)*
+- **WHEN** the browser holds a subscription the server does not know and the user opens the app with permission granted
+- **THEN** the app re-posts that endpoint without any tap or popup, and the next nudge is delivered to it
+
+#### Scenario: No silent prompting *(added 1 Nov 2026)*
+- **WHEN** the browser holds no subscription and the user opens the app
+- **THEN** no permission popup appears; a new subscription is created only by the Re-enable tap or the service worker's `pushsubscriptionchange` handler
 
 #### Scenario: Re-enable despite "subscribed" *(added 30 Oct 2026)*
 - **WHEN** the server holds a subscription row but this device receives nothing
