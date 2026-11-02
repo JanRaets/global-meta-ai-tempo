@@ -12,12 +12,17 @@ namespace Tempo.Jobs;
 /// <summary>
 /// The demo-mode toggle's backing job (13.1/13.2, design D11): seeds the safety net only
 /// when real data is thin, creates one demo appointment (today 10:00 when that is 20–75 min
-/// out — the "coffee before a morning meeting" scene — otherwise now+30), and replays a
-/// trail from the home place through the normal ingest path. The trail idles at home until
-/// two minutes past the plan's leaveBy and the Late nudge is out, so the full arc lands:
-/// Upcoming → LeaveNow → Late (nudge) → EnRoute → Arrived (amended 29 Oct 2026 — earlier
-/// fixed-length trails left home inside the margin and the Late beat never happened).
-/// Everything demo-made is marked "Demo:" so it is recognisable and removable.
+/// out — the "coffee before a morning meeting" scene — otherwise now+50, far enough out
+/// that the coffee-inclusive countdown starts calm), and replays a trail from the home
+/// place through the normal ingest path. The trail idles at home until two minutes past
+/// the plan's leaveBy and the Late nudge is out, so the full arc lands: Upcoming →
+/// LeaveNow → Late (nudge) → EnRoute → Arrived (amended 29 Oct 2026 — earlier fixed-length
+/// trails left home inside the margin and the Late beat never happened).
+/// Amended 1 Nov 2026 (filming "whenever"): the toggle also guarantees the Bar Bello
+/// coffee stop by seeding a confirmed demo habit whose context matches the arc's
+/// appointment exactly — the thin-data habit only covers weekday mornings — and clears
+/// the location buffer up front so the first plan departs from home wherever the phone
+/// is. Everything demo-made is marked "Demo:" so it is recognisable and removable.
 /// </summary>
 public sealed class DemoModeService(
     TempoDbContext db,
@@ -45,6 +50,13 @@ public sealed class DemoModeService(
             await db.SaveChangesAsync(ct);
             logger.LogInformation("Demo mode off: removed {Count} demo nudge(s)", demoNudges.Count);
         }
+        var demoHabits = await db.Habits.Where(h => h.ProposalText != null && h.ProposalText.StartsWith("Demo: ")).ToListAsync(ct);
+        if (demoHabits.Count > 0)
+        {
+            db.Habits.RemoveRange(demoHabits);
+            await db.SaveChangesAsync(ct);
+            logger.LogInformation("Demo mode off: removed {Count} demo habit(s)", demoHabits.Count);
+        }
         var demoAppointments = await db.Appointments.Where(a => a.Title.StartsWith("Demo: ")).ToListAsync(ct);
         if (demoAppointments.Count == 0)
             return;
@@ -63,6 +75,11 @@ public sealed class DemoModeService(
         }
 
         await SeedIfThinAsync(settings, ct);
+
+        // Clear the buffer before any plan is asked for: a stale/empty buffer makes the
+        // planner fall back to the home origin, so the demo departs from home wherever the
+        // phone really is (1 Nov 2026 — ReplayTrailAsync clears again before its own trail).
+        await buffer.ClearAsync(ct);
 
         var home = settings.HomePlaceId is { } homeId
             ? await db.Places.AsNoTracking().SingleOrDefaultAsync(p => p.Id == homeId, ct)
@@ -168,19 +185,28 @@ public sealed class DemoModeService(
         var existing = (await db.Appointments.AsNoTracking().Include(a => a.Place).ToListAsync(ct))
             .FirstOrDefault(a => a.PlaceId != null && !a.IsVirtual && a.Start > now && a.Start <= now.AddMinutes(60));
         if (existing is not null)
+        {
+            // A real appointment is the arc: still guarantee the coffee beat, and replan so
+            // the already-committed plan picks the stop up (1 Nov 2026).
+            if (await EnsureDemoHabitAsync(existing.Start, existing.Title, settings, ct))
+                await events.PublishAsync(new AppointmentChanged(existing.Id, AppointmentChangeKind.Updated), ct);
             return (existing, existing.Place!);
+        }
 
         var destination = await places.ResolvePointAsync(52.0894, 5.1100, "Utrecht Centraal", ct);
         await db.SaveChangesAsync(ct);
         // A 10:00 meeting when that is 20–75 min out (the morning filming scene: "Leave in N
-        // min" with the weekday-morning coffee stop); otherwise now+30 so the arc works at any
-        // hour. Either way leaveAt lands minutes out and lateness follows mid-replay.
+        // min" with the weekday-morning coffee stop); otherwise now+50 (was now+30; amended
+        // 1 Nov 2026) so travel (~20) + buffer (5) + coffee (9) still leaves a ~15-minute calm
+        // countdown before the arc turns late mid-replay.
         var tz = TimeZoneInfo.FindSystemTimeZoneById(settings.TimeZone);
         var local = TimeZoneInfo.ConvertTime(now, tz);
         var tenLocal = new DateTimeOffset(local.Date.AddHours(10), local.Offset).ToUniversalTime();
         var start = tenLocal - now >= TimeSpan.FromMinutes(20) && tenLocal - now <= TimeSpan.FromMinutes(75)
             ? tenLocal
-            : now.AddMinutes(30);
+            : now.AddMinutes(50);
+        await EnsureDemoHabitAsync(start, "Demo: meeting met Tom", settings, ct); // before the
+        // appointment exists, so the very first committed plan already carries the stop
         var appointment = new Appointment
         {
             Id = Guid.NewGuid(),
@@ -196,6 +222,50 @@ public sealed class DemoModeService(
         await events.PublishAsync(new AppointmentChanged(appointment.Id, AppointmentChangeKind.Created), ct);
         logger.LogWarning("Demo mode: seeded appointment '{Title}' at {Start:HH:mm} UTC", appointment.Title, appointment.Start);
         return (appointment, destination);
+    }
+
+    /// <summary>The coffee beat must land whenever demo mode is toggled (1 Nov 2026 — the
+    /// thin-data habit only matches weekday mornings, so evening or weekend takes had no
+    /// stop): seed a confirmed Bar Bello habit whose context matches the arc appointment
+    /// exactly — its weekday, its start's time bucket, away from home, its classified kind.
+    /// Skipped when a confirmed Bar Bello stop habit already matches (the weekday-morning
+    /// scene, or a habit this method made earlier today). Marked "Demo: " in the proposal
+    /// text, which is what CleanupAsync removes on toggle-off. Returns true when created.</summary>
+    private async Task<bool> EnsureDemoHabitAsync(DateTimeOffset start, string title, UserSettings settings, CancellationToken ct)
+    {
+        var cafe = await places.ResolvePointAsync(52.0905, 5.2000, "Bar Bello", ct);
+        await db.SaveChangesAsync(ct);
+
+        var tz = TimeZoneInfo.FindSystemTimeZoneById(settings.TimeZone);
+        var localStart = TimeZoneInfo.ConvertTime(start, tz);
+        var key = new ContextKey(localStart.DayOfWeek, ContextKey.BucketOf(TimeOnly.FromDateTime(localStart.DateTime)),
+            TravelDirection.AwayFromHome, AppointmentKind.Classify(title));
+
+        var alreadyMatches = (await db.Habits.Include(h => h.Place)
+                .Where(h => h.State == HabitState.Confirmed && !h.IsPaused && h.PlaceId == cafe.Id && h.Kind == HabitKind.Stop)
+                .ToListAsync(ct))
+            .Select(ConfirmHabitHandler.FromPersisted)
+            .Any(h => h.Matches(key));
+        if (alreadyMatches)
+            return false;
+
+        db.Habits.Add(new Habit
+        {
+            Id = Guid.NewGuid(),
+            PlaceId = cafe.Id,
+            Kind = HabitKind.Stop,
+            Context = key,
+            State = HabitState.Confirmed,
+            AvgDurationMin = 9,
+            VisitCount = 10,
+            ProposalText = "Demo: coffee at Bar Bello on the way, about 9 min",
+            Rationale = "demo mode — removed when the toggle goes off",
+            DecidedAt = clock.GetUtcNow(),
+        });
+        await db.SaveChangesAsync(ct);
+        logger.LogWarning("Demo mode: seeded a confirmed Bar Bello habit for {Weekday} {Bucket}",
+            key.Weekday, key.TimeBucket);
+        return true;
     }
 
     /// <summary>13.2 + 13.e (amended 29 Oct 2026): the trail is replayed in real time into
