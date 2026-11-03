@@ -56,6 +56,48 @@ public sealed class CaptureServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task A_venue_written_with_in_resolves_through_the_comma_variant()
+    {
+        // Real take, 3 Nov 2026: the geocoder answers nothing for "Café Bommel in Zeist"
+        // but finds "Café Bommel, Zeist" — the connective becomes a comma, deterministically.
+        geocoder.Knows("Café Bommel, Zeist", 52.0888, 5.2317, "Café Bommel, Zeist");
+        model.EnqueueTyped(Extract(place: "Café Bommel in Zeist"));
+
+        var result = await Service().CaptureAsync(new byte[] { 1 }, "image/jpeg");
+
+        Assert.True(result.HasLocation);
+        Assert.Equal("Café Bommel, Zeist", result.PlaceName);
+        Assert.Contains(geocoder.Lookups, l => l.Text == "Café Bommel in Zeist"); // literal first
+    }
+
+    [Fact]
+    public async Task A_venue_only_the_bare_name_finds_is_the_last_resort()
+    {
+        geocoder.Knows("Café Bommel", 52.0888, 5.2317, "Café Bommel, Amersfoort");
+        model.EnqueueTyped(Extract(place: "Café Bommel in Zeist"));
+
+        var result = await Service().CaptureAsync(new byte[] { 1 }, "image/jpeg");
+
+        Assert.True(result.HasLocation);
+        // The card shows the label of what was actually found, so a wrong-city match is
+        // visible before Add — the user edits or retakes.
+        Assert.Equal("Café Bommel, Amersfoort", result.PlaceName);
+    }
+
+    [Fact]
+    public async Task An_unknown_venue_still_shows_the_card_without_location()
+    {
+        model.EnqueueTyped(Extract(place: "Bar Bello in Zeist"));
+
+        var result = await Service().CaptureAsync(new byte[] { 1 }, "image/jpeg");
+
+        Assert.True(result.Found);
+        Assert.False(result.HasLocation);
+        Assert.Equal(["Bar Bello in Zeist", "Bar Bello, Zeist", "Bar Bello"],
+            geocoder.Lookups.Select(l => l.Text).ToArray());
+    }
+
+    [Fact]
     public async Task Extract_with_unresolvable_date_leaves_start_empty_for_manual_entry()
     {
         model.EnqueueTyped(Extract(title: "Odd one", date: "someday"));

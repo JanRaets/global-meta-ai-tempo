@@ -10,7 +10,11 @@ The app SHALL provide a camera button on the Now screen that takes or picks a ph
 - **THEN** the photo is posted and a confirm card appears within 10 seconds
 
 ### Requirement: Extract with Spark vision
-The system SHALL call `DescribeImageAsync<CapturedAppointment>` to extract `title`, `dateText` and `timeText` (the date/time words literally as written — the model never resolves a date, per design D1), `placeText`, `confidence` and `rawText`; a deterministic resolver SHALL turn the words into a start time relative to today in the user's timezone, and the system SHALL geocode `placeText` through the same path as calendar locations. *(Amended 27 Oct 2026: `dateTime` split into literal `dateText`/`timeText` + code-side resolution, so no model output is ever used as a time — D1 enforced in the schema, not the prompt.)*
+The system SHALL call `DescribeImageAsync<CapturedAppointment>` to extract `title`, `dateText` and `timeText` (the date/time words literally as written — the model never resolves a date, per design D1), `placeText`, `confidence` and `rawText`; a deterministic resolver SHALL turn the words into a start time relative to today in the user's timezone, and the system SHALL geocode `placeText` home-focused with deterministic query variants in order — the literal text; the connective ("in"/"at"/"bij"/"op") replaced by a comma; the bare part before the connective — taking the first answer, whose label the card shows. *(Amended 27 Oct 2026: `dateTime` split into literal `dateText`/`timeText` + code-side resolution, so no model output is ever used as a time — D1 enforced in the schema, not the prompt.)* *(Amended 3 Nov 2026, from a real take: the geocoder answers nothing for "Café Bommel in Zeist" phrasing while "Café Bommel, Zeist" resolves — this replaces the earlier "same path as calendar locations" wording, which the implementation never matched.)*
+
+#### Scenario: Venue written with "in" *(added 3 Nov 2026)*
+- **WHEN** the extracted place text is "Café Bommel in Zeist" and the geocoder only answers "Café Bommel, Zeist"
+- **THEN** the card shows the resolved place via the comma variant; a place only the bare name finds is shown with the found label (wrong city stays visible before Add), and a place no variant finds shows "no location"
 
 #### Scenario: Relative date
 - **WHEN** the image says "Thursday 19:00" and today is Monday

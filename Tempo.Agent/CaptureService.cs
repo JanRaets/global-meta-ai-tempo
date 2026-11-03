@@ -239,7 +239,12 @@ public sealed class CaptureService(
     {
         try
         {
-            return await geocoder.GeocodeAsync(placeText, focus, ct);
+            foreach (var query in GeocodeQueryVariants(placeText))
+            {
+                if (await geocoder.GeocodeAsync(query, focus, ct) is { } result)
+                    return result;
+            }
+            return null;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -247,6 +252,24 @@ public sealed class CaptureService(
                 placeText, ex.Message);
             return null;
         }
+    }
+
+    /// <summary>The model returns the place words literally as written, but the geocoder
+    /// answers nothing for "<venue> in <city>" phrasing (3 Nov 2026, from a real take:
+    /// "Café Bommel in Zeist" → zero results, "Café Bommel, Zeist" → results). Variants are
+    /// tried in order, all deterministic: the literal text, the connective replaced by a
+    /// comma ("in/at/bij/op" between words), and finally the bare part before the
+    /// connective — home-focused, so the nearest match wins and the card shows its label.</summary>
+    private static IEnumerable<string> GeocodeQueryVariants(string placeText)
+    {
+        yield return placeText;
+        var match = System.Text.RegularExpressions.Regex.Match(
+            placeText, @"^(.+?)\s+(?:in|at|bij|op)\s+(.+)$",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        if (!match.Success)
+            yield break;
+        yield return $"{match.Groups[1].Value}, {match.Groups[2].Value}";
+        yield return match.Groups[1].Value;
     }
 
     private async Task<TimeZoneInfo> UserTimeZoneAsync(CancellationToken ct)
