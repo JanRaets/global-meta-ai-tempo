@@ -60,6 +60,7 @@ public sealed class NowEndpoint(TempoDbContext db, PlanService plans, PhaseOptio
             await Send.OkAsync(new
             {
                 state = "none",
+                demoMode = settings.DemoMode,
                 agentPaused = await AgentPausedAsync(db, agentOptions, tz, now, ct),
                 nudges = await RecentNudgesAsync(db, tz, 3, settings.DemoMode, ct),
             }, ct);
@@ -111,6 +112,8 @@ public sealed class NowEndpoint(TempoDbContext db, PlanService plans, PhaseOptio
             arriveLateMin = state == "enroute" ? ArriveSlipMin(plan!.ArriveAt, appointment.Start) : 0,
             // Visible cap state (29 Oct 2026): the daily agent-run cap must never fail silently.
             agentPaused = await AgentPausedAsync(db, agentOptions, tz, now, ct),
+            // The spec'd "demo" badge (found unimplemented 3 Nov 2026, from a filming take).
+            demoMode = settings.DemoMode,
             nudges = await RecentNudgesAsync(db, tz, 3, settings.DemoMode, ct),
         }, ct);
     }

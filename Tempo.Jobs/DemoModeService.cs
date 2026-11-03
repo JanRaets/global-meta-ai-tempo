@@ -12,8 +12,8 @@ namespace Tempo.Jobs;
 /// <summary>
 /// The demo-mode toggle's backing job (13.1/13.2, design D11): seeds the safety net only
 /// when real data is thin, creates one demo appointment (today 10:00 when that is 20–75 min
-/// out — the "coffee before a morning meeting" scene — otherwise now+50, far enough out
-/// that the coffee-inclusive countdown starts calm), and replays a trail from the home
+/// out — the "coffee before a morning meeting" scene — otherwise now+65, far enough out
+/// that even the with-stop option's departure starts calm), and replays a trail from the home
 /// place through the normal ingest path. The trail idles at home until two minutes past
 /// the plan's leaveBy and the Late nudge is out, so the full arc lands: Upcoming →
 /// LeaveNow → Late (nudge) → EnRoute → Arrived (amended 29 Oct 2026 — earlier fixed-length
@@ -196,15 +196,17 @@ public sealed class DemoModeService(
         var destination = await places.ResolvePointAsync(52.0894, 5.1100, "Utrecht Centraal", ct);
         await db.SaveChangesAsync(ct);
         // A 10:00 meeting when that is 20–75 min out (the morning filming scene: "Leave in N
-        // min" with the weekday-morning coffee stop); otherwise now+50 (was now+30; amended
-        // 1 Nov 2026) so travel (~20) + buffer (5) + coffee (9) still leaves a ~15-minute calm
-        // countdown before the arc turns late mid-replay.
+        // min" with the weekday-morning coffee stop); otherwise now+65 (was now+30, then +50 —
+        // amended 3 Nov 2026 after a real take: the afternoon via-café car route is ~35 min,
+        // so at now+50 the with-stop departure was already in the past and the agent rightly
+        // skipped the stop "to stay feasible"). 65 = ~35 via-stop travel + 5 buffer + 9 coffee
+        // + a ~15-minute calm countdown before the arc turns late mid-replay.
         var tz = TimeZoneInfo.FindSystemTimeZoneById(settings.TimeZone);
         var local = TimeZoneInfo.ConvertTime(now, tz);
         var tenLocal = new DateTimeOffset(local.Date.AddHours(10), local.Offset).ToUniversalTime();
         var start = tenLocal - now >= TimeSpan.FromMinutes(20) && tenLocal - now <= TimeSpan.FromMinutes(75)
             ? tenLocal
-            : now.AddMinutes(50);
+            : now.AddMinutes(65);
         await EnsureDemoHabitAsync(start, "Demo: meeting met Tom", settings, ct); // before the
         // appointment exists, so the very first committed plan already carries the stop
         var appointment = new Appointment

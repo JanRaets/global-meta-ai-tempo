@@ -20,7 +20,7 @@ export function NowScreen({ locationLive }: { locationLive: boolean }) {
 
   return (
     <div className={`flex flex-col flex-grow overflow-y-auto ${late ? 'bg-[#B42318] text-white' : 'bg-white text-[#111318]'}`}>
-      <Header locationLive={locationLive} late={late} reconnecting={error} />
+      <Header locationLive={locationLive} late={late} reconnecting={error} demo={data.demoMode} />
 
       {data.agentPaused && (
         <div className={`mx-6 mt-3 rounded-xl px-3.5 py-2 text-[13px] font-medium ${late ? 'bg-white/15 text-[#FFE4D6]' : 'bg-amber-100 text-amber-800'}`}>
@@ -185,17 +185,17 @@ function Shell({ locationLive }: { locationLive: boolean }) {
   )
 }
 
-function Header({ locationLive, late, reconnecting = false }: { locationLive: boolean; late: boolean; reconnecting?: boolean }) {
+function Header({ locationLive, late, reconnecting = false, demo = false }: { locationLive: boolean; late: boolean; reconnecting?: boolean; demo?: boolean }) {
   return (
     <div className="flex justify-between items-center px-6" style={{ paddingTop: 'max(env(safe-area-inset-top), 24px)' }}>
       <BrandHeader />
       <div className={`flex items-center gap-1.5 text-[13px] font-medium ${late ? 'text-[#FFE4D6]' : 'text-[#4B5563]'}`}>
         <span
           className={`w-2 h-2 rounded-full inline-block ${
-            reconnecting ? 'bg-[#F59E0B]' : late ? 'bg-white' : locationLive ? 'bg-[#1F5EFF]' : 'bg-[#D1D5DB]'
+            demo ? 'bg-[#F59E0B]' : reconnecting ? 'bg-[#F59E0B]' : late ? 'bg-white' : locationLive ? 'bg-[#1F5EFF]' : 'bg-[#D1D5DB]'
           }`}
         />
-        {reconnecting ? 'reconnecting…' : locationLive ? 'live' : 'no location'}
+        {demo ? 'demo' : reconnecting ? 'reconnecting…' : locationLive ? 'live' : 'no location'}
       </div>
     </div>
   )

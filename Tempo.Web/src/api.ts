@@ -24,6 +24,8 @@ export type NowPayload = {
   arriveLateMin?: number
   /** The daily agent-run cap is spent — shown as "paused: daily limit", never a silent stop. */
   agentPaused?: boolean
+  /** Demo mode is replaying a trail — the header badge reads "demo" instead of "live". */
+  demoMode?: boolean
   nudges: RecentNudge[]
 }
 
