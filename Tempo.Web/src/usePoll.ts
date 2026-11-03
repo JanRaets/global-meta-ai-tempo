@@ -17,8 +17,17 @@ export function usePoll<T>(fetcher: () => Promise<T>, intervalMs = 15_000, persi
   const [error, setError] = useState(false)
   const fetcherRef = useRef(fetcher)
   fetcherRef.current = fetcher
+  const pausedRef = useRef(false)
+
+  // Hold the poll during an in-flight action whose result card must be on screen before
+  // the numbers move (3 Nov 2026, from filming: the countdown jumped before the voice
+  // card said why). While paused, every refresh — interval, focus or manual — is skipped.
+  const setPaused = useCallback((paused: boolean) => {
+    pausedRef.current = paused
+  }, [])
 
   const refresh = useCallback(async () => {
+    if (pausedRef.current) return
     try {
       const value = await fetcherRef.current()
       setData(value)
@@ -46,5 +55,5 @@ export function usePoll<T>(fetcher: () => Promise<T>, intervalMs = 15_000, persi
     }
   }, [refresh, intervalMs])
 
-  return { data, error, refresh, setData }
+  return { data, error, refresh, setData, setPaused }
 }

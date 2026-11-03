@@ -18,7 +18,7 @@ type Phase = 'idle' | 'recording' | 'listening' | 'micDenied'
  * the recorder is created inside the press handler (iOS AudioContext rule). When the
  * microphone is denied, a text field with the three intent chips takes its place.
  */
-export function HoldToTalk({ onApplied }: { onApplied?: () => void } = {}) {
+export function HoldToTalk({ onApplied, onBusy }: { onApplied?: () => void; onBusy?: (busy: boolean) => void } = {}) {
   const [phase, setPhase] = useState<Phase>('idle')
   const [result, setResult] = useState<VoiceResult | null>(null)
   const [undone, setUndone] = useState(false)
@@ -35,7 +35,11 @@ export function HoldToTalk({ onApplied }: { onApplied?: () => void } = {}) {
     setUndoVisible(r.applied && r.intentId !== null)
     window.clearTimeout(undoTimer.current)
     undoTimer.current = window.setTimeout(() => setUndoVisible(false), 10_000) // Undo for 10 s
-    if (r.applied) onApplied?.()
+    // Card first, numbers after: the poll is held while the request runs (onBusy), so the
+    // countdown may only move once the card says why — a short beat after it renders
+    // (3 Nov 2026, from filming: the jump used to land before the explanation).
+    onBusy?.(false)
+    if (r.applied) window.setTimeout(() => onApplied?.(), 600)
   }
 
   const press = async () => {
@@ -53,6 +57,7 @@ export function HoldToTalk({ onApplied }: { onApplied?: () => void } = {}) {
   const release = async () => {
     if (phase !== 'recording' || !recorder.current) return
     setPhase('listening')
+    onBusy?.(true) // hold the poll: the server applies the intent mid-request
     try {
       const wav = await recorder.current.stop()
       const response = await fetch('/api/voice', {
@@ -65,6 +70,7 @@ export function HoldToTalk({ onApplied }: { onApplied?: () => void } = {}) {
     } catch {
       setResult(null)
     } finally {
+      onBusy?.(false) // no-op after showResult; releases the hold on the error path
       recorder.current = null
       setPhase('idle')
     }
@@ -73,6 +79,7 @@ export function HoldToTalk({ onApplied }: { onApplied?: () => void } = {}) {
   const sendText = async (value: string) => {
     if (!value.trim()) return
     setPhase('listening')
+    onBusy?.(true) // same hold as the spoken path
     try {
       const response = await fetch('/api/voice/text', {
         method: 'POST',
@@ -81,6 +88,7 @@ export function HoldToTalk({ onApplied }: { onApplied?: () => void } = {}) {
       })
       if (response.ok) showResult(await response.json())
     } finally {
+      onBusy?.(false)
       setText('')
       setPhase('micDenied')
     }

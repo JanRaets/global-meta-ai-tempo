@@ -10,7 +10,7 @@ import { usePoll } from '../usePoll'
 /** The Now screen (task 12.3, design canvas Main + Late artboards): one dominant number,
  * the committed plan as the reason line, voice input, recent nudges with Why?. */
 export function NowScreen({ locationLive }: { locationLive: boolean }) {
-  const { data, error, refresh } = usePoll<NowPayload>(api.now, 15_000, 'tempo:last-now')
+  const { data, error, refresh, setPaused } = usePoll<NowPayload>(api.now, 15_000, 'tempo:last-now')
   const [traceFor, setTraceFor] = useState<string | null>(null)
 
   if (!data) return <Shell locationLive={locationLive} />
@@ -137,7 +137,7 @@ export function NowScreen({ locationLive }: { locationLive: boolean }) {
 
       {!late && (
         <div className="mt-7 flex flex-wrap items-center justify-end gap-3 px-6">
-          <HoldToTalk onApplied={refresh} />
+          <HoldToTalk onApplied={refresh} onBusy={setPaused} />
           <CapturePhoto onApplied={refresh} />
         </div>
       )}
